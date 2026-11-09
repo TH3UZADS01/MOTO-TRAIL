@@ -8,15 +8,17 @@ import {Ride,steeringAngle} from './riding';
 import {FollowCamera} from './camera';
 import {Sound} from './audio';
 import {load,save} from './persistence';
-import {pois,surface,BRIDGE,LOOKOUT} from './terrain';
+import {pois,surface,LOOKOUT,stations,road,roadLength,nearest} from './terrain';
 import {RideNetwork} from './network';
 import {RemoteRiders} from './remote-riders';
 import {mountInterface} from './interface';
 mountInterface();
 const el=(id:string)=>document.getElementById(id)!;
 const scene=new T.Scene();scene.background=new T.Color(0xc3d5ce);scene.fog=new T.Fog(0xc3d5ce,150,780);const renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;el('scene').appendChild(renderer.domElement);
-scene.add(new T.HemisphereLight(0xe4f0ea,0x657653,1.5));const sun=new T.DirectionalLight(0xffdeb0,1.8);sun.position.set(-70,140,80);sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-45;sun.shadow.camera.right=45;sun.shadow.camera.top=45;sun.shadow.camera.bottom=-45;sun.shadow.camera.near=.1;sun.shadow.camera.far=300;sun.shadow.bias=-.001;scene.add(sun,sun.target);makeWorld(scene);
+scene.add(new T.HemisphereLight(0xe4f0ea,0x657653,1.5));const sun=new T.DirectionalLight(0xffdeb0,1.8);sun.position.set(-70,140,80);sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-45;sun.shadow.camera.right=45;sun.shadow.camera.top=45;sun.shadow.camera.bottom=-45;sun.shadow.camera.near=.1;sun.shadow.camera.far=300;sun.shadow.bias=-.001;scene.add(sun,sun.target);const world=makeWorld(scene);
 const settings=load();let bike=createBike(settings.vehicle);scene.add(bike.root);const ride=new Ride(),camera=new FollowCamera(),sound=new Sound(),controller=new Controller();ride.spec=getVehicle(settings.vehicle);sound.vehicle=settings.vehicle;let playing=false,started=false,last=performance.now(),accumulator=0,throttle=0;const keys=new Set<string>(),discovered=new Set<string>();let notifyUntil=0;
+ride.fuel.restore();
+window.addEventListener('pagehide',()=>ride.fuel.save());
 const remoteRiders=new RemoteRiders(scene);
 const network=new RideNetwork({
  horn:id=>{if(!document.hidden)sound.remoteHorn(id)},
@@ -48,7 +50,7 @@ el('copy-invite').onclick=()=>{const link=(el('invite-link') as HTMLInputElement
 // Local-only, reproducible visual QA viewpoints, eliminated from production builds.
 if(import.meta.env.DEV){
   const inspect=new URLSearchParams(location.search).get('inspect');
-  if(inspect==='ponte'){ride.x=-23;ride.z=BRIDGE.z;ride.heading=Math.PI/2;ride.contact();}
+  if(inspect==='posto'){ride.x=stations[0].x;ride.z=stations[0].z+8;ride.heading=Math.PI;ride.contact();}
   if(inspect==='mirante'){ride.x=LOOKOUT.x;ride.z=LOOKOUT.z+7;ride.heading=Math.PI;ride.contact();}
 }
 for(const id of ['vehicle-intro','vehicle-pause']){
@@ -66,19 +68,24 @@ function honk(){const now=performance.now();if(now-lastHonk<400)return;lastHonk=
 function toggleCamera(){camera.toggle();(el('camera-mode') as HTMLSelectElement).value=camera.firstPerson?'first':'third'}
 el('camera-mode').onchange=()=>{if(((el('camera-mode') as HTMLSelectElement).value==='first')!==camera.firstPerson)toggleCamera()};
 for(const name of ['deadzone','sensitivity'] as const){(el(name) as HTMLInputElement).value=String(settings[name]);el(name).oninput=()=>{settings[name]=Number((el(name) as HTMLInputElement).value);save(settings)}}
-function quality(){const q=settings.quality;renderer.setPixelRatio(Math.min(devicePixelRatio,q==='baixo'?.8:q==='medio'?1.25:1.7));renderer.shadowMap.enabled=q!=='baixo';renderer.shadowMap.type=T.PCFSoftShadowMap;sun.castShadow=q!=='baixo';camera.camera.far=q==='baixo'?550:900;camera.camera.updateProjectionMatrix();(scene.fog as T.Fog).far=q==='baixo'?500:780;sound.volume=settings.motor;sound.ambience=settings.ambient;save(settings)}quality();
+function quality(){const q=settings.quality;renderer.setPixelRatio(Math.min(devicePixelRatio,q==='baixo'?.8:q==='medio'?1.25:1.7));renderer.shadowMap.enabled=q!=='baixo';renderer.shadowMap.type=T.PCFSoftShadowMap;sun.castShadow=q!=='baixo';camera.camera.far=q==='baixo'?550:900;camera.camera.updateProjectionMatrix();(scene.fog as T.Fog).far=q==='baixo'?500:700;sound.volume=settings.motor;sound.ambience=settings.ambient;save(settings)}quality();
 (el('quality') as HTMLSelectElement).value=settings.quality;(el('motor') as HTMLInputElement).value=String(settings.motor);(el('ambient') as HTMLInputElement).value=String(settings.ambient);
 el('quality').onchange=e=>{settings.quality=(e.target as HTMLSelectElement).value as typeof settings.quality;quality()};for(const name of ['motor','ambient'] as const)el(name).oninput=e=>{settings[name]=Number((e.target as HTMLInputElement).value);quality()};
-function pause(){playing=false;ride.speed=0;keys.clear();network.send({vehicleId:settings.vehicle,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer,throttle:playing&&!ride.pushing?throttle:0,gear:ride.gear,engineOn:playing},performance.now(),true);el('panel').classList.remove('hidden')}
+function pause(){ride.fuel.save();playing=false;ride.speed=0;keys.clear();network.send({vehicleId:settings.vehicle,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer},performance.now(),true);el('panel').classList.remove('hidden')}
 function resume(){started=true;playing=true;el('intro').classList.add('hidden');el('panel').classList.add('hidden');el('hud').classList.remove('hidden');void sound.start().then(()=>{el('audio-status').textContent='Áudio pronto · gravações CC0'}).catch(()=>{el('audio-status').textContent='Falha ao carregar áudio. Tente continuar novamente.';notify('Não foi possível carregar o áudio.')});last=performance.now();accumulator=0}
 function notify(text:string){el('notification').textContent=text;el('notification').classList.add('visible');notifyUntil=performance.now()+4500}
+el('fuel-rescue').onclick=()=>{if(ride.fuel.rescue(settings.vehicle)){ride.fuel.save();notify('Ajuda chegou: 0,7 L para alcançar um posto.')}else notify('O socorro fica disponível quando o tanque esvaziar.');};
 el('start').onclick=resume;el('resume').onclick=resume;el('pause').onclick=pause;el('settings-open').onclick=pause;el('recover').onclick=()=>{ride.recover();camera.initialized=false;resume()};el('home').onclick=()=>{playing=false;ride.speed=0;el('panel').classList.add('hidden');el('intro').classList.remove('hidden');el('hud').classList.add('hidden')};el('credits-open').onclick=()=>el('credits').classList.remove('hidden');el('credits-close').onclick=()=>el('credits').classList.add('hidden');
 window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement)return;keys.add(e.code);if(e.repeat)return;if(e.code==='Escape'){if(playing)pause();else if(started)resume()}if(e.code==='KeyR'&&playing){ride.recover();camera.initialized=false;notify('De volta à estrada. Boa viagem!')}if(e.code==='KeyH'&&playing)honk();if(e.code==='KeyC'&&playing)toggleCamera()});window.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>{keys.clear();if(playing)pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing)pause()});
 let dragging=false,oldX=0,oldY=0;renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;oldX=e.clientX;oldY=e.clientY;renderer.domElement.setPointerCapture(e.pointerId)});renderer.domElement.addEventListener('pointermove',e=>{if(dragging){camera.orbit-=(e.clientX-oldX)*.006;camera.pitch=T.MathUtils.clamp(camera.pitch-(e.clientY-oldY)*.004,-.65,.65);oldX=e.clientX;oldY=e.clientY}});renderer.domElement.addEventListener('pointerup',()=>{dragging=false});
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.camera.aspect=innerWidth/innerHeight;camera.camera.updateProjectionMatrix()});
-let hudTimer=0;
+let hudTimer=0,fuelSaveTimer=0,refueling=false;
+const routeCanvas=el('route-map') as HTMLCanvasElement,routeContext=routeCanvas.getContext('2d')!;
+function drawMap(){const c=routeContext,w=routeCanvas.width,h=routeCanvas.height;c.clearRect(0,0,w,h);const xs=road.map(p=>p.x),zs=road.map(p=>p.z),minX=Math.min(...xs),minZ=Math.min(...zs),scale=Math.min((w-24)/(Math.max(...xs)-minX),(h-24)/(Math.max(...zs)-minZ)),point=(x:number,z:number)=>[12+(x-minX)*scale,12+(z-minZ)*scale];c.strokeStyle='#c8d7b5';c.lineWidth=2;c.beginPath();road.forEach((p,i)=>{if(i%10)return;const [x,z]=point(p.x,p.z);if(i===0)c.moveTo(x,z);else c.lineTo(x,z)});c.stroke();for(const s of stations){const [x,z]=point(s.x,s.z);c.fillStyle='#f1cc82';c.fillRect(x-3,z-3,6,6)}const [x,z]=point(ride.x,ride.z);c.fillStyle='#ffffff';c.beginPath();c.arc(x,z,4,0,Math.PI*2);c.fill();}
+
 function frame(now:number){
  requestAnimationFrame(frame);const dt=Math.min((now-last)/1000,.1);last=now;
+ world.update(ride.x,ride.z,now);
  const pad=controller.poll(settings.deadzone,settings.sensitivity);
  if(pad.disconnected&&playing){pause();notify('Controle desconectado. Passeio pausado.')}
  if(pad.pause){if(playing)pause();else resume()}
@@ -88,7 +95,9 @@ function frame(now:number){
  if(playing){
   accumulator+=dt;throttle=Math.max(keys.has('KeyW')||keys.has('ArrowUp')?1:0,pad.throttle);
   const brake=Math.max(keys.has('KeyS')||keys.has('ArrowDown')?1:0,pad.brake),keyboardTurn=(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)-(keys.has('KeyD')||keys.has('ArrowRight')?1:0),turn=keyboardTurn||pad.turn,push=keys.has('KeyQ')||pad.push;
-  while(accumulator>=1/60){ride.step(1/60,throttle,brake,turn,obstacles,push);accumulator-=1/60}
+  const station=stations.find(s=>Math.hypot(ride.x-s.x,ride.z-s.z)<12);
+  refueling=!!station&&Math.abs(ride.speed)<.5&&throttle===0&&!push&&(keys.has('KeyE')||pad.refuel);
+  while(accumulator>=1/60){if(refueling)ride.fuel.refill(settings.vehicle,1/60);ride.step(1/60,refueling?0:throttle,refueling?1:brake,turn,obstacles,push);accumulator-=1/60}
   for(const p of pois)if(Math.hypot(ride.x-p.x,ride.z-p.z)<24&&!discovered.has(p.name)){discovered.add(p.name);notify(`Novo lugar descoberto · ${p.name}`)}
   camera.orbit-=pad.lookX*dt*2;camera.pitch=T.MathUtils.clamp(camera.pitch-pad.lookY*dt*1.4,-.65,.65);
   if(!dragging&&!pad.lookX&&!pad.lookY){camera.orbit*=Math.exp(-dt*2);camera.pitch*=Math.exp(-dt*2)}
@@ -96,14 +105,21 @@ function frame(now:number){
  bike.root.position.set(ride.x,ride.y,ride.z);bike.root.rotation.y=ride.heading;bike.body.rotation.set(-ride.pitch,0,ride.lean);bike.rider.visible=!camera.firstPerson;
  bike.steering.rotation.y=steeringAngle(ride.speed,ride.steer);for(const wheel of bike.wheels)if(playing)wheel.rotation.x+=ride.speed*dt/(settings.vehicle==='caloi'?.29:.27);
  camera.update(ride,dt,ride.spec.eyeHeight);sun.position.set(ride.x-70,ride.y+140,ride.z+80);sun.target.position.set(ride.x,ride.y,ride.z);
- sound.update(ride.speed,ride.gear,ride.pushing?0:throttle,!playing);
- network.send({vehicleId:settings.vehicle,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:playing?ride.speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer,throttle:playing&&!ride.pushing?throttle:0,gear:ride.gear,engineOn:playing},now);
+ sound.update(ride.speed,ride.gear,ride.pushing?0:throttle,!playing||refueling||ride.fuel.get(settings.vehicle)<=0);
+ network.send({vehicleId:settings.vehicle,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:playing?ride.speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer},now);
  remoteRiders.render(now,dt);
  camera.camera.updateMatrixWorld();
  sound.updateRemotes(camera.camera.position,camera.camera.matrixWorld.elements,network.connected&&!document.hidden,remoteRiders.peers);
  if(now>notifyUntil)el('notification').classList.remove('visible');hudTimer+=dt;
+ fuelSaveTimer+=dt;if(fuelSaveTimer>5){fuelSaveTimer=0;ride.fuel.save()}
  if(hudTimer>.15){hudTimer=0;el('speed').textContent=String(Math.round(Math.abs(ride.speed)*3.6));el('gear').textContent=ride.speed<-.02?'EMPURRANDO':ride.spec.gears===1?'AUTOMÁTICA':`${ride.gear} · AUTO`;
   const near=pois.reduce((a,b)=>Math.hypot(a.x-ride.x,a.z-ride.z)<Math.hypot(b.x-ride.x,b.z-ride.z)?a:b);el('place').textContent=near.name;el('trip').textContent=`${(ride.distance/1000).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} km · ${surface(ride.x,ride.z)}`;
+  const ratio=ride.fuel.ratio(settings.vehicle),fuel=ride.fuel.get(settings.vehicle),station=stations.find(s=>Math.hypot(ride.x-s.x,ride.z-s.z)<12),n=nearest(ride.x,ride.z),progress=n.index/(road.length-1)*roadLength/1000;
+  el('fuel-level').textContent=`${fuel.toFixed(1)} L · ${Math.round(ratio*100)}%${ratio<.2?' · RESERVA':''}`;
+  (el('fuel-meter') as HTMLMeterElement).value=ratio;
+  const next=stations.map(s=>({s,d:(nearest(s.x,s.z).index-n.index+road.length-1)%(road.length-1)/(road.length-1)*roadLength})).sort((a,b)=>a.d-b.d)[0];
+  el('fuel-hint').textContent=refueling?'Abastecendo… solte E / X para sair':station?'Pare e segure E / X para abastecer grátis':fuel<=0?'Tanque vazio · solicite gasolina na pausa':`Próximo posto: ${(next.d/1000).toFixed(1)} km · sentido do circuito`;
+  el('route-progress').textContent=`km ${progress.toFixed(1)} / ${(roadLength/1000).toFixed(1)}`;drawMap();
   el('gamepad-status').textContent=pad.connected?'Controle conectado · mapeamento padrão':'Conecte um controle padrão e pressione um botão.';
  }
  renderer.render(scene,camera.camera);

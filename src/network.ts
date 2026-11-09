@@ -1,6 +1,6 @@
 import type {VehicleId} from './vehicles';
-export const WORLD='vale-horizonte-v3';
-export interface RiderState {vehicleId:VehicleId;x:number;y:number;z:number;heading:number;speed:number;pitch:number;lean:number;steer:number;sequence:number;throttle?:number;gear?:number;engineOn?:boolean}
+export const WORLD='vale-horizonte-v4';
+export interface RiderState {vehicleId:VehicleId;x:number;y:number;z:number;heading:number;speed:number;pitch:number;lean:number;steer:number;sequence:number}
 export interface RemotePlayer {id:string;name:string;connected:boolean;state:RiderState}
 interface Session {code:string;id:string;token:string;name:string;vehicleId:VehicleId}
 interface Events {horn:(id:string)=>void;status:(text:string)=>void;welcome:(state:RiderState,code:string,id:string)=>void;players:(players:RemotePlayer[])=>void;ended:()=>void}
@@ -19,7 +19,7 @@ export class RideNetwork {
  private open(type:'create'|'join'|'resume',code:string){
   if(!this.wanted)return;this.connecting=true;const generation=++this.generation;this.events.status(type==='resume'?'Reconectando à sala…':'Conectando…');
   let ws:WebSocket;try{const url=new URL(this.url);if(!['ws:','wss:'].includes(url.protocol)||(location.protocol==='https:'&&url.protocol!=='wss:'))throw new Error();ws=new WebSocket(url)}catch{this.fail('Endereço do servidor inválido. HTTPS exige wss://.');return}this.socket=ws;
-  const timeout=setTimeout(()=>ws.close(),12000);
+  const timeout=setTimeout(()=>ws.close(),60000);
   ws.onopen=()=>ws.send(JSON.stringify({type,world:WORLD,name:this.name,vehicleId:this.vehicleId,code,token:type==='resume'?this.session?.token:undefined}));
   ws.onmessage=event=>{if(generation!==this.generation)return;let m;try{m=JSON.parse(event.data)}catch{return}
    if(m.type==='error'){this.events.status(m.message);if(m.fatal){this.wanted=false;this.session=undefined;this.store();this.events.players([]);this.events.ended();}return}

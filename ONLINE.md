@@ -68,6 +68,10 @@ Fontes consultadas:
 
 ## Som dos outros jogadores
 
-Motor e buzina são reproduzidos com as gravações locais, volume por distância (até 90 metros) e direção estéreo relativa à câmera. A aceleração, marcha e estado do motor são sincronizados. H ou o botão de buzina do controle envia um evento somente à sala atual, limitado a um disparo a cada 400 ms. O volume Motor também controla esses sons. Jogadores desconectados deixam de emitir áudio; abas ocultas silenciam os motores remotos.
+Somente a buzina dos outros jogadores é reproduzida, com volume por distância (até 90 metros) e direção estéreo relativa à câmera. H ou LB envia um evento somente à sala atual, limitado a um disparo a cada 400 ms. Motores são exclusivamente locais. Nenhuma camada de motor remoto é criada e dados de aceleração/marcha não são mais enviados pela rede.
 
-Esta atualização exige publicar tanto o servidor no Render quanto o frontend na Vercel.
+## Mapa de 20 km — protocolo v4
+
+Esta atualização exige publicar tanto o servidor no Render quanto o frontend na Vercel. Ambos usam `vale-horizonte-v4`; salas antigas v3 são descartadas e os jogadores precisam criar/entrar em uma sala nova. Os limites de posição abrangem o vale ampliado e a velocidade aceita a Pop a 100 km/h. O tempo de conexão inicial foi ampliado para 60 segundos para tolerar a inicialização de servidores gratuitos. Isso não substitui a necessidade de verificar os logs se o host continuar encerrando conexões.
+
+Gasolina é local, salva por moto no navegador, e não sincronizada entre jogadores. Cada pessoa abastece sua própria moto.

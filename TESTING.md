@@ -52,3 +52,14 @@ Navegador: duas abas independentes entraram na mesma sala por código/convite (A
 Hospedagem pública Vercel/backend ainda não configurada nem testada. Instruções completas em ONLINE.md. Não há credenciais de hospedagem configuradas nesta entrega.
 
 Verificação final desta revisão: npm test teve 13 aprovados e 1 falha no teste de áudio (arquivo em 44.100 Hz versus expectativa de 22.050 Hz). O arquivo foi preservado. Suíte online: 3 aprovados. Build de produção aprovado; ausência de falhas na suíte de rede não significa validação pública da hospedagem.
+
+## Estrada de 20 km, gasolina e buzina online — 09/11/2026
+
+- Estrada medida: aproximadamente 20.008 m; teste de declives e colisão/triangulação aprovado.
+- Simulação de uma volta completa com cenário e obstáculos carregados por trecho. Corrigido o posicionamento das vilas que obstruía a pista.
+- Postos orientados para o acesso rodoviário, bombas fora da entrada central. Teste de acesso sem colisão até o alcance de abastecimento.
+- Consumo de 20 km em todas as motos, tanque vazio, limite de abastecimento, socorro e economia ao empurrar cobertos por testes.
+- Pop até 100 km/h em piso plano; demais motos mantêm seus limites.
+- Quatro testes online aprovados, incluindo coordenadas do mapa maior, 100 km/h, buzina somente na mesma sala, cooldown e reconexão após reinício. Motores remotos removidos.
+- A suíte geral continua com a falha anterior de áudio: arquivos locais em 44.100 Hz, enquanto o teste espera 22.050 Hz; alguns arquivos também têm picos no limite PCM. Arquivos preservados nesta revisão, sem mascarar a falha.
+- Build aprovado. Não houve inspeção visual final: navegador integrado desativado e Computer Use interrompido por não conseguir determinar a URL da janela. Não foi medido FPS nem validada a nova versão no Render/Vercel. Publicar ambos os serviços e criar salas novas (protocolo v4).

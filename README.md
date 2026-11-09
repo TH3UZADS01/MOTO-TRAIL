@@ -1,6 +1,6 @@
 # Pé na Estrada
 
-Protótipo solo de exploração em navegador, TypeScript + Three.js + Vite. Projeto independente, sem vínculo com os fabricantes das referências.
+Jogo de exploração solo e multiplayer em navegador, TypeScript + Three.js + Vite. Projeto independente, sem vínculo com os fabricantes das referências.
 
 ## Executar
 
@@ -37,16 +37,18 @@ Controle usa Gamepad API com `mapping=standard`, gatilhos analógicos, zona mort
 
 Seletores no menu inicial e na pausa; escolha salva localmente. Trocar de moto preserva o local e zera a velocidade.
 
-- Pop 110i ES: aproximação anterior mantida, ajuste de jogo até 80 km/h.
+- Pop 110i ES: aproximação estilizada, ajuste de jogo até 100 km/h.
 - Cub clássica: amarela, escudo creme, banco curto marrom, bagageiro, rodas raiadas e farol redondo; até 72 km/h.
-- Motoneta vermelha: carenagem integral, banco longo, rodas de liga e farol largo; até 80 km/h. Marca/modelo/ano da foto não confirmados.
+- Shineray Phoenix: carenagem integral, banco longo, rodas de liga e farol largo; até 80 km/h. Nome informado pelo usuário; modelo estilizado.
 - Caloi XR: quadro aberto branco/vermelho, pedais, motor exposto, guidão alto, farol retangular e rodas raiadas; até 50 km/h.
 
 Todos são modelos procedurais estilizados, não réplicas dimensionais certificadas. Valores de desempenho e transmissão são ajustes de jogo, não fichas técnicas dos veículos fotografados. Não foi inferido um ano específico para as três referências novas. Os modelos possuem geometria distinta e recursos GPU são descartados ao trocar.
 
 ## Mundo e áudio
 
-Vale de 1.280 × 1.280 m, circuito de 1.751 m e atalho de terra. Vila, lago, mirante com terreno conformado e ponte sobre córrego rebaixado. Vegetação instanciada, pedras, cerca e guardas com colisão. Física a 60 Hz, contato nos dois eixos, recuperação, curvas dependentes de velocidade, subida/descida, três presets gráficos.
+Circuito contínuo de aproximadamente 20,008 km, medido em metros no terreno, em um vale de 16 × 16 km. Quatro vilas, cinco postos, quatro pontos de parada, dois lagos, morros, bosques e pássaros em movimento. Terreno em trechos de 256 m carregados ao redor da moto; vegetação instanciada, estrada dividida para descarte de trechos fora da câmera. Edificações com fundações, áreas niveladas e acessos; sinalização legível dos dois lados. Minimap com postos e posição, marco quilométrico e odômetro.
+
+Gasolina: tanques separados por moto, salvos a cada cinco segundos e ao pausar/sair. Um circuito consome aproximadamente metade do tanque em ritmo normal. Velocidade, aceleração e subida aumentam o consumo; empurrar não gasta. Pare próximo às bombas, solte o acelerador e segure E ou X/quadrado para abastecer gratuitamente (0,25 L/s). Postos separados por cerca de 4 km. Se esvaziar, o menu de pausa oferece 0,7 L de emergência; não é necessário resetar a posição. Recuperar ou trocar de moto não enche o tanque.
 
 Áudio gravado CC0 da BigSoundBank: motor, aceleração, vento e buzina. Loops editados localmente em mono 22.050 Hz, com remoção de DC, filtragem, normalização e emendas suavizadas. Duas camadas por motor; crossfade por carga, reprodução suavizada por rotação/marcha e perfis de timbre por moto. Caloi usa gravação-base diferente. Não há oscilador sintetizando motor, vento ou buzina. Os sons não são gravações autênticas de cada modelo. Veja CREDITS.md.
 
@@ -62,9 +64,9 @@ Vale de 1.280 × 1.280 m, circuito de 1.751 m e atalho de terra. Vila, lago, mir
 
 ## Limitações
 
-Sem suspensão independente rígida, quedas, farol funcional, garagem de acessórios, mapa, diário persistente, ciclo dia/noite. Retrovisores não refletem a cena e o painel 3D é ilustrativo; velocidade real do jogo está no HUD. Na primeira pessoa o corpo do piloto é ocultado para evitar atravessamento da câmera. Sons e ergonomia ainda precisam de avaliação humana. Gamepad físico e FPS no Vivobook de referência não foram medidos.
+Sem suspensão independente rígida, quedas, farol funcional, garagem de acessórios, diário persistente, ciclo dia/noite. Retrovisores não refletem a cena e o painel 3D é ilustrativo; velocidade real do jogo está no HUD. Na primeira pessoa o corpo do piloto é ocultado para evitar atravessamento da câmera. Sons e ergonomia ainda precisam de avaliação humana. Gamepad físico e FPS no Vivobook de referência não foram medidos.
 
-TESTING.md registra o que efetivamente foi validado. Para vistoria local, `?inspect=ponte` e `?inspect=mirante` no servidor de desenvolvimento; pontos de início de teste são eliminados do build de produção.
+TESTING.md registra o que efetivamente foi validado. Para vistoria local, `?inspect=posto` e `?inspect=mirante` no servidor de desenvolvimento; pontos de início de teste são eliminados do build de produção.
 
 ## Multiplayer
 
