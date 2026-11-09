@@ -7,7 +7,7 @@ export const WORLD='vale-horizonte-v3';
 const hash=token=>createHash('sha256').update(token).digest('hex');
 const validVehicle=id=>['pop','cub','urban','caloi'].includes(id);
 const finite=(v,min,max)=>typeof v==='number'&&Number.isFinite(v)&&v>=min&&v<=max;
-export function validState(s){return s&&validVehicle(s.vehicleId)&&finite(s.x,-610,610)&&finite(s.z,-610,610)&&finite(s.y,-20,160)&&finite(s.heading,-1e6,1e6)&&finite(s.pitch,-1.6,1.6)&&finite(s.lean,-.8,.8)&&finite(s.steer,-1,1)&&finite(s.speed,-1.3,23)&&Number.isSafeInteger(s.sequence)&&s.sequence>=0;}
+export function validState(s){return s&&validVehicle(s.vehicleId)&&finite(s.x,-610,610)&&finite(s.z,-610,610)&&finite(s.y,-20,160)&&finite(s.heading,-1e6,1e6)&&finite(s.pitch,-1.6,1.6)&&finite(s.lean,-.8,.8)&&finite(s.steer,-1,1)&&finite(s.speed,-1.3,23)&&(s.throttle===undefined||finite(s.throttle,0,1))&&(s.gear===undefined||(Number.isInteger(s.gear)&&finite(s.gear,1,4)))&&(s.engineOn===undefined||typeof s.engineOn==='boolean')&&Number.isSafeInteger(s.sequence)&&s.sequence>=0;}
 const publicMember=p=>({id:p.id,name:p.name,connected:!!p.socket,state:p.state});
 export function createGameServer({dataDir=resolve('server-data'),origins=['http://127.0.0.1:5173','http://127.0.0.1:5174','http://localhost:5173'],graceMs=120000,maxRooms=50}={}){
  mkdirSync(dataDir,{recursive:true});const file=resolve(dataDir,'rooms.json'),rooms=new Map();let dirty=false;
@@ -19,7 +19,7 @@ export function createGameServer({dataDir=resolve('server-data'),origins=['http:
  const send=(ws,data)=>{if(ws?.readyState===WebSocket.OPEN&&ws.bufferedAmount<65536)ws.send(JSON.stringify(data))};
  const broadcast=r=>{const message={type:'snapshot',world:WORLD,at:Date.now(),players:[...r.members.values()].map(publicMember)};for(const p of r.members.values())send(p.socket,message)};
  wss.on('connection',ws=>{
-  let room,member,count=0,windowStart=Date.now(),joined=false;ws.alive=true;
+  let room,member,count=0,windowStart=Date.now(),joined=false,lastHorn=0;ws.alive=true;
   const fail=(message,fatal=false)=>{send(ws,{type:'error',message,fatal});if(fatal)ws.close(1008,'Invalid request')};
   ws.on('pong',()=>{ws.alive=true});
   const handshake=setTimeout(()=>{if(!joined)ws.close(1008,'Handshake timeout')},10000);handshake.unref();
@@ -51,9 +51,10 @@ export function createGameServer({dataDir=resolve('server-data'),origins=['http:
     send(ws,{type:'welcome',code:room.code,id:member.id,token,world:WORLD,state:member.state});broadcast(room);return;
    }
    if(message.type==='leave'){room.members.delete(member.id);member.socket=null;if(!room.members.size)rooms.delete(room.code);dirty=true;broadcast(room);ws.close(1000,'Left room');return}
+   if(message.type==='horn'){if(now-lastHorn<400)return;lastHorn=now;for(const p of room.members.values())if(p.id!==member.id)send(p.socket,{type:'horn',id:member.id});return}
    if(message.type!=='state'||!validState(message.state))return fail('Estado inválido.',true);
    const state=message.state;if(state.sequence<=member.state.sequence)return;
-   member.state={vehicleId:state.vehicleId,x:state.x,y:state.y,z:state.z,heading:state.heading,speed:state.speed,pitch:state.pitch,lean:state.lean,steer:state.steer,sequence:state.sequence};room.updated=now;dirty=true;
+   member.state={vehicleId:state.vehicleId,x:state.x,y:state.y,z:state.z,heading:state.heading,speed:state.speed,pitch:state.pitch,lean:state.lean,steer:state.steer,sequence:state.sequence,throttle:state.throttle??0,gear:state.gear??1,engineOn:state.engineOn??true};room.updated=now;dirty=true;
   });
   ws.on('close',()=>{clearTimeout(handshake);if(member?.socket===ws){member.socket=null;member.offlineAt=Date.now();member.state.speed=0;dirty=true;broadcast(room)}});
   ws.on('error',()=>{});

@@ -19,14 +19,15 @@ scene.add(new T.HemisphereLight(0xe4f0ea,0x657653,1.5));const sun=new T.Directio
 const settings=load();let bike=createBike(settings.vehicle);scene.add(bike.root);const ride=new Ride(),camera=new FollowCamera(),sound=new Sound(),controller=new Controller();ride.spec=getVehicle(settings.vehicle);sound.vehicle=settings.vehicle;let playing=false,started=false,last=performance.now(),accumulator=0,throttle=0;const keys=new Set<string>(),discovered=new Set<string>();let notifyUntil=0;
 const remoteRiders=new RemoteRiders(scene);
 const network=new RideNetwork({
+ horn:id=>{if(!document.hidden)sound.remoteHorn(id)},
  status:text=>{el('online-status').textContent=text;if(network.active)el('connection-badge').textContent=text;},
  welcome:(state,code)=>{
   chooseVehicle(state.vehicleId);ride.x=state.x;ride.z=state.z;ride.heading=state.heading;ride.speed=0;ride.contact();camera.initialized=false;
   const invite=new URL(location.href);invite.search='';invite.hash='';invite.searchParams.set('room',code);(el('invite-link') as HTMLInputElement).value=invite.toString();
   (el('room-code') as HTMLInputElement).value=code;el('invite-area').classList.remove('hidden');el('online').classList.add('hidden');resume();notify(`Você entrou na sala ${code}. Boa viagem!`);
  },
- players:players=>{remoteRiders.update(players);el('online-members').textContent=network.active?`${players.length+1}/4 viajantes · Você${players.length?' · '+players.map(p=>p.name+(p.connected?'':' (reconectando)')).join(' · '):''}`:'';},
- ended:()=>{remoteRiders.clear();el('invite-area').classList.add('hidden');el('connection-badge').textContent='☀ Fim de tarde · Solo';}
+ players:players=>{remoteRiders.update(players);sound.setRemotePlayers(players);el('online-members').textContent=network.active?`${players.length+1}/4 viajantes · Você${players.length?' · '+players.map(p=>p.name+(p.connected?'':' (reconectando)')).join(' · '):''}`:'';},
+ ended:()=>{remoteRiders.clear();sound.setRemotePlayers([]);el('invite-area').classList.add('hidden');el('connection-badge').textContent='☀ Fim de tarde · Solo';}
 });
 const inviteCode=new URLSearchParams(location.search).get('room');
 if(inviteCode){(el('room-code') as HTMLInputElement).value=inviteCode.toUpperCase().slice(0,8);el('online').classList.remove('hidden');}
@@ -60,17 +61,19 @@ function chooseVehicle(id:VehicleId){
  for(const name of ['vehicle-intro','vehicle-pause'])(el(name) as HTMLSelectElement).value=id;
  el('vehicle-note').textContent=ride.spec.note;save(settings);
 }
+let lastHonk=-Infinity;
+function honk(){const now=performance.now();if(now-lastHonk<400)return;lastHonk=now;sound.horn();network.horn()}
 function toggleCamera(){camera.toggle();(el('camera-mode') as HTMLSelectElement).value=camera.firstPerson?'first':'third'}
 el('camera-mode').onchange=()=>{if(((el('camera-mode') as HTMLSelectElement).value==='first')!==camera.firstPerson)toggleCamera()};
 for(const name of ['deadzone','sensitivity'] as const){(el(name) as HTMLInputElement).value=String(settings[name]);el(name).oninput=()=>{settings[name]=Number((el(name) as HTMLInputElement).value);save(settings)}}
 function quality(){const q=settings.quality;renderer.setPixelRatio(Math.min(devicePixelRatio,q==='baixo'?.8:q==='medio'?1.25:1.7));renderer.shadowMap.enabled=q!=='baixo';renderer.shadowMap.type=T.PCFSoftShadowMap;sun.castShadow=q!=='baixo';camera.camera.far=q==='baixo'?550:900;camera.camera.updateProjectionMatrix();(scene.fog as T.Fog).far=q==='baixo'?500:780;sound.volume=settings.motor;sound.ambience=settings.ambient;save(settings)}quality();
 (el('quality') as HTMLSelectElement).value=settings.quality;(el('motor') as HTMLInputElement).value=String(settings.motor);(el('ambient') as HTMLInputElement).value=String(settings.ambient);
 el('quality').onchange=e=>{settings.quality=(e.target as HTMLSelectElement).value as typeof settings.quality;quality()};for(const name of ['motor','ambient'] as const)el(name).oninput=e=>{settings[name]=Number((e.target as HTMLInputElement).value);quality()};
-function pause(){playing=false;ride.speed=0;keys.clear();network.send({vehicleId:settings.vehicle,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer},performance.now(),true);el('panel').classList.remove('hidden')}
+function pause(){playing=false;ride.speed=0;keys.clear();network.send({vehicleId:settings.vehicle,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer,throttle:playing&&!ride.pushing?throttle:0,gear:ride.gear,engineOn:playing},performance.now(),true);el('panel').classList.remove('hidden')}
 function resume(){started=true;playing=true;el('intro').classList.add('hidden');el('panel').classList.add('hidden');el('hud').classList.remove('hidden');void sound.start().then(()=>{el('audio-status').textContent='Áudio pronto · gravações CC0'}).catch(()=>{el('audio-status').textContent='Falha ao carregar áudio. Tente continuar novamente.';notify('Não foi possível carregar o áudio.')});last=performance.now();accumulator=0}
 function notify(text:string){el('notification').textContent=text;el('notification').classList.add('visible');notifyUntil=performance.now()+4500}
 el('start').onclick=resume;el('resume').onclick=resume;el('pause').onclick=pause;el('settings-open').onclick=pause;el('recover').onclick=()=>{ride.recover();camera.initialized=false;resume()};el('home').onclick=()=>{playing=false;ride.speed=0;el('panel').classList.add('hidden');el('intro').classList.remove('hidden');el('hud').classList.add('hidden')};el('credits-open').onclick=()=>el('credits').classList.remove('hidden');el('credits-close').onclick=()=>el('credits').classList.add('hidden');
-window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement)return;keys.add(e.code);if(e.repeat)return;if(e.code==='Escape'){if(playing)pause();else if(started)resume()}if(e.code==='KeyR'&&playing){ride.recover();camera.initialized=false;notify('De volta à estrada. Boa viagem!')}if(e.code==='KeyH'&&playing)sound.horn();if(e.code==='KeyC'&&playing)toggleCamera()});window.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>{keys.clear();if(playing)pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing)pause()});
+window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement)return;keys.add(e.code);if(e.repeat)return;if(e.code==='Escape'){if(playing)pause();else if(started)resume()}if(e.code==='KeyR'&&playing){ride.recover();camera.initialized=false;notify('De volta à estrada. Boa viagem!')}if(e.code==='KeyH'&&playing)honk();if(e.code==='KeyC'&&playing)toggleCamera()});window.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>{keys.clear();if(playing)pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing)pause()});
 let dragging=false,oldX=0,oldY=0;renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;oldX=e.clientX;oldY=e.clientY;renderer.domElement.setPointerCapture(e.pointerId)});renderer.domElement.addEventListener('pointermove',e=>{if(dragging){camera.orbit-=(e.clientX-oldX)*.006;camera.pitch=T.MathUtils.clamp(camera.pitch-(e.clientY-oldY)*.004,-.65,.65);oldX=e.clientX;oldY=e.clientY}});renderer.domElement.addEventListener('pointerup',()=>{dragging=false});
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.camera.aspect=innerWidth/innerHeight;camera.camera.updateProjectionMatrix()});
 let hudTimer=0;
@@ -81,7 +84,7 @@ function frame(now:number){
  if(pad.pause){if(playing)pause();else resume()}
  if(pad.start&&!playing)resume();
  if(!playing&&(pad.previous||pad.next)){const i=vehicles.findIndex(v=>v.id===settings.vehicle);chooseVehicle(vehicles[(i+(pad.next?1:vehicles.length-1))%vehicles.length].id)}
- if(pad.camera&&playing)toggleCamera();if(pad.horn&&playing)sound.horn();
+ if(pad.camera&&playing)toggleCamera();if(pad.horn&&playing)honk();
  if(playing){
   accumulator+=dt;throttle=Math.max(keys.has('KeyW')||keys.has('ArrowUp')?1:0,pad.throttle);
   const brake=Math.max(keys.has('KeyS')||keys.has('ArrowDown')?1:0,pad.brake),keyboardTurn=(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)-(keys.has('KeyD')||keys.has('ArrowRight')?1:0),turn=keyboardTurn||pad.turn,push=keys.has('KeyQ')||pad.push;
@@ -94,8 +97,10 @@ function frame(now:number){
  bike.steering.rotation.y=steeringAngle(ride.speed,ride.steer);for(const wheel of bike.wheels)if(playing)wheel.rotation.x+=ride.speed*dt/(settings.vehicle==='caloi'?.29:.27);
  camera.update(ride,dt,ride.spec.eyeHeight);sun.position.set(ride.x-70,ride.y+140,ride.z+80);sun.target.position.set(ride.x,ride.y,ride.z);
  sound.update(ride.speed,ride.gear,ride.pushing?0:throttle,!playing);
- network.send({vehicleId:settings.vehicle,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:playing?ride.speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer},now);
+ network.send({vehicleId:settings.vehicle,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:playing?ride.speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer,throttle:playing&&!ride.pushing?throttle:0,gear:ride.gear,engineOn:playing},now);
  remoteRiders.render(now,dt);
+ camera.camera.updateMatrixWorld();
+ sound.updateRemotes(camera.camera.position,camera.camera.matrixWorld.elements,network.connected&&!document.hidden,remoteRiders.peers);
  if(now>notifyUntil)el('notification').classList.remove('visible');hudTimer+=dt;
  if(hudTimer>.15){hudTimer=0;el('speed').textContent=String(Math.round(Math.abs(ride.speed)*3.6));el('gear').textContent=ride.speed<-.02?'EMPURRANDO':ride.spec.gears===1?'AUTOMÁTICA':`${ride.gear} · AUTO`;
   const near=pois.reduce((a,b)=>Math.hypot(a.x-ride.x,a.z-ride.z)<Math.hypot(b.x-ride.x,b.z-ride.z)?a:b);el('place').textContent=near.name;el('trip').textContent=`${(ride.distance/1000).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} km · ${surface(ride.x,ride.z)}`;

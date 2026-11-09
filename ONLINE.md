@@ -65,3 +65,9 @@ Fontes consultadas:
 - https://vercel.com/docs/functions/websockets
 - https://render.com/docs/websocket
 - https://render.com/docs/disks
+
+## Som dos outros jogadores
+
+Motor e buzina são reproduzidos com as gravações locais, volume por distância (até 90 metros) e direção estéreo relativa à câmera. A aceleração, marcha e estado do motor são sincronizados. H ou o botão de buzina do controle envia um evento somente à sala atual, limitado a um disparo a cada 400 ms. O volume Motor também controla esses sons. Jogadores desconectados deixam de emitir áudio; abas ocultas silenciam os motores remotos.
+
+Esta atualização exige publicar tanto o servidor no Render quanto o frontend na Vercel.
