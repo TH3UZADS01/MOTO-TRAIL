@@ -1,3 +1,4 @@
+import {enableShadows,surfaceMaterial,worldUV} from './graphics';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import * as T from 'three';
 import {height,terrain,ribbon,terrainPatch,road,nearest,pois,stations,villages,viewpoints,lakes,routes,nearestRoute,nearRoute,bridges,specials,deepWater} from './terrain';
@@ -21,7 +22,7 @@ export function makeWorld(scene:T.Scene){
   if(route.surface==='asfalto')for(let start=0;start<route.points.length-2;start+=100){const parts:T.BufferGeometry[]=[];for(let i=start;i<Math.min(start+100,route.points.length-2);i+=5){const dash=ribbon(route.points.slice(i,i+2),.15,0xf0d9a0,.105);parts.push(dash.geometry);(dash.material as T.Material).dispose()}if(parts.length){scene.add(new T.Mesh(mergeGeometries(parts),material(0xf0d9a0)));parts.forEach(g=>g.dispose())}}
  }
  // River geometry follows its water level, never the road/bridge collision surface.
- for(let start=0;start<river.length-1;start+=80){const pts=river.slice(start,start+81),positions:number[]=[],indices:number[]=[];pts.forEach((p,i)=>{positions.push(p.x-riverWidth/2,p.y,p.z,p.x+riverWidth/2,p.y,p.z);if(i)indices.push((i-1)*2,(i-1)*2+1,i*2,i*2,(i-1)*2+1,i*2+1)});const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.setIndex(indices);g.computeVertexNormals();scene.add(new T.Mesh(g,new T.MeshStandardMaterial({color:0x73aaa5,roughness:.25,metalness:.2,side:T.DoubleSide})))}
+ for(let start=0;start<river.length-1;start+=80){const pts=river.slice(start,start+81),positions:number[]=[],indices:number[]=[];pts.forEach((p,i)=>{positions.push(p.x-riverWidth/2,p.y,p.z,p.x+riverWidth/2,p.y,p.z);if(i)indices.push((i-1)*2,(i-1)*2+1,i*2,i*2,(i-1)*2+1,i*2+1)});const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.setIndex(indices);g.computeVertexNormals();worldUV(g,7);scene.add(new T.Mesh(g,surfaceMaterial('water',0x73aaa5)))}
  const beam=(a:T.Vector3,b:T.Vector3,w:number,h:number,color:number)=>{const m=box(0,0,0,w,h,a.distanceTo(b),color);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new T.Vector3(0,0,1),b.clone().sub(a).normalize());return m};
  for(const b of bridges){const pos=(along:number,side:number,dy:number)=>{const x=b.x+b.dx*along+b.dz*side,z=b.z+b.dz*along-b.dx*side;return new T.Vector3(x,waterY(z)+7+dy,z)};
   beam(pos(-b.halfLength,0,-.3),pos(b.halfLength,0,-.3),b.width,.6,0x999787);
@@ -42,7 +43,7 @@ export function makeWorld(scene:T.Scene){
  for(const p of viewpoints){access(p,18);const y=height(p.x,p.z+10);box(p.x,y+.65,p.z+10,4,.2,.8,0x886442);for(const dx of [-1.5,1.5])box(p.x+dx,y+.3,p.z+10,.2,.6,.6,0x655744);block(p.x,p.z+10,2);for(let i=-3;i<=3;i++){const x=p.x+i*4,z=p.z+16;box(x,height(x,z)+.65,z,.2,1.3,.2,0x887255);block(x,z,.2)}}
  for(const p of pois){const n=nearestRoute(p.x,p.z),a=n.track.points[n.index],b=n.track.points[n.index+1],angle=Math.atan2(b.x-a.x,b.z-a.z);{const x=n.x+Math.cos(angle)*9-Math.sin(angle)*20,z=n.z-Math.sin(angle)*9-Math.cos(angle)*20;if(!nearRoute(x,z,6))sign(p.name,x,z,angle)}}
  for(let i=0;i<20;i++){const p=road[i*250],q=road[i*250+1];if(stations.some(s=>Math.hypot(s.x-p.x,s.z-p.z)<60))continue;const a=Math.atan2(q.x-p.x,q.z-p.z);sign('Estrada do Horizonte · km '+i,p.x+Math.cos(a)*8,p.z-Math.sin(a)*8,a)}
- for(const p of lakes){const water=new T.Mesh(new T.CircleGeometry(p.r*.88,96),new T.MeshStandardMaterial({color:0x75aaa5,roughness:.22,metalness:.3}));water.rotation.x=-Math.PI/2;water.position.set(p.x,12,p.z);scene.add(water)}
+ for(const p of lakes){const g=new T.CircleGeometry(p.r*.88,96);g.rotateX(-Math.PI/2);g.translate(p.x,12,p.z);worldUV(g,7);const water=new T.Mesh(g,surfaceMaterial('water',0x75aaa5));scene.add(water)}
  // Small interior destinations make the branches worth exploring.
  for(const p of specials){access(p,p.kind==='farm'?35:24);const safe=(x:number,z:number,r=4)=>!nearRoute(x,z,r+5);
   if(p.kind==='farm'){const x=p.x-30,z=p.z-25,y=height(x,z);if(safe(x,z,10)){box(x,y+3,z,16,6,12,0xb97851);const roof=new T.Mesh(new T.ConeGeometry(12,4,4),material(0x8b5a45));roof.position.set(x,y+8,z);roof.rotation.y=Math.PI/4;scene.add(roof);block(x,z,10)}
@@ -59,8 +60,9 @@ export function makeWorld(scene:T.Scene){
   for(let i=0;i<115;i++){const x=cx+(rand()-.5)*256,z=cz+(rand()-.5)*256;if(nearRoute(x,z,15)||deepWater(x,z)||(z>=riverStart&&z<=riverEnd&&Math.abs(x-riverX(z))<48)||pois.some(p=>Math.hypot(x-p.x,z-p.z)<(p.kind==='village'?85:45))||lakes.some(p=>Math.hypot(x-p.x,z-p.z)<p.r+20))continue;const y=height(x,z),s=.8+rand()*1.2;
    if(i<100){dummy.position.set(x,y+6*s,z);dummy.scale.set(3.6*s,3.2*s,3.6*s);dummy.rotation.set(0,rand()*6,0);dummy.updateMatrix();trees.setMatrixAt(count,dummy.matrix);trees.setColorAt(count,new T.Color().setHSL(.22+rand()*.09,.25,.25+rand()*.13));dummy.position.y=y+2*s;dummy.scale.setScalar(s);dummy.updateMatrix();trunks.setMatrixAt(count,dummy.matrix);hits.push({x,z,r:.5*s});count++}
    else{dummy.position.set(x,y+.5*s,z);dummy.scale.set(s*1.5,s,s);dummy.updateMatrix();rocks.setMatrixAt(rc++,dummy.matrix);hits.push({x,z,r:s})}
-  }trees.count=trunks.count=count;rocks.count=rc;trees.castShadow=true;group.add(trees,trunks,rocks);scene.add(group);return {group,hits};
+  }trees.count=trunks.count=count;rocks.count=rc;trees.castShadow=true;trunks.castShadow=true;rocks.castShadow=true;group.add(trees,trunks,rocks);enableShadows(group);scene.add(group);return {group,hits};
  }
+ enableShadows(scene);
  let cell='';const birds=new T.Group();for(let i=0;i<12;i++){const bird=new T.Mesh(new T.ConeGeometry(.5,2,3),material(0x55645c));bird.rotation.z=Math.PI/2;birds.add(bird)}scene.add(birds);
  return {update(x:number,z:number,time:number){const gx=Math.round(x/256),gz=Math.round(z/256),key=gx+','+gz;if(key!==cell){cell=key;const wanted=new Set<string>();for(let a=gx-3;a<=gx+3;a++)for(let b=gz-3;b<=gz+3;b++){const k=a+','+b;wanted.add(k);if(!chunks.has(k))chunks.set(k,chunk(a,b))}for(const [k,c] of chunks)if(!wanted.has(k)){scene.remove(c.group);c.group.traverse(o=>{if(o instanceof T.InstancedMesh)o.dispose();else if(o instanceof T.Mesh){o.geometry.dispose();(o.material as T.Material).dispose()}});chunks.delete(k)}obstacles.length=0;obstacles.push(...fixed);for(const c of chunks.values())obstacles.push(...c.hits)}birds.position.set(x,height(x,z)+55,z);birds.children.forEach((b,i)=>b.position.set(Math.sin(time*.00012+i*.2)*100,Math.sin(time*.002+i)*2,Math.cos(time*.00012+i*.2)*100));}};
 }

@@ -75,3 +75,9 @@ Verificação final desta revisão: npm test teve 13 aprovados e 1 falha no test
 - A falha preexistente no teste dos arquivos de áudio permanece independente do mapa; as gravações locais foram preservadas.
 
 Resultado final desta revisão: build de produção aprovado; 22 testes de jogo/mapa aprovados e 4 testes online aprovados. A única falha da suíte geral continua no teste preexistente dos WAVs (44.100 Hz versus 22.050 Hz).
+
+## Sombras e materiais — 09/11/2026
+
+Causa corrigida: terreno e ribbons recriados no mapa por trechos não tinham receiveShadow. O teste de regressão lança raios sobre estrada e terreno em duas regiões após carregar novos trechos e verifica que as superfícies atingidas recebem sombras.
+
+Onze testes de sombras, terreno, pilotagem, volta completa e postos aprovados. Capturas reais no Chrome headless em artifacts/graphics confirmam sombra da moto, árvores, placas e guardas da ponte, inclusive nos presets Baixo e Alto. Texturas procedurais dispensam fontes externas. FPS em hardware real não foi medido; nenhum deploy foi executado. Protocolo online continua v5.

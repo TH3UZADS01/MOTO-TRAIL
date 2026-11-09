@@ -1,3 +1,4 @@
+import {makeSky,configureShadows,enableShadows} from './graphics';
 import './style.css';
 import * as T from 'three';
 import {makeWorld,obstacles} from './world';
@@ -15,9 +16,10 @@ import {river} from './map-layout';
 import {mountInterface} from './interface';
 mountInterface();
 const el=(id:string)=>document.getElementById(id)!;
-const scene=new T.Scene();scene.background=new T.Color(0xc3d5ce);scene.fog=new T.Fog(0xc3d5ce,150,780);const renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;el('scene').appendChild(renderer.domElement);
-scene.add(new T.HemisphereLight(0xe4f0ea,0x657653,1.5));const sun=new T.DirectionalLight(0xffdeb0,1.8);sun.position.set(-70,140,80);sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-45;sun.shadow.camera.right=45;sun.shadow.camera.top=45;sun.shadow.camera.bottom=-45;sun.shadow.camera.near=.1;sun.shadow.camera.far=300;sun.shadow.bias=-.001;scene.add(sun,sun.target);const world=makeWorld(scene);
-const settings=load();let bike=createBike(settings.vehicle);scene.add(bike.root);const ride=new Ride(),camera=new FollowCamera(),sound=new Sound(),controller=new Controller();ride.spec=getVehicle(settings.vehicle);sound.vehicle=settings.vehicle;let playing=false,started=false,last=performance.now(),accumulator=0,throttle=0;const keys=new Set<string>(),discovered=new Set<string>();let notifyUntil=0;
+const scene=new T.Scene();scene.background=new T.Color(0xd2ded3);scene.fog=new T.Fog(0xd2ded3,150,780);const renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;el('scene').appendChild(renderer.domElement);
+scene.add(new T.HemisphereLight(0xd5e7f2,0x73835c,.85));const sun=new T.DirectionalLight(0xffe0b5,2.5);sun.position.set(-70,140,80);sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-45;sun.shadow.camera.right=45;sun.shadow.camera.top=45;sun.shadow.camera.bottom=-45;sun.shadow.camera.near=.1;sun.shadow.camera.far=300;sun.shadow.bias=-.001;scene.add(sun,sun.target);const world=makeWorld(scene),sky=makeSky(scene);
+const settings=load();let bike=createBike(settings.vehicle);enableShadows(bike.root);scene.add(bike.root);const ride=new Ride(),camera=new FollowCamera(),sound=new Sound(),controller=new Controller();ride.spec=getVehicle(settings.vehicle);sound.vehicle=settings.vehicle;let playing=false,started=false,last=performance.now(),accumulator=0,throttle=0;const keys=new Set<string>(),discovered=new Set<string>();let notifyUntil=0;
+if(import.meta.env.DEV){const q=new URLSearchParams(location.search).get('quality');if(q==='baixo'||q==='medio'||q==='alto')settings.quality=q;}
 ride.fuel.restore();
 window.addEventListener('pagehide',()=>ride.fuel.save());
 const remoteRiders=new RemoteRiders(scene);
@@ -65,7 +67,7 @@ for(const id of ['vehicle-intro','vehicle-pause']){
 }
 el('vehicle-note').textContent=getVehicle(settings.vehicle).note;
 function chooseVehicle(id:VehicleId){
- scene.remove(bike.root);disposeBike(bike);settings.vehicle=id;bike=createBike(id);scene.add(bike.root);ride.spec=getVehicle(id);ride.speed=0;ride.gear=1;ride.lean=0;ride.contact();sound.vehicle=id;camera.initialized=false;
+ scene.remove(bike.root);disposeBike(bike);settings.vehicle=id;bike=createBike(id);enableShadows(bike.root);scene.add(bike.root);ride.spec=getVehicle(id);ride.speed=0;ride.gear=1;ride.lean=0;ride.contact();sound.vehicle=id;camera.initialized=false;
  for(const name of ['vehicle-intro','vehicle-pause'])(el(name) as HTMLSelectElement).value=id;
  el('vehicle-note').textContent=ride.spec.note;save(settings);
 }
@@ -74,7 +76,7 @@ function honk(){const now=performance.now();if(now-lastHonk<400)return;lastHonk=
 function toggleCamera(){camera.toggle();(el('camera-mode') as HTMLSelectElement).value=camera.firstPerson?'first':'third'}
 el('camera-mode').onchange=()=>{if(((el('camera-mode') as HTMLSelectElement).value==='first')!==camera.firstPerson)toggleCamera()};
 for(const name of ['deadzone','sensitivity'] as const){(el(name) as HTMLInputElement).value=String(settings[name]);el(name).oninput=()=>{settings[name]=Number((el(name) as HTMLInputElement).value);save(settings)}}
-function quality(){const q=settings.quality;renderer.setPixelRatio(Math.min(devicePixelRatio,q==='baixo'?.8:q==='medio'?1.25:1.7));renderer.shadowMap.enabled=q!=='baixo';renderer.shadowMap.type=T.PCFSoftShadowMap;sun.castShadow=q!=='baixo';camera.camera.far=q==='baixo'?550:900;camera.camera.updateProjectionMatrix();(scene.fog as T.Fog).far=q==='baixo'?500:700;sound.volume=settings.motor;sound.ambience=settings.ambient;save(settings)}quality();
+function quality(){const q=settings.quality;renderer.setPixelRatio(Math.min(devicePixelRatio,q==='baixo'?.8:q==='medio'?1.25:1.7));configureShadows(renderer,sun,q);camera.camera.far=q==='baixo'?550:900;camera.camera.updateProjectionMatrix();(scene.fog as T.Fog).far=q==='baixo'?500:700;sound.volume=settings.motor;sound.ambience=settings.ambient;save(settings)}quality();
 (el('quality') as HTMLSelectElement).value=settings.quality;(el('motor') as HTMLInputElement).value=String(settings.motor);(el('ambient') as HTMLInputElement).value=String(settings.ambient);
 el('quality').onchange=e=>{settings.quality=(e.target as HTMLSelectElement).value as typeof settings.quality;quality()};for(const name of ['motor','ambient'] as const)el(name).oninput=e=>{settings[name]=Number((e.target as HTMLInputElement).value);quality()};
 function pause(){ride.fuel.save();playing=false;ride.speed=0;keys.clear();network.send({vehicleId:settings.vehicle,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer},performance.now(),true);el('panel').classList.remove('hidden')}
@@ -113,7 +115,7 @@ function frame(now:number){
  }
  bike.root.position.set(ride.x,ride.y,ride.z);bike.root.rotation.y=ride.heading;bike.body.rotation.set(-ride.pitch,0,ride.lean);bike.rider.visible=!camera.firstPerson;
  bike.steering.rotation.y=steeringAngle(ride.speed,ride.steer);for(const wheel of bike.wheels)if(playing)wheel.rotation.x+=ride.speed*dt/(settings.vehicle==='caloi'?.29:.27);
- camera.update(ride,dt,ride.spec.eyeHeight);sun.position.set(ride.x-70,ride.y+140,ride.z+80);sun.target.position.set(ride.x,ride.y,ride.z);
+ camera.update(ride,dt,ride.spec.eyeHeight);sky.position.set(ride.x,ride.y,ride.z);sun.position.set(ride.x-85,ride.y+110,ride.z+65);sun.target.position.set(ride.x,ride.y,ride.z);
  sound.update(ride.speed,ride.gear,ride.pushing?0:throttle,!playing||refueling||ride.fuel.get(settings.vehicle)<=0);
  network.send({vehicleId:settings.vehicle,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:playing?ride.speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer},now);
  remoteRiders.render(now,dt);

@@ -72,3 +72,9 @@ TESTING.md registra o que efetivamente foi validado. Para vistoria local, `?insp
 
 Salas reais para quatro pessoas, convite, apelidos, modelos remotos interpolados, reconexão e servidor persistente. Execute `npm run server` junto com `npm run dev`. Para compartilhar pela internet, siga **ONLINE.md**: frontend Vercel + backend Node com armazenamento persistente. Enviar somente o frontend à Vercel não publica o servidor. `npm run test:online` testa sessões WebSocket independentes e reinício do servidor.
 
+
+## Revisão gráfica
+
+Terreno carregado por trechos, estradas, motos e construções recebem sombras. Sol quente com luz ambiente mais equilibrada e céu em degradê. Texturas procedurais locais de grama, asfalto, terra e água, com relevo de material e UVs em metros para não esticar ao longo das estradas. Nenhum download de textura nem dependência de hotlink.
+
+Todos os presets mantêm sombras próximas: Baixo 1024/32 m, Médio 2048/55 m, Alto 4096/80 m (resolução limitada à capacidade da GPU). O volume das sombras acompanha a moto. Não há mudança de protocolo: permanece v5; esta revisão precisa apenas do frontend atualizado.

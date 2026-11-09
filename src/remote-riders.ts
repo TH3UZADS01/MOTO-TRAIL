@@ -1,3 +1,4 @@
+import {enableShadows} from './graphics';
 import * as T from 'three';
 import {createBike,disposeBike} from './vehicle-models';
 import type {RemotePlayer,RiderState} from './network';
@@ -12,7 +13,7 @@ export class RemoteRiders {
   const live=new Set(players.map(p=>p.id));for(const [id,p] of this.peers)if(!live.has(id))this.remove(id,p);
   for(const p of players){let peer=this.peers.get(p.id);
    if(peer&&peer.vehicleId!==p.state.vehicleId){this.remove(p.id,peer);peer=undefined}
-   if(!peer){const bike=createBike(p.state.vehicleId),label=this.label(p.name);this.scene.add(bike.root,label);peer={bike,label,frames:[],name:p.name,connected:p.connected,vehicleId:p.state.vehicleId};this.peers.set(p.id,peer)}
+   if(!peer){const bike=createBike(p.state.vehicleId),label=this.label(p.name);enableShadows(bike.root);this.scene.add(bike.root,label);peer={bike,label,frames:[],name:p.name,connected:p.connected,vehicleId:p.state.vehicleId};this.peers.set(p.id,peer)}
    if(peer.name!==p.name||peer.connected!==p.connected){this.scene.remove(peer.label);peer.label.material.map?.dispose();peer.label.material.dispose();peer.label=this.label(p.name+(p.connected?'':' · reconectando'));this.scene.add(peer.label);peer.name=p.name;peer.connected=p.connected;}
    peer.frames.push({time:now,state:{...p.state,y:ground(p.state.x,p.state.z)}});if(peer.frames.length>20)peer.frames.shift();
   }

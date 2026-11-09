@@ -1,3 +1,4 @@
+import {surfaceMaterial,worldUV} from './graphics';
 import * as T from 'three';
 import {tracks,mainPlan,places,villages,stations,viewpoints,specials,lake,bridges,riverX,riverStart,riverEnd,riverWidth,waterY,original,MAP_SCALE,type Track} from './map-layout';
 export {villages,stations,viewpoints,specials,bridges};
@@ -29,7 +30,7 @@ export const dirtLength=routes.filter(t=>t.surface==='terra').reduce((sum,t)=>su
 export function surface(x:number,z:number){const n=nearestRoute(x,z,12);return bridgeAt(x,z)?'asfalto':n.distance<n.track.width/2?n.track.surface:pads.some(p=>Math.hypot(x-p.x,z-p.z)<p.r)?'terra':'grama'}
 export function ground(x:number,z:number){return roadBed(x,z)+.06}
 export function deepWater(x:number,z:number){if(bridgeAt(x,z))return false;if(Math.hypot(x-lake.x,z-lake.z)<lake.r*.88&&height(x,z)<11.5)return true;return z>=riverStart&&z<=riverEnd&&Math.abs(x-riverX(z))<riverWidth/2+3&&height(x,z)<waterY(z)-.4}
-export function terrain(cx=0,cz=0,size=256){const g=new T.PlaneGeometry(size,size,size/STEP,size/STEP);g.rotateX(-Math.PI/2);g.translate(cx,0,cz);const p=g.attributes.position,colors=[];for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),h=height(x,z);p.setY(i,h);const c=new T.Color().setHSL(.26+Math.sin(x/400)*.025,.28,.32+h*.0004);colors.push(c.r,c.g,c.b)}g.setAttribute('color',new T.Float32BufferAttribute(colors,3));g.computeVertexNormals();return new T.Mesh(g,new T.MeshStandardMaterial({vertexColors:true,roughness:1}))}
+export function terrain(cx=0,cz=0,size=256){const g=new T.PlaneGeometry(size,size,size/STEP,size/STEP);g.rotateX(-Math.PI/2);g.translate(cx,0,cz);const p=g.attributes.position,colors=[];for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),h=height(x,z);p.setY(i,h);const c=new T.Color().setHSL(.26+Math.sin(x/400)*.025,.28,.32+h*.0004);colors.push(c.r,c.g,c.b)}g.setAttribute('color',new T.Float32BufferAttribute(colors,3));g.computeVertexNormals();worldUV(g,6);const mesh=new T.Mesh(g,surfaceMaterial('grass',0xffffff,true));mesh.receiveShadow=true;return mesh}
 export function ribbon(points:T.Vector3[],width:number,color:number,offset=.055){
   points=points.filter((p,i)=>i===0||p.distanceToSquared(points[i-1])>1e-10);
   const vertices:number[]=[],indices:number[]=[],columns=Math.max(2,Math.ceil(width/.5));
@@ -37,7 +38,7 @@ export function ribbon(points:T.Vector3[],width:number,color:number,offset=.055)
     for(let j=0;j<=columns;j++){const side=(j/columns-.5)*width,x=p.x+dz/len*side,z=p.z-dx/len*side;vertices.push(x,roadBed(x,z)+offset,z)}
     if(i<points.length-1)for(let j=0;j<columns;j++){const n=i*(columns+1)+j;indices.push(n,n+columns+1,n+1,n+1,n+columns+1,n+columns+2)}
   }
-  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(vertices,3));g.setIndex(indices);g.computeVertexNormals();return new T.Mesh(g,new T.MeshStandardMaterial({color,roughness:1,side:T.DoubleSide}));
+  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(vertices,3));g.setIndex(indices);g.computeVertexNormals();worldUV(g,4);const kind=color===0x555d59?'asphalt':'dirt';const material=(color===0xe8d5a0||color===0xf0d9a0)?new T.MeshStandardMaterial({color,roughness:1}):surfaceMaterial(kind,color);const mesh=new T.Mesh(g,material);mesh.receiveShadow=true;return mesh;
 }
 // Copy terrain triangles inside a disk: no floating flat disk, no mismatched contact plane.
 export function terrainPatch(cx:number,cz:number,r:number,color:number){
@@ -46,5 +47,5 @@ export function terrainPatch(cx:number,cz:number,r:number,color:number){
     const triangles=[[[x,z],[x,z+STEP],[x+STEP,z]],[[x,z+STEP],[x+STEP,z+STEP],[x+STEP,z]]];
     for(const tri of triangles){const mx=(tri[0][0]+tri[1][0]+tri[2][0])/3,mz=(tri[0][1]+tri[1][1]+tri[2][1])/3;if(Math.hypot(mx-cx,mz-cz)>r)continue;for(const [px,pz] of tri)positions.push(px,height(px,pz)+.055,pz);}
   }
-  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.computeVertexNormals();return new T.Mesh(g,new T.MeshStandardMaterial({color,roughness:1,side:T.DoubleSide}));
+  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.computeVertexNormals();worldUV(g,4);const kind=color===0x555d59?'asphalt':'dirt';const material=(color===0xe8d5a0||color===0xf0d9a0)?new T.MeshStandardMaterial({color,roughness:1}):surfaceMaterial(kind,color);const mesh=new T.Mesh(g,material);mesh.receiveShadow=true;return mesh;
 }
