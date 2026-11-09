@@ -3,7 +3,7 @@ import {WebSocketServer,WebSocket} from 'ws';
 import {randomBytes,createHash} from 'node:crypto';
 import {mkdirSync,readFileSync,writeFileSync,renameSync,existsSync} from 'node:fs';
 import {resolve} from 'node:path';
-export const WORLD='vale-horizonte-v4';
+export const WORLD='vale-horizonte-v5';
 const hash=token=>createHash('sha256').update(token).digest('hex');
 const validVehicle=id=>['pop','cub','urban','caloi'].includes(id);
 const finite=(v,min,max)=>typeof v==='number'&&Number.isFinite(v)&&v>=min&&v<=max;
@@ -28,7 +28,7 @@ export function createGameServer({dataDir=resolve('server-data'),origins=['http:
    let message;try{message=JSON.parse(bytes.toString())}catch{return fail('Mensagem inválida.',true)}
    if(!message||typeof message!=='object')return fail('Mensagem inválida.',true);
    if(!joined){
-    if(!['create','join','resume'].includes(message.type)||message.world!==WORLD)return fail('Versão incompatível. Recarregue o jogo.',true);
+    if(!['create','join','resume'].includes(message.type)||message.world!==WORLD)return fail(`Site e servidor em versões diferentes (servidor: ${WORLD}). Atualize Render e Vercel, depois recarregue o jogo.`,true);
     const name=typeof message.name==='string'?message.name.trim().replace(/[\u0000-\u001f\u007f]/g,'').slice(0,20):'';
     if(!name||!validVehicle(message.vehicleId))return fail('Informe seu apelido e uma moto válida.',true);
     if(message.type==='create'){

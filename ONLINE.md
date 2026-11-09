@@ -70,8 +70,10 @@ Fontes consultadas:
 
 Somente a buzina dos outros jogadores é reproduzida, com volume por distância (até 90 metros) e direção estéreo relativa à câmera. H ou LB envia um evento somente à sala atual, limitado a um disparo a cada 400 ms. Motores são exclusivamente locais. Nenhuma camada de motor remoto é criada e dados de aceleração/marcha não são mais enviados pela rede.
 
-## Mapa de 20 km — protocolo v4
+## Mapa de 20 km — protocolo v5
 
-Esta atualização exige publicar tanto o servidor no Render quanto o frontend na Vercel. Ambos usam `vale-horizonte-v4`; salas antigas v3 são descartadas e os jogadores precisam criar/entrar em uma sala nova. Os limites de posição abrangem o vale ampliado e a velocidade aceita a Pop a 100 km/h. O tempo de conexão inicial foi ampliado para 60 segundos para tolerar a inicialização de servidores gratuitos. Isso não substitui a necessidade de verificar os logs se o host continuar encerrando conexões.
+Esta atualização exige publicar tanto o servidor no Render quanto o frontend na Vercel. Ambos usam `vale-horizonte-v5`; salas antigas v3/v4 são descartadas e os jogadores precisam criar/entrar em uma sala nova. Os limites de posição abrangem o vale ampliado e a velocidade aceita a Pop a 100 km/h. O tempo de conexão inicial foi ampliado para 60 segundos para tolerar a inicialização de servidores gratuitos. Isso não substitui a necessidade de verificar os logs se o host continuar encerrando conexões.
 
 Gasolina é local, salva por moto no navegador, e não sincronizada entre jogadores. Cada pessoa abastece sua própria moto.
+
+A revisão de serras, bifurcações e terra usa v5 porque o relevo e as posições das vias mudaram. Depois do push, confira ambos os deploys; se o Render não atualizar automaticamente, use Manual Deploy → Deploy latest commit. `/health` deve retornar `world: vale-horizonte-v5`. Recarregue todos os clientes e crie uma sala nova. O erro de incompatibilidade agora informa a versão do servidor e a necessidade de atualizar Render/Vercel.

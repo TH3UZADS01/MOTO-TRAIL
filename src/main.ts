@@ -8,9 +8,10 @@ import {Ride,steeringAngle} from './riding';
 import {FollowCamera} from './camera';
 import {Sound} from './audio';
 import {load,save} from './persistence';
-import {pois,surface,LOOKOUT,stations,road,roadLength,nearest} from './terrain';
+import {pois,surface,LOOKOUT,stations,road,roadLength,nearest,nearestRoute,routes,bridges,specials} from './terrain';
 import {RideNetwork} from './network';
 import {RemoteRiders} from './remote-riders';
+import {river} from './map-layout';
 import {mountInterface} from './interface';
 mountInterface();
 const el=(id:string)=>document.getElementById(id)!;
@@ -52,6 +53,11 @@ if(import.meta.env.DEV){
   const inspect=new URLSearchParams(location.search).get('inspect');
   if(inspect==='posto'){ride.x=stations[0].x;ride.z=stations[0].z+8;ride.heading=Math.PI;ride.contact();}
   if(inspect==='mirante'){ride.x=LOOKOUT.x;ride.z=LOOKOUT.z+7;ride.heading=Math.PI;ride.contact();}
+  if(inspect==='ponte'){const b=bridges[0];ride.x=b.x-b.dx*38;ride.z=b.z-b.dz*38;ride.heading=Math.atan2(b.dx,b.dz);ride.contact();}
+  if(inspect==='terra'){const t=routes.find(t=>t.id==='farm')!,p=t.points[150],q=t.points[151];ride.x=p.x;ride.z=p.z;ride.heading=Math.atan2(q.x-p.x,q.z-p.z);ride.contact();}
+  if(inspect==='camping'||inspect==='cachoeira'){const p=specials.find(p=>p.kind===(inspect==='camping'?'camp':'waterfall'))!;ride.x=p.x;ride.z=p.z+18;ride.heading=inspect==='camping'?Math.PI:2.45;ride.contact();}
+  if(inspect==='centro'){const t=routes.find(t=>t.id==='north')!,p=t.points.at(-12)!,q=t.points.at(-11)!;ride.x=p.x;ride.z=p.z;ride.heading=Math.atan2(q.x-p.x,q.z-p.z);ride.contact();}
+  if(['posto','mirante','ponte','terra','centro','camping','cachoeira'].includes(inspect||'')){el('intro').classList.add('hidden');el('hud').classList.remove('hidden');}
 }
 for(const id of ['vehicle-intro','vehicle-pause']){
  const select=el(id) as HTMLSelectElement;for(const v of vehicles){const option=document.createElement('option');option.value=v.id;option.textContent=v.name;select.appendChild(option)}select.value=settings.vehicle;
@@ -79,12 +85,15 @@ el('start').onclick=resume;el('resume').onclick=resume;el('pause').onclick=pause
 window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement)return;keys.add(e.code);if(e.repeat)return;if(e.code==='Escape'){if(playing)pause();else if(started)resume()}if(e.code==='KeyR'&&playing){ride.recover();camera.initialized=false;notify('De volta à estrada. Boa viagem!')}if(e.code==='KeyH'&&playing)honk();if(e.code==='KeyC'&&playing)toggleCamera()});window.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>{keys.clear();if(playing)pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing)pause()});
 let dragging=false,oldX=0,oldY=0;renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;oldX=e.clientX;oldY=e.clientY;renderer.domElement.setPointerCapture(e.pointerId)});renderer.domElement.addEventListener('pointermove',e=>{if(dragging){camera.orbit-=(e.clientX-oldX)*.006;camera.pitch=T.MathUtils.clamp(camera.pitch-(e.clientY-oldY)*.004,-.65,.65);oldX=e.clientX;oldY=e.clientY}});renderer.domElement.addEventListener('pointerup',()=>{dragging=false});
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.camera.aspect=innerWidth/innerHeight;camera.camera.updateProjectionMatrix()});
-let hudTimer=0,fuelSaveTimer=0,refueling=false;
+let hudTimer=.2,fuelSaveTimer=0,refueling=false;
 const routeCanvas=el('route-map') as HTMLCanvasElement,routeContext=routeCanvas.getContext('2d')!;
-function drawMap(){const c=routeContext,w=routeCanvas.width,h=routeCanvas.height;c.clearRect(0,0,w,h);const xs=road.map(p=>p.x),zs=road.map(p=>p.z),minX=Math.min(...xs),minZ=Math.min(...zs),scale=Math.min((w-24)/(Math.max(...xs)-minX),(h-24)/(Math.max(...zs)-minZ)),point=(x:number,z:number)=>[12+(x-minX)*scale,12+(z-minZ)*scale];c.strokeStyle='#c8d7b5';c.lineWidth=2;c.beginPath();road.forEach((p,i)=>{if(i%10)return;const [x,z]=point(p.x,p.z);if(i===0)c.moveTo(x,z);else c.lineTo(x,z)});c.stroke();for(const s of stations){const [x,z]=point(s.x,s.z);c.fillStyle='#f1cc82';c.fillRect(x-3,z-3,6,6)}const [x,z]=point(ride.x,ride.z);c.fillStyle='#ffffff';c.beginPath();c.arc(x,z,4,0,Math.PI*2);c.fill();}
+function drawMap(){const c=routeContext,w=routeCanvas.width,h=routeCanvas.height;c.clearRect(0,0,w,h);const xs=road.map(p=>p.x),zs=road.map(p=>p.z),minX=Math.min(...xs)-150,minZ=Math.min(...zs)-150,scale=Math.min((w-24)/(Math.max(...xs)-minX+150),(h-24)/(Math.max(...zs)-minZ+150)),point=(x:number,z:number)=>[12+(x-minX)*scale,12+(z-minZ)*scale];
+ const line=(points:readonly {x:number;z:number}[],color:string,width:number,dashed=false)=>{c.strokeStyle=color;c.lineWidth=width;c.setLineDash(dashed?[3,2]:[]);c.beginPath();points.forEach((p,i)=>{if(i%5&&i!==points.length-1)return;const [x,z]=point(p.x,p.z);if(i===0)c.moveTo(x,z);else c.lineTo(x,z)});c.stroke()};
+ line(river,'#78b8c7',2);for(const route of routes)line(route.points,route.surface==='terra'?'#e0ac66':'#d7dfc5',route.id==='main'?1.8:1.2,route.surface==='terra');c.setLineDash([]);
+ for(const s of stations){const [x,z]=point(s.x,s.z);c.fillStyle='#f1cc82';c.fillRect(x-3,z-3,6,6)}const [x,z]=point(ride.x,ride.z);c.fillStyle='#ffffff';c.beginPath();c.arc(x,z,4,0,Math.PI*2);c.fill();}
 
 function frame(now:number){
- requestAnimationFrame(frame);const dt=Math.min((now-last)/1000,.1);last=now;
+ requestAnimationFrame(frame);const dt=Math.max(0,Math.min((now-last)/1000,.1));last=now;
  world.update(ride.x,ride.z,now);
  const pad=controller.poll(settings.deadzone,settings.sensitivity);
  if(pad.disconnected&&playing){pause();notify('Controle desconectado. Passeio pausado.')}
@@ -117,9 +126,9 @@ function frame(now:number){
   const ratio=ride.fuel.ratio(settings.vehicle),fuel=ride.fuel.get(settings.vehicle),station=stations.find(s=>Math.hypot(ride.x-s.x,ride.z-s.z)<12),n=nearest(ride.x,ride.z),progress=n.index/(road.length-1)*roadLength/1000;
   el('fuel-level').textContent=`${fuel.toFixed(1)} L · ${Math.round(ratio*100)}%${ratio<.2?' · RESERVA':''}`;
   (el('fuel-meter') as HTMLMeterElement).value=ratio;
-  const next=stations.map(s=>({s,d:(nearest(s.x,s.z).index-n.index+road.length-1)%(road.length-1)/(road.length-1)*roadLength})).sort((a,b)=>a.d-b.d)[0];
-  el('fuel-hint').textContent=refueling?'Abastecendo… solte E / X para sair':station?'Pare e segure E / X para abastecer grátis':fuel<=0?'Tanque vazio · solicite gasolina na pausa':`Próximo posto: ${(next.d/1000).toFixed(1)} km · sentido do circuito`;
-  el('route-progress').textContent=`km ${progress.toFixed(1)} / ${(roadLength/1000).toFixed(1)}`;drawMap();
+  const next=stations.map(s=>({s,d:Math.hypot(s.x-ride.x,s.z-ride.z)})).sort((a,b)=>a.d-b.d)[0],route=nearestRoute(ride.x,ride.z);
+  el('fuel-hint').textContent=refueling?'Abastecendo… solte E / X para sair':station?'Pare e segure E / X para abastecer grátis':fuel<=0?'Tanque vazio · solicite gasolina na pausa':`${next.s.name}: ${(next.d/1000).toFixed(1)} km em linha reta`;
+  el('route-progress').textContent=route.track.id==='main'?`Horizonte · km ${progress.toFixed(1)} / ${(roadLength/1000).toFixed(1)}`:`${route.track.name} · ${route.track.surface}`;drawMap();
   el('gamepad-status').textContent=pad.connected?'Controle conectado · mapeamento padrão':'Conecte um controle padrão e pressione um botão.';
  }
  renderer.render(scene,camera.camera);

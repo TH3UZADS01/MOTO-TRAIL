@@ -46,7 +46,7 @@ Todos são modelos procedurais estilizados, não réplicas dimensionais certific
 
 ## Mundo e áudio
 
-Circuito contínuo de aproximadamente 20,008 km, medido em metros no terreno, em um vale de 16 × 16 km. Quatro vilas, cinco postos, quatro pontos de parada, dois lagos, morros, bosques e pássaros em movimento. Terreno em trechos de 256 m carregados ao redor da moto; vegetação instanciada, estrada dividida para descarte de trechos fora da câmera. Edificações com fundações, áreas niveladas e acessos; sinalização legível dos dois lados. Minimap com postos e posição, marco quilométrico e odômetro.
+Circuito contínuo de aproximadamente 20,1 km, medido em metros no terreno, em um vale de 16 × 16 km. Curvas em S, serra com subidas e descidas, quatro vilas e cinco postos. Quatro ligações asfaltadas atravessam o interior; cinco trilhas de terra somam aproximadamente 8,6 km. Fazenda, camping, cachoeira cenográfica, lago e três pontes sobre um rio contínuo. O traçado parte do conceito aprovado em artifacts/map-v5/conceito-aprovado.png. Terreno em trechos de 256 m carregados ao redor da moto; vegetação instanciada, estrada dividida para descarte de trechos fora da câmera. Edificações com fundações, áreas niveladas e acessos; sinalização legível dos dois lados. Minimapa com asfalto, terra tracejada, rio, postos e posição. O HUD identifica a estrada atual; a distância ao posto mais próximo é em linha reta. Terra tem menos aderência, frenagem mais longa e resistência maior. A recuperação procura a estrada mais próxima de toda a rede. Água profunda bloqueia a moto, mas os tabuleiros das pontes permitem atravessar.
 
 Gasolina: tanques separados por moto, salvos a cada cinco segundos e ao pausar/sair. Um circuito consome aproximadamente metade do tanque em ritmo normal. Velocidade, aceleração e subida aumentam o consumo; empurrar não gasta. Pare próximo às bombas, solte o acelerador e segure E ou X/quadrado para abastecer gratuitamente (0,25 L/s). Postos separados por cerca de 4 km. Se esvaziar, o menu de pausa oferece 0,7 L de emergência; não é necessário resetar a posição. Recuperar ou trocar de moto não enche o tanque.
 
@@ -66,7 +66,7 @@ Gasolina: tanques separados por moto, salvos a cada cinco segundos e ao pausar/s
 
 Sem suspensão independente rígida, quedas, farol funcional, garagem de acessórios, diário persistente, ciclo dia/noite. Retrovisores não refletem a cena e o painel 3D é ilustrativo; velocidade real do jogo está no HUD. Na primeira pessoa o corpo do piloto é ocultado para evitar atravessamento da câmera. Sons e ergonomia ainda precisam de avaliação humana. Gamepad físico e FPS no Vivobook de referência não foram medidos.
 
-TESTING.md registra o que efetivamente foi validado. Para vistoria local, `?inspect=posto` e `?inspect=mirante` no servidor de desenvolvimento; pontos de início de teste são eliminados do build de produção.
+TESTING.md registra o que efetivamente foi validado. Para vistoria local, `?inspect=posto`, `?inspect=mirante`, `?inspect=ponte`, `?inspect=terra`, `?inspect=centro`, `?inspect=camping` e `?inspect=cachoeira` no servidor de desenvolvimento; pontos de início de teste são eliminados do build de produção.
 
 ## Multiplayer
 

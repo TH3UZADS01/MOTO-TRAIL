@@ -13,10 +13,10 @@ test('expanded circuit can be completed with actual world obstacles',()=>{
  assert.ok(length>20000);let maxDeviation=0;
  for(let i=0;i<60*2200&&r.distance<length+50;i++){
   world.update(r.x,r.z,i*1000/60);
-  const n=nearest(r.x,r.z),p=road[(n.index+7)%(road.length-1)],target=Math.atan2(p.x-r.x,p.z-r.z),error=Math.atan2(Math.sin(target-r.heading),Math.cos(target-r.heading));
+  const n=nearest(r.x,r.z),p=road[(n.index+4)%(road.length-1)],target=Math.atan2(p.x-r.x,p.z-r.z),error=Math.atan2(Math.sin(target-r.heading),Math.cos(target-r.heading));
   r.step(1/60,r.speed<10?1:.1,r.speed>12?1:0,Math.max(-1,Math.min(1,error*3)),obstacles);maxDeviation=Math.max(maxDeviation,n.distance);
  }
- assert.ok(r.distance>length,`stopped after ${r.distance.toFixed(1)} m of ${length.toFixed(1)} m at ${r.x},${r.z}; nearby ${JSON.stringify(obstacles.filter(o=>Math.hypot(o.x-r.x,o.z-r.z)<10))}`);assert.ok(maxDeviation<4);
+ assert.ok(r.distance>length,`stopped after ${r.distance.toFixed(1)} m of ${length.toFixed(1)} m at ${r.x},${r.z}; nearby ${JSON.stringify(obstacles.filter(o=>Math.hypot(o.x-r.x,o.z-r.z)<10))}`);assert.ok(maxDeviation<4,`maximum road deviation ${maxDeviation}`);
  world.update(-310,0,0);const order=(a:any,b:any)=>a.x-b.x||a.z-b.z;const first=obstacles.map(o=>({...o})).sort(order);const second=makeWorld(new T.Scene());second.update(-310,0,0);assert.deepEqual([...obstacles].sort(order),first,'seeded world must be reproducible without duplicated obstacles');
 });
 

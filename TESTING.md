@@ -63,3 +63,15 @@ Verificação final desta revisão: npm test teve 13 aprovados e 1 falha no test
 - Quatro testes online aprovados, incluindo coordenadas do mapa maior, 100 km/h, buzina somente na mesma sala, cooldown e reconexão após reinício. Motores remotos removidos.
 - A suíte geral continua com a falha anterior de áudio: arquivos locais em 44.100 Hz, enquanto o teste espera 22.050 Hz; alguns arquivos também têm picos no limite PCM. Arquivos preservados nesta revisão, sem mascarar a falha.
 - Build aprovado. Não houve inspeção visual final: navegador integrado desativado e Computer Use interrompido por não conseguir determinar a URL da janela. Não foi medido FPS nem validada a nova versão no Render/Vercel. Publicar ambos os serviços e criar salas novas (protocolo v4).
+
+## Mapa aprovado: serra, pontes, interior e terra — 09/11/2026
+
+- Circuito principal medido em aproximadamente 20,1 km; cinco rotas de terra totalizam 8,6 km, além das quatro ligações internas asfaltadas.
+- Simulação completa do circuito principal e de cada ramal com física e obstáculos reais. Verificados os acessos aos cinco postos, conexão dos ramais, finais intencionais nos destinos, recuperação nas trilhas e frenagem na terra.
+- Três pontes: terreno/água abaixo do piso, transição contínua das rampas e bloqueio de água fora das pontes.
+- Corrigido acesso de comprimento zero em destinos já sobre uma trilha. Teste adicional confirma que todas as malhas estáticas têm vértices finitos.
+- Inspeção visual real no Chrome headless com perfis temporários separados. Capturas em artifacts/map-v5: ponte, terra, centro, mirante, camping e cachoeira. Sem controle das abas pessoais. Os testes não medem FPS nem substituem avaliação humana da pilotagem.
+- Protocolo do mundo elevado para v5, sem reintroduzir áudio de motores remotos. Ambos os deploys precisam atualizar; não foi feita publicação nesta revisão.
+- A falha preexistente no teste dos arquivos de áudio permanece independente do mapa; as gravações locais foram preservadas.
+
+Resultado final desta revisão: build de produção aprovado; 22 testes de jogo/mapa aprovados e 4 testes online aprovados. A única falha da suíte geral continua no teste preexistente dos WAVs (44.100 Hz versus 22.050 Hz).
