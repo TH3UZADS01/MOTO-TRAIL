@@ -57,11 +57,16 @@ Vale de 1.280 × 1.280 m, circuito de 1.751 m e atalho de terra. Vila, lago, mir
 - `riding.ts`: movimento, recuo e colisão; `input.ts`: gamepad.
 - `camera.ts`: primeira/terceira pessoa; `audio.ts`: reprodução e mixagem.
 - `main.ts`, `interface.ts`, `style.css`: integração e menus; `persistence.ts`: preferências locais.
-- `network.ts`: apenas contrato para multiplayer futuro, sem online fictício.
+- `network.ts`, `remote-riders.ts` e `server/`: salas e sincronização multiplayer.
 - `tools/prepare_audio.py`: reproduz o processamento a partir de `tools/audio-originals/`. Originais não entram no build público.
 
 ## Limitações
 
-Sem suspensão independente rígida, quedas, farol funcional, garagem de acessórios, mapa, diário persistente, ciclo dia/noite ou multiplayer. Retrovisores não refletem a cena e o painel 3D é ilustrativo; velocidade real do jogo está no HUD. Na primeira pessoa o corpo do piloto é ocultado para evitar atravessamento da câmera. Sons e ergonomia ainda precisam de avaliação humana. Gamepad físico e FPS no Vivobook de referência não foram medidos.
+Sem suspensão independente rígida, quedas, farol funcional, garagem de acessórios, mapa, diário persistente, ciclo dia/noite. Retrovisores não refletem a cena e o painel 3D é ilustrativo; velocidade real do jogo está no HUD. Na primeira pessoa o corpo do piloto é ocultado para evitar atravessamento da câmera. Sons e ergonomia ainda precisam de avaliação humana. Gamepad físico e FPS no Vivobook de referência não foram medidos.
 
 TESTING.md registra o que efetivamente foi validado. Para vistoria local, `?inspect=ponte` e `?inspect=mirante` no servidor de desenvolvimento; pontos de início de teste são eliminados do build de produção.
+
+## Multiplayer
+
+Salas reais para quatro pessoas, convite, apelidos, modelos remotos interpolados, reconexão e servidor persistente. Execute `npm run server` junto com `npm run dev`. Para compartilhar pela internet, siga **ONLINE.md**: frontend Vercel + backend Node com armazenamento persistente. Enviar somente o frontend à Vercel não publica o servidor. `npm run test:online` testa sessões WebSocket independentes e reinício do servidor.
+

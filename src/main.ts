@@ -66,7 +66,7 @@ for(const name of ['deadzone','sensitivity'] as const){(el(name) as HTMLInputEle
 function quality(){const q=settings.quality;renderer.setPixelRatio(Math.min(devicePixelRatio,q==='baixo'?.8:q==='medio'?1.25:1.7));renderer.shadowMap.enabled=q!=='baixo';renderer.shadowMap.type=T.PCFSoftShadowMap;sun.castShadow=q!=='baixo';camera.camera.far=q==='baixo'?550:900;camera.camera.updateProjectionMatrix();(scene.fog as T.Fog).far=q==='baixo'?500:780;sound.volume=settings.motor;sound.ambience=settings.ambient;save(settings)}quality();
 (el('quality') as HTMLSelectElement).value=settings.quality;(el('motor') as HTMLInputElement).value=String(settings.motor);(el('ambient') as HTMLInputElement).value=String(settings.ambient);
 el('quality').onchange=e=>{settings.quality=(e.target as HTMLSelectElement).value as typeof settings.quality;quality()};for(const name of ['motor','ambient'] as const)el(name).oninput=e=>{settings[name]=Number((e.target as HTMLInputElement).value);quality()};
-function pause(){playing=false;ride.speed=0;keys.clear();el('panel').classList.remove('hidden')}
+function pause(){playing=false;ride.speed=0;keys.clear();network.send({vehicleId:settings.vehicle,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer},performance.now(),true);el('panel').classList.remove('hidden')}
 function resume(){started=true;playing=true;el('intro').classList.add('hidden');el('panel').classList.add('hidden');el('hud').classList.remove('hidden');void sound.start().then(()=>{el('audio-status').textContent='Áudio pronto · gravações CC0'}).catch(()=>{el('audio-status').textContent='Falha ao carregar áudio. Tente continuar novamente.';notify('Não foi possível carregar o áudio.')});last=performance.now();accumulator=0}
 function notify(text:string){el('notification').textContent=text;el('notification').classList.add('visible');notifyUntil=performance.now()+4500}
 el('start').onclick=resume;el('resume').onclick=resume;el('pause').onclick=pause;el('settings-open').onclick=pause;el('recover').onclick=()=>{ride.recover();camera.initialized=false;resume()};el('home').onclick=()=>{playing=false;ride.speed=0;el('panel').classList.add('hidden');el('intro').classList.remove('hidden');el('hud').classList.add('hidden')};el('credits-open').onclick=()=>el('credits').classList.remove('hidden');el('credits-close').onclick=()=>el('credits').classList.add('hidden');
@@ -105,6 +105,7 @@ function frame(now:number){
 }
 network.restore();
 requestAnimationFrame(frame);renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();playing=false;el('error').classList.remove('hidden');el('error').textContent='A conexão com a placa gráfica foi interrompida. Recarregue a página para continuar.'});
+
 
 
 

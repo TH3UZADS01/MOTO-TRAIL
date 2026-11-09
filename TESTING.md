@@ -42,3 +42,13 @@ A primeira versão já havia sido verificada quanto a início do passeio, recupe
 - Controle físico não conectado: o teste de Gamepad API usa entradas simuladas no módulo, não representa teste com hardware.
 - Não foi realizada avaliação auditiva humana. Os arquivos reais foram inspecionados quanto a formato, amplitude e recortes; qualidade subjetiva e adequação a cada moto ainda dependem de ouvir e ajustar.
 - Capturas atuais: preview-primeira-pessoa.png, preview-caloi.png, preview-cub.png.
+
+## Multiplayer — 08/11/2026
+
+Suíte `npm run test:online`: 3 testes aprovados. Duas conexões WebSocket independentes trocaram posição e veículo; validação de isolamento de salas, capacidade de quatro jogadores, saída, estado inválido, limite de mensagens e reconexão à mesma identidade após reinício com dados persistidos.
+
+Navegador: duas abas independentes entraram na mesma sala por código/convite (Ana e Bruno). A verificação visual final foi interrompida porque o uso do navegador local foi desabilitado nas configurações Work. A troca de estados foi validada pela suíte de rede, mas a movimentação conjunta visual não foi declarada validada.
+
+Hospedagem pública Vercel/backend ainda não configurada nem testada. Instruções completas em ONLINE.md. Não há credenciais de hospedagem configuradas nesta entrega.
+
+Verificação final desta revisão: npm test teve 13 aprovados e 1 falha no teste de áudio (arquivo em 44.100 Hz versus expectativa de 22.050 Hz). O arquivo foi preservado. Suíte online: 3 aprovados. Build de produção aprovado; ausência de falhas na suíte de rede não significa validação pública da hospedagem.
