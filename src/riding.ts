@@ -3,10 +3,13 @@ import {getVehicle,type VehicleSpec} from './vehicles';
 import {ground,nearestRoute,surface,SIZE,deepWater} from './terrain';
 import type {Obstacle} from './world';
 export const TOP_SPEED=100/3.6;
+export const ACCELERATION_SCALE=.8; // 20% slower acceleration for every motorcycle.
 export function steeringAngle(speed:number,input:number){return input*.56/(1+(speed/5.8)**2);}
 export function acceleration(speed:number,throttle:number,brake:number,pitch:number,grip:number){
   const drive=throttle*4.8*Math.max(0,1-speed/48);
-  return drive-brake*8-.22-speed*speed*(.002+(1-grip)*.012)-9.81*Math.sin(pitch)-(1-grip)*1.7;
+  const net=drive-brake*8-.22-speed*speed*(.002+(1-grip)*.012)-9.81*Math.sin(pitch)-(1-grip)*1.7;
+  // Scale positive acceleration under power, preserving terminal speed, coasting and braking.
+  return throttle>0&&brake===0&&net>0?net*ACCELERATION_SCALE:net;
 }
 export class Ride {
   fuel=new Fuel();spec:VehicleSpec=getVehicle('pop');pushing=false;brakeInput=0;private impact=0;
