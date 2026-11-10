@@ -1,6 +1,14 @@
 import type {RemotePlayer} from './network';
 import {getVehicle,type VehicleId} from './vehicles';
-type Layer={source:AudioBufferSourceNode;gain:GainNode;filter:BiquadFilterNode;bank:'engine'|'moped'|'wind';load:boolean};
+// High-RPM recordings supplied by the user; gains, pitch range and crossfade are tunable.
+export const CG_AUDIO_TUNING={accelerationGain:.45,coastGain:.4,idleGain:.12,minRate:.65,maxRate:1.1,response:.16,filter:7000};
+export const AUDIO_ASSETS=[
+ {name:'engine-idle',bank:'engine',load:false},{name:'engine-load',bank:'engine',load:true},
+ {name:'moped-idle',bank:'moped',load:false},{name:'moped-load',bank:'moped',load:true},
+ {name:'wind',bank:'wind',load:false},{name:'cg150-on-high',bank:'cg150',load:true},
+ {name:'cg150-off-high',bank:'cg150',load:false}
+] as const;
+type Layer={source:AudioBufferSourceNode;gain:GainNode;filter:BiquadFilterNode;bank:'engine'|'moped'|'wind'|'cg150';load:boolean};
 type Position={x:number;y:number;z:number};
 type RemoteVoice={gain:GainNode;pan:StereoPannerNode;horns:Set<AudioBufferSourceNode>};
 export class Sound {
@@ -24,18 +32,25 @@ export class Sound {
   if(!this.loading)this.loading=this.load().catch(error=>{this.loading=undefined;throw error});
   await this.loading;
  }
- private async load(){const c=this.ctx!,names=['engine-idle','engine-load','moped-idle','moped-load','wind','horn'];
+ private async load(){const c=this.ctx!,names=[...AUDIO_ASSETS.map(a=>a.name),'horn'];
   const buffers=await Promise.all(names.map(async name=>{const response=await fetch(`/audio/${name}.wav`);if(!response.ok)throw new Error(`Não foi possível carregar ${name}`);return c.decodeAudioData(await response.arrayBuffer())}));
   const limiter=c.createDynamicsCompressor();this.output=limiter;limiter.threshold.value=-10;limiter.knee.value=12;limiter.ratio.value=6;limiter.attack.value=.008;limiter.release.value=.2;limiter.connect(c.destination);
-  buffers.slice(0,5).forEach((buffer,i)=>{const source=c.createBufferSource(),gain=c.createGain(),filter=c.createBiquadFilter();source.buffer=buffer;source.loop=true;gain.gain.value=0;filter.type='lowpass';filter.frequency.value=i===4?700:1800;source.connect(filter);filter.connect(gain);gain.connect(limiter);source.start();this.layers.push({source,gain,filter,bank:i<2?'engine':i<4?'moped':'wind',load:i%2===1})});
-  this.hornBuffer=buffers[5];this.ready=true;
+  buffers.slice(0,AUDIO_ASSETS.length).forEach((buffer,i)=>{const asset=AUDIO_ASSETS[i];const source=c.createBufferSource(),gain=c.createGain(),filter=c.createBiquadFilter();source.buffer=buffer;source.loop=true;gain.gain.value=0;filter.type='lowpass';filter.frequency.value=asset.bank==='wind'?700:asset.bank==='cg150'?CG_AUDIO_TUNING.filter:1800;source.connect(filter);filter.connect(gain);gain.connect(limiter);source.start();this.layers.push({source,gain,filter,bank:asset.bank,load:asset.load})});
+  this.hornBuffer=buffers[AUDIO_ASSETS.length];this.ready=true;
  }
- update(speed:number,gear:number,throttle:number,paused:boolean){if(!this.ready||!this.ctx)return;const c=this.ctx,t=c.currentTime,spec=getVehicle(this.vehicle),v=Math.max(0,speed),ratio=v/spec.maxSpeed;
+ update(speed:number,gear:number,throttle:number,paused:boolean,brake=0){if(!this.ready||!this.ctx)return;const c=this.ctx,t=c.currentTime,spec=getVehicle(this.vehicle),v=Math.max(0,speed),ratio=v/spec.maxSpeed;
   const rev=spec.gears===1?ratio:Math.max(0,Math.min(1,(v-(gear-1)*5)/7));
   for(const layer of this.layers){let gain=0,rate=1;
    if(layer.bank==='wind')gain=paused?0:this.ambience*(.06+ratio*.16);
+   else if(layer.bank==='cg150'&&spec.audio==='cg150'&&!paused){
+    // Throttle selects acceleration; releasing it (or braking) exposes the coast loop.
+    // Both loops run continuously so switching never retriggers the recording.
+    const gas=Math.max(0,Math.min(1,throttle))*(1-Math.max(0,Math.min(1,brake))),moving=Math.min(1,v/5),tuning=CG_AUDIO_TUNING;
+    gain=this.volume*(layer.load?tuning.accelerationGain*Math.sqrt(gas):(tuning.idleGain+(tuning.coastGain-tuning.idleGain)*moving)*Math.sqrt(1-gas));
+    rate=tuning.minRate+(tuning.maxRate-tuning.minRate)*Math.max(rev,gas*.3);layer.filter.frequency.setTargetAtTime(tuning.filter,t,.25);
+   }
    else if(layer.bank===spec.audio&&!paused){const load=Math.min(1,throttle*.8+ratio*.2);gain=this.volume*(layer.load?.55*load:.42*(1-load*.7));rate=spec.pitch*(layer.load?.92+rev*.35:.85+rev*.25);layer.filter.frequency.setTargetAtTime(spec.filter,t,.25);}
-   layer.gain.gain.setTargetAtTime(gain,t,.16);layer.source.playbackRate.setTargetAtTime(rate,t,.2);
+   layer.gain.gain.setTargetAtTime(gain,t,layer.bank==='cg150'?CG_AUDIO_TUNING.response:.16);layer.source.playbackRate.setTargetAtTime(rate,t,.2);
   }
  }
  horn(){if(!this.ready||!this.ctx||!this.hornBuffer)return;const c=this.ctx;if(c.currentTime-this.lastHorn<.4)return;this.lastHorn=c.currentTime;const source=c.createBufferSource(),gain=c.createGain();source.buffer=this.hornBuffer;gain.gain.value=this.volume*.7;source.connect(gain);gain.connect(this.output!);source.start();source.onended=()=>{source.disconnect();gain.disconnect()};}

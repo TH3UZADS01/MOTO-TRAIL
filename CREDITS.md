@@ -47,3 +47,12 @@ Referências principais: três imagens fornecidas pelo usuário nesta conversa. 
 
 O efeito vocal de motor da OpenGameArt foi consultado e descartado: https://opengameart.org/content/motor-sound-effect . Não integra o jogo.
 
+
+## Áudio da CG 150
+
+Arquivos fornecidos pelo usuário, copiados sem edição de `D:/mods/bikes/titan150luquine/`:
+
+- `minigp_on_high.wav` → `public/audio/cg150-on-high.wav`: aceleração.
+- `minigp_off_high.wav` → `public/audio/cg150-off-high.wav`: desaceleração; também usado mais baixo e grave em marcha lenta, pois não foi fornecida uma gravação dedicada de lenta.
+
+Origem indicada: mod local `titan150luquine`. Autoria e licença não foram informadas; estes dois arquivos não estão incluídos na atribuição CC0 dos sons acima. Ambos são PCM mono de 44.100 Hz, preservados como recebidos. A alternância é feita por crossfade no jogo; ajustes em `CG_AUDIO_TUNING`, no topo de `src/audio.ts`. As outras motos mantêm seus bancos e o online continua reproduzindo apenas buzinas remotas.
