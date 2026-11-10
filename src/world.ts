@@ -1,3 +1,6 @@
+import {makeSea} from './coast';
+import {vegetationFactory} from './vegetation';
+import {BIOME_TUNING} from './biomes';
 import {enableShadows,surfaceMaterial,worldUV} from './graphics';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import * as T from 'three';
@@ -7,7 +10,7 @@ export interface Obstacle{x:number;z:number;r:number}
 export const obstacles:Obstacle[]=[];
 const fixed:Obstacle[]=[];
 export function makeWorld(scene:T.Scene){
- obstacles.length=0;fixed.length=0;
+ obstacles.length=0;fixed.length=0;const sea=makeSea(scene);
  const materials=new Map<number,T.MeshStandardMaterial>();
  const material=(color:number)=>{if(!materials.has(color))materials.set(color,new T.MeshStandardMaterial({color,roughness:.9}));return materials.get(color)!};
  const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:number)=>{const m=new T.Mesh(new T.BoxGeometry(w,h,d),material(color));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m};
@@ -54,15 +57,17 @@ export function makeWorld(scene:T.Scene){
  }
  for(const route of routes.filter(t=>t.id!=='main')){for(const p of [route.points[8],route.points.at(-9)!]){const n=nearestRoute(p.x,p.z),a=n.track.points[n.index],b=n.track.points[n.index+1],angle=Math.atan2(b.x-a.x,b.z-a.z),x=p.x+Math.cos(angle)*9,z=p.z-Math.sin(angle)*9;if(!nearRoute(x,z,6))sign(route.name+(route.surface==='terra'?' · terra':' · asfalto'),x,z,angle)}}
  // Local chunks: terrain, groves and rocks have bounded cost even on a 20 km trip.
- const chunks=new Map<string,{group:T.Group;hits:Obstacle[]}>();const dummy=new T.Object3D();
- const crown=new T.IcosahedronGeometry(1,0),trunk=new T.CylinderGeometry(.3,.45,4,6),rock=new T.DodecahedronGeometry(1,0);
- function chunk(gx:number,gz:number){const group=new T.Group(),hits:Obstacle[]=[],cx=gx*256,cz=gz*256;group.add(terrain(cx,cz));let seed=((gx*73856093)^(gz*19349663)^73129)>>>0;const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};const trees=new T.InstancedMesh(crown,material(0x718a54),100),trunks=new T.InstancedMesh(trunk,material(0x665540),100),rocks=new T.InstancedMesh(rock,material(0x929788),15);let count=0,rc=0;
-  for(let i=0;i<115;i++){const x=cx+(rand()-.5)*256,z=cz+(rand()-.5)*256;if(nearRoute(x,z,15)||deepWater(x,z)||(z>=riverStart&&z<=riverEnd&&Math.abs(x-riverX(z))<48)||pois.some(p=>Math.hypot(x-p.x,z-p.z)<(p.kind==='village'?85:45))||lakes.some(p=>Math.hypot(x-p.x,z-p.z)<p.r+20))continue;const y=height(x,z),s=.8+rand()*1.2;
-   if(i<100){dummy.position.set(x,y+6*s,z);dummy.scale.set(3.6*s,3.2*s,3.6*s);dummy.rotation.set(0,rand()*6,0);dummy.updateMatrix();trees.setMatrixAt(count,dummy.matrix);trees.setColorAt(count,new T.Color().setHSL(.22+rand()*.09,.25,.25+rand()*.13));dummy.position.y=y+2*s;dummy.scale.setScalar(s);dummy.updateMatrix();trunks.setMatrixAt(count,dummy.matrix);hits.push({x,z,r:.5*s});count++}
-   else{dummy.position.set(x,y+.5*s,z);dummy.scale.set(s*1.5,s,s);dummy.updateMatrix();rocks.setMatrixAt(rc++,dummy.matrix);hits.push({x,z,r:s})}
-  }trees.count=trunks.count=count;rocks.count=rc;trees.castShadow=true;trunks.castShadow=true;rocks.castShadow=true;group.add(trees,trunks,rocks);enableShadows(group);scene.add(group);return {group,hits};
+ const chunks=new Map<string,{group:T.Group;details:T.Group;hits:Obstacle[];cx:number;cz:number}>();const dummy=new T.Object3D();
+ const vegetation=vegetationFactory(),rock=new T.DodecahedronGeometry(1,0);
+ function chunk(gx:number,gz:number){const group=new T.Group(),hits:Obstacle[]=[],cx=gx*256,cz=gz*256;group.add(terrain(cx,cz));let seed=((gx*73856093)^(gz*19349663)^73129)>>>0;const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};const samples=[];
+  const rocks=new T.InstancedMesh(rock,material(0x929788),15);let rc=0;
+  for(let i=0;i<150;i++){const x=cx+(rand()-.5)*256,z=cz+(rand()-.5)*256;if(nearRoute(x,z,15)||deepWater(x,z)||(z>=riverStart&&z<=riverEnd&&Math.abs(x-riverX(z))<48)||pois.some(p=>Math.hypot(x-p.x,z-p.z)<(p.kind==='village'?85:45))||lakes.some(p=>Math.hypot(x-p.x,z-p.z)<p.r+20))continue;const y=height(x,z),s=.7+rand()*1.1;
+   if(i<135)samples.push({x,y,z,s,r:rand(),rotation:rand()*Math.PI*2,tint:rand()});
+   else{dummy.position.set(x,y+.5*s,z);dummy.scale.set(s*1.5,s,s);dummy.rotation.set(0,rand()*6,0);dummy.updateMatrix();rocks.setMatrixAt(rc++,dummy.matrix);hits.push({x,z,r:s})}
+  }
+  const plants=vegetation(samples);group.add(plants.group);hits.push(...plants.hits);rocks.count=rc;rocks.castShadow=true;rocks.computeBoundingSphere();group.add(rocks);enableShadows(group);scene.add(group);return {group,details:plants.details,hits,cx,cz};
  }
  enableShadows(scene);
  let cell='';const birds=new T.Group();for(let i=0;i<12;i++){const bird=new T.Mesh(new T.ConeGeometry(.5,2,3),material(0x55645c));bird.rotation.z=Math.PI/2;birds.add(bird)}scene.add(birds);
- return {update(x:number,z:number,time:number){const gx=Math.round(x/256),gz=Math.round(z/256),key=gx+','+gz;if(key!==cell){cell=key;const wanted=new Set<string>();for(let a=gx-3;a<=gx+3;a++)for(let b=gz-3;b<=gz+3;b++){const k=a+','+b;wanted.add(k);if(!chunks.has(k))chunks.set(k,chunk(a,b))}for(const [k,c] of chunks)if(!wanted.has(k)){scene.remove(c.group);c.group.traverse(o=>{if(o instanceof T.InstancedMesh)o.dispose();else if(o instanceof T.Mesh){o.geometry.dispose();(o.material as T.Material).dispose()}});chunks.delete(k)}obstacles.length=0;obstacles.push(...fixed);for(const c of chunks.values())obstacles.push(...c.hits)}birds.position.set(x,height(x,z)+55,z);birds.children.forEach((b,i)=>b.position.set(Math.sin(time*.00012+i*.2)*100,Math.sin(time*.002+i)*2,Math.cos(time*.00012+i*.2)*100));}};
+ return {update(x:number,z:number,time:number){sea.update(time);const gx=Math.round(x/256),gz=Math.round(z/256),key=gx+','+gz;if(key!==cell){cell=key;const wanted=new Set<string>();for(let a=gx-3;a<=gx+3;a++)for(let b=gz-3;b<=gz+3;b++){const k=a+','+b;wanted.add(k);if(!chunks.has(k))chunks.set(k,chunk(a,b))}for(const [k,c] of chunks)if(!wanted.has(k)){scene.remove(c.group);c.group.traverse(o=>{if(o instanceof T.InstancedMesh)o.dispose();else if(o instanceof T.Mesh){o.geometry.dispose();(o.material as T.Material).dispose()}});chunks.delete(k)}obstacles.length=0;obstacles.push(...fixed);for(const c of chunks.values())obstacles.push(...c.hits)}for(const c of chunks.values())c.details.visible=Math.hypot(c.cx-x,c.cz-z)<BIOME_TUNING.detailDistance;birds.position.set(x,height(x,z)+55,z);birds.children.forEach((b,i)=>b.position.set(Math.sin(time*.00012+i*.2)*100,Math.sin(time*.002+i)*2,Math.cos(time*.00012+i*.2)*100));}};
 }

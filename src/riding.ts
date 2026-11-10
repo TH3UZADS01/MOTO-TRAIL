@@ -9,16 +9,18 @@ export function acceleration(speed:number,throttle:number,brake:number,pitch:num
   return drive-brake*8-.22-speed*speed*(.002+(1-grip)*.012)-9.81*Math.sin(pitch)-(1-grip)*1.7;
 }
 export class Ride {
-  fuel=new Fuel();spec:VehicleSpec=getVehicle('pop');pushing=false;
+  fuel=new Fuel();spec:VehicleSpec=getVehicle('pop');pushing=false;brakeInput=0;private impact=0;
+  takeImpact(){const impact=this.impact;this.impact=0;return impact}
   x=-310;z=0;heading=0;speed=0;steer=0;lean=0;pitch=0;distance=0;gear=1;y=ground(this.x,this.z);
   constructor(){this.recover()}
   contact(){const dx=Math.sin(this.heading),dz=Math.cos(this.heading),front=ground(this.x+dx*this.spec.wheelbase/2,this.z+dz*this.spec.wheelbase/2),rear=ground(this.x-dx*this.spec.wheelbase/2,this.z-dz*this.spec.wheelbase/2);this.pitch=Math.atan2(front-rear,this.spec.wheelbase);this.y=(front+rear)/2;}
   recover(){const n=nearestRoute(this.x,this.z),p=n.track.points[n.index],q=n.track.points[n.index+1];this.x=p.x;this.z=p.z;this.heading=Math.atan2(q.x-p.x,q.z-p.z);this.speed=0;this.lean=0;this.steer=0;this.contact()}
   step(dt:number,throttle:number,brake:number,turn:number,obstacles:Obstacle[],push=false){
+    this.brakeInput=brake;
     throttle=Math.max(0,Math.min(1,throttle));if(this.fuel.get(this.spec.id)<=0)throttle=0;
     const before=this.distance;
     const type=surface(this.x,this.z),grip=type==='asfalto'?1:type==='terra'?.7:.5;
-    this.steer+=(turn-this.steer)*(1-Math.exp(-dt*(10-this.speed*.2)));
+    this.steer+=(turn-this.steer)*(1-Math.exp(-dt*(10-this.speed*.2)/(this.spec.stability??1)));
     this.contact();
         this.pushing=push;
     if(push){
@@ -26,12 +28,12 @@ export class Ride {
       else this.speed+=(-1.15-this.speed)*(1-Math.exp(-dt*5));
     }else if(this.speed<0){this.speed=Math.min(0,this.speed+3*dt);}
     else if(this.speed<.15&&throttle===0){this.speed=0;}
-    else this.speed=Math.max(0,Math.min(this.spec.maxSpeed,this.speed+acceleration(this.speed,throttle*this.spec.power,brake*grip,this.pitch,grip)*dt));
+    else this.speed=Math.max(0,Math.min(this.spec.maxSpeed,this.speed+acceleration(this.speed,throttle*this.spec.power*100/(this.spec.mass??100),brake*grip*(this.spec.braking??1),this.pitch,grip)*dt));
     const yaw=this.speed*Math.tan(steeringAngle(this.speed,this.steer))/this.spec.wheelbase*grip;
     this.heading+=yaw*dt;
     const x=this.x+Math.sin(this.heading)*this.speed*dt,z=this.z+Math.cos(this.heading)*this.speed*dt;
     const hit=deepWater(x,z)||Math.abs(x)>SIZE/2-30||Math.abs(z)>SIZE/2-30||obstacles.some(o=>{const next=(x-o.x)**2+(z-o.z)**2,old=(this.x-o.x)**2+(this.z-o.z)**2;return next<(o.r+.35)**2&&next<=old+1e-10;});
-    if(hit)this.speed=0;else {this.x=x;this.z=z;this.distance+=Math.abs(this.speed)*dt}
+    if(hit){this.impact=Math.max(this.impact,Math.abs(this.speed));this.speed=0;}else {this.x=x;this.z=z;this.distance+=Math.abs(this.speed)*dt}
     this.fuel.consume(this.spec.id,this.distance-before,dt,throttle,this.speed,this.pitch,push);
     this.contact();this.lean+=(Math.max(-.45,Math.min(.45,-yaw*this.speed*.045))-this.lean)*(1-Math.exp(-dt*7));
     if(this.spec.gears===1)this.gear=1;

@@ -1,5 +1,5 @@
 import type {VehicleId} from './vehicles';
-export const capacities:Record<VehicleId,number>={pop:4.2,cub:4,urban:4,caloi:2.7};
+export const capacities:Record<VehicleId,number>={pop:4.2,cub:4,urban:4,caloi:2.7,cg150:5.2};
 export class Fuel {
  private tanks={...capacities};
  get(id:VehicleId){return this.tanks[id]}

@@ -33,10 +33,11 @@ Empurrar primeiro freia se estiver em movimento e depois recua a cerca de 4 km/h
 
 Controle usa Gamepad API com `mapping=standard`, gatilhos analógicos, zona morta e sensibilidade ajustáveis em Configurações → Controle e comandos. Pressione um botão para o navegador reconhecer o controle. Na primeira abertura, clique em Pegar a estrada para autorizar áudio; alguns navegadores não tratam um botão do gamepad como autorização de áudio. Desconexão durante o passeio pausa o jogo. Controles sem mapeamento padrão ainda não têm remapeamento manual.
 
-## Quatro opções de moto
+## Cinco opções de moto
 
 Seletores no menu inicial e na pausa; escolha salva localmente. Trocar de moto preserva o local e zera a velocidade.
 
+- Honda CG 150 2008: placeholder de rua com tanque, farol redondo e rodas raiadas; ajuste de jogo até 115 km/h.
 - Pop 110i ES: aproximação estilizada, ajuste de jogo até 100 km/h.
 - Cub clássica: amarela, escudo creme, banco curto marrom, bagageiro, rodas raiadas e farol redondo; até 72 km/h.
 - Shineray Phoenix: carenagem integral, banco longo, rodas de liga e farol largo; até 80 km/h. Nome informado pelo usuário; modelo estilizado.
@@ -64,7 +65,7 @@ Gasolina: tanques separados por moto, salvos a cada cinco segundos e ao pausar/s
 
 ## Limitações
 
-Sem suspensão independente rígida, quedas, farol funcional, garagem de acessórios, diário persistente, ciclo dia/noite. Retrovisores não refletem a cena e o painel 3D é ilustrativo; velocidade real do jogo está no HUD. Na primeira pessoa o corpo do piloto é ocultado para evitar atravessamento da câmera. Sons e ergonomia ainda precisam de avaliação humana. Gamepad físico e FPS no Vivobook de referência não foram medidos.
+Sem suspensão independente rígida, quedas, farol funcional, garagem de acessórios, diário persistente, ciclo dia/noite. Retrovisores não refletem a cena e o painel 3D é ilustrativo; velocidade real do jogo está no HUD. Na primeira pessoa, apenas a cabeça e o pescoço do próprio piloto ficam ocultos; braços e pernas permanecem visíveis. Sons e ergonomia ainda precisam de avaliação humana. Gamepad físico e FPS no Vivobook de referência não foram medidos.
 
 TESTING.md registra o que efetivamente foi validado. Para vistoria local, `?inspect=posto`, `?inspect=mirante`, `?inspect=ponte`, `?inspect=terra`, `?inspect=centro`, `?inspect=camping` e `?inspect=cachoeira` no servidor de desenvolvimento; pontos de início de teste são eliminados do build de produção.
 
@@ -77,4 +78,8 @@ Salas reais para quatro pessoas, convite, apelidos, modelos remotos interpolados
 
 Terreno carregado por trechos, estradas, motos e construções recebem sombras. Sol quente com luz ambiente mais equilibrada e céu em degradê. Texturas procedurais locais de grama, asfalto, terra e água, com relevo de material e UVs em metros para não esticar ao longo das estradas. Nenhum download de textura nem dependência de hotlink.
 
-Todos os presets mantêm sombras próximas: Baixo 1024/32 m, Médio 2048/55 m, Alto 4096/80 m (resolução limitada à capacidade da GPU). O volume das sombras acompanha a moto. Não há mudança de protocolo: permanece v5; esta revisão precisa apenas do frontend atualizado.
+Todos os presets mantêm sombras próximas: Baixo 1024/32 m, Médio 2048/55 m, Alto 4096/80 m (resolução limitada à capacidade da GPU). O volume das sombras acompanha a moto. A revisão atual usa protocolo v6; publique frontend e servidor juntos.
+
+## Revisão v6: piloto, motos e litoral
+
+Veja [REVISAO-V6.md](REVISAO-V6.md) para as sete melhorias, parâmetros ajustáveis, testes manuais, arquivos e placeholders. Agora são cinco motos (incluindo a CG 150 2008), pintura por moto, piloto animado, primeira pessoa com reações, biomas e a Estrada da Brisa até a praia. Publique frontend e servidor juntos: ambos usam `vale-horizonte-v6`.

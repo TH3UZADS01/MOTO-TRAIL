@@ -1,6 +1,6 @@
 import type {VehicleId} from './vehicles';
-export const WORLD='vale-horizonte-v5';
-export interface RiderState {vehicleId:VehicleId;x:number;y:number;z:number;heading:number;speed:number;pitch:number;lean:number;steer:number;sequence:number}
+export const WORLD='vale-horizonte-v6';
+export interface RiderState {vehicleId:VehicleId;color?:string;x:number;y:number;z:number;heading:number;speed:number;pitch:number;lean:number;steer:number;sequence:number}
 export interface RemotePlayer {id:string;name:string;connected:boolean;state:RiderState}
 interface Session {code:string;id:string;token:string;name:string;vehicleId:VehicleId}
 interface Events {horn:(id:string)=>void;status:(text:string)=>void;welcome:(state:RiderState,code:string,id:string)=>void;players:(players:RemotePlayer[])=>void;ended:()=>void}

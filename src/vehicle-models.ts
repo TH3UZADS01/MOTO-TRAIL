@@ -1,11 +1,14 @@
+import {createCG150} from './cg150';
+import {createRider} from './rider';
 import * as T from 'three';
 import {createPop} from './vehicle';
 import {getVehicle,type VehicleId} from './vehicles';
 export function createBike(id:VehicleId='pop'){
+ if(id==='cg150')return createCG150();
  if(id==='pop')return createPop();
  const spec=getVehicle(id),cub=id==='cub',moped=id==='caloi';
- const root=new T.Group(),body=new T.Group(),steering=new T.Group(),rider=new T.Group(),wheels:T.Group[]=[];
- root.add(body);body.add(steering,rider);steering.position.z=spec.wheelbase/2;
+ const root=new T.Group(),body=new T.Group(),steering=new T.Group(),wheels:T.Group[]=[];
+ root.add(body);body.add(steering);steering.position.z=spec.wheelbase/2;
  const mat=(color:number)=>new T.MeshStandardMaterial({color,roughness:.55});
  const paint=mat(cub?0xeebf29:0xbb2634),white=mat(0xf0e9d4),black=mat(0x20272b),silver=mat(0xb6c2c3),seat=mat(cub?0x76503a:0x263038),lamp=mat(0xffe4aa),amber=mat(0xe9a126);
  function mesh(parent:T.Object3D,g:T.BufferGeometry,m:T.Material,x:number,y:number,z:number){const o=new T.Mesh(g,m);o.position.set(x,y,z);o.castShadow=true;parent.add(o);return o}
@@ -65,10 +68,9 @@ export function createBike(id:VehicleId='pop'){
  for(let i=0;i<7;i++){const a=i/6*Math.PI;box(steering,white,Math.cos(a)*.047,dashY+.003,-.14-Math.sin(a)*.047,.007,.004,.012)}
  bar(steering,paint,[0,dashY+.008,-.14],[.03,dashY+.008,-.17],.004);
  ell(body,mat(0xc93930),0,.67,rear-.15,.08,.035,.02);
- const jacket=mat(cub?0x49705a:moped?0x527f9a:0xb77d43),pants=mat(0x33454e),skin=mat(0xb99272);
- ell(rider,pants,0,.86,-.21,.15,.12,.15);ell(rider,jacket,0,1.12,-.17,.19,.27,.13);ell(rider,white,0,spec.eyeHeight+.025,-.1,.145,.17,.145);ell(rider,black,0,spec.eyeHeight+.03,.025,.12,.075,.025);
- for(const s of [-1,1]){bar(rider,pants,[s*.12,.84,-.2],[s*.2,.6,.1],.075);bar(rider,pants,[s*.2,.6,.1],[s*.21,.3,-.05],.06);ell(rider,black,s*.21,.29,.02,.06,.045,.1);bar(rider,jacket,[s*.16,1.27,-.12],[s*.25,1.12,.13],.06);bar(rider,jacket,[s*.25,1.12,.13],[s*.31,handleY,gripZ],.05);ell(rider,skin,s*.31,handleY,gripZ,.04,.04,.05);}
- return {root,body,steering,wheels,rider};
+ const riderRig=createRider(steering,spec.eyeHeight,handleY,cub?0x49705a:moped?0x527f9a:0xb77d43),rider=riderRig.root;body.add(rider);
+ return {root,body,steering,wheels,rider,riderRig,paintMaterials:[paint]};
 }
-export function disposeBike(bike:ReturnType<typeof createBike>){const geometries=new Set<T.BufferGeometry>(),materials=new Set<T.Material>();bike.root.traverse(o=>{if(o instanceof T.Mesh){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m)}});geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());}
+
+export function disposeBike(bike:ReturnType<typeof createBike>){const geometries=new Set<T.BufferGeometry>(),materials=new Set<T.Material>();bike.root.traverse(o=>{if(o instanceof T.Mesh){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m)}});geometries.forEach(g=>g.dispose());materials.forEach(m=>{if(m instanceof T.MeshStandardMaterial)m.map?.dispose();m.dispose()});}
 

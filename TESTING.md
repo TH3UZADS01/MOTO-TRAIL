@@ -81,3 +81,9 @@ Resultado final desta revisão: build de produção aprovado; 22 testes de jogo/
 Causa corrigida: terreno e ribbons recriados no mapa por trechos não tinham receiveShadow. O teste de regressão lança raios sobre estrada e terreno em duas regiões após carregar novos trechos e verifica que as superfícies atingidas recebem sombras.
 
 Onze testes de sombras, terreno, pilotagem, volta completa e postos aprovados. Capturas reais no Chrome headless em artifacts/graphics confirmam sombra da moto, árvores, placas e guardas da ponte, inclusive nos presets Baixo e Alto. Texturas procedurais dispensam fontes externas. FPS em hardware real não foi medido; nenhum deploy foi executado. Protocolo online continua v5.
+
+## Revisão v6
+
+O roteiro por item e as constantes ajustáveis estão em [REVISAO-V6.md](REVISAO-V6.md). Prévia local: `npm run dev`. Somente em desenvolvimento, `?inspect=model&vehicle=cg150`, `?inspect=first`, `?inspect=firstdown&vehicle=cg150`, `?inspect=lean`, `?inspect=dry` e `?inspect=coast` posicionam a câmera para inspeção. Esses atalhos não fazem parte do build de produção.
+
+Execute `npm run build`, `npm test` e `npm run test:online`. O teste de áudio preexistente exige 22050 Hz, mas os WAVs atuais são 44100 Hz; esta revisão não modifica esses assets. Para validar a hospedagem, use dois dispositivos após publicar cliente e servidor v6.

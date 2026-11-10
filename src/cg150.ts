@@ -1,0 +1,16 @@
+import * as T from 'three';
+import {createRider} from './rider';
+// Replace this factory with an imported model later; preserve these returned anchors.
+export function createCG150(){const root=new T.Group(),body=new T.Group(),steering=new T.Group(),wheels:T.Group[]=[];root.add(body);body.add(steering);steering.position.z=.66;
+ const mat=(color:number,metalness=0,roughness=.65)=>new T.MeshStandardMaterial({color,metalness,roughness});const paint=mat(0x242932,.18,.32),rubber=mat(0x1c2426),silver=mat(0xaab7b9,.75,.28),seat=mat(0x252c2d),lamp=mat(0xffebc5);
+ const mesh=(parent:T.Object3D,g:T.BufferGeometry,m:T.Material,x:number,y:number,z:number)=>{const o=new T.Mesh(g,m);o.position.set(x,y,z);o.castShadow=o.receiveShadow=true;parent.add(o);return o};
+ const ell=(parent:T.Object3D,m:T.Material,x:number,y:number,z:number,a:number,b:number,c:number)=>{const o=mesh(parent,new T.SphereGeometry(1,16,10),m,x,y,z);o.scale.set(a,b,c);return o};
+ const bar=(parent:T.Object3D,m:T.Material,a:number[],b:number[],r:number)=>{const v=new T.Vector3(...a),w=new T.Vector3(...b),o=mesh(parent,new T.CylinderGeometry(r,r,v.distanceTo(w),10),m,0,0,0);o.position.copy(v).add(w).multiplyScalar(.5);o.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),w.sub(v).normalize());return o};
+ for(const [parent,z] of [[body,-.66],[steering,0]] as const){const wheel=new T.Group();wheel.position.set(0,.31,z);parent.add(wheel);const tire=mesh(wheel,new T.TorusGeometry(.267,.043,10,32),rubber,0,0,0);tire.rotation.y=Math.PI/2;const rim=mesh(wheel,new T.TorusGeometry(.235,.015,8,32),silver,0,0,0);rim.rotation.y=Math.PI/2;for(let i=0;i<24;i++){const a=i/24*Math.PI*2;bar(wheel,silver,[0,0,0],[0,Math.sin(a)*.235,Math.cos(a)*.235],.004)}bar(wheel,silver,[-.07,0,0],[.07,0,0],.065);wheels.push(wheel);const f=mesh(parent,new T.TorusGeometry(.36,.058,8,28,Math.PI*.85),paint,0,.31,z);f.rotation.y=Math.PI/2;f.rotation.z=.24;}
+ for(const side of [-1,1]){bar(steering,silver,[side*.085,.31,0],[side*.085,1,-.16],.026);bar(body,silver,[side*.09,.31,-.66],[side*.09,.78,-.4],.025);bar(body,rubber,[side*.1,.35,-.65],[side*.1,.4,.05],.025);bar(body,rubber,[side*.1,.42,.1],[side*.1,.9,.35],.03)}
+ ell(body,paint,0,.91,.12,.235,.18,.35);ell(body,seat,0,.83,-.38,.20,.075,.39);ell(body,paint,0,.66,-.32,.18,.16,.22);ell(body,paint,0,.76,-.72,.17,.07,.18);ell(body,silver,0,.42,.02,.17,.18,.19);for(let y=.37;y<.62;y+=.035)bar(body,silver,[-.16,y,.1],[.16,y,.1],.01);
+ bar(body,silver,[.17,.46,.16],[.25,.27,.1],.026);bar(body,silver,[.25,.27,.1],[.25,.31,-.79],.055);ell(body,rubber,.25,.31,-.8,.05,.05,.025);
+ const housing=mesh(steering,new T.CylinderGeometry(.145,.145,.14,24),silver,0,1.03,.02);housing.rotation.x=Math.PI/2;mesh(steering,new T.CircleGeometry(.125,24),lamp,0,1.03,.095);bar(steering,silver,[-.35,1.12,-.12],[.35,1.12,-.12],.021);
+ for(const side of [-1,1]){bar(steering,rubber,[side*.26,1.12,-.12],[side*.36,1.12,-.12],.026);bar(steering,silver,[side*.27,1.12,-.12],[side*.36,1.34,-.1],.009);ell(steering,rubber,side*.36,1.36,-.1,.075,.045,.025);ell(steering,mat(0xe4a045),side*.22,1,.03,.045,.035,.04)}
+ ell(steering,rubber,0,1.15,-.17,.12,.04,.08);ell(body,mat(0xb62e28),0,.77,-.87,.10,.045,.025);const riderRig=createRider(steering,1.60,1.12,0x526b72,.31),rider=riderRig.root;body.add(rider);return {root,body,steering,wheels,rider,riderRig,paintMaterials:[paint]};
+}

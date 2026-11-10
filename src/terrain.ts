@@ -1,3 +1,5 @@
+import {coastalHeight,shoreline} from './coast';
+import {biomeColor} from './biomes';
 import {surfaceMaterial,worldUV} from './graphics';
 import * as T from 'three';
 import {tracks,mainPlan,places,villages,stations,viewpoints,specials,lake,bridges,riverX,riverStart,riverEnd,riverWidth,waterY,original,MAP_SCALE,type Track} from './map-layout';
@@ -14,7 +16,7 @@ export const nearestRoute=(x:number,z:number,radius=Infinity)=>query(x,z,network
 export const nearRoute=(x:number,z:number,radius:number)=>nearestRoute(x,z,radius).distance<radius;
 export function nearest(x:number,z:number,points=road){let grid=indexes.get(points);if(!grid){grid=makeIndex([{...tracks[0],points}]);indexes.set(points,grid)}return query(x,z,grid)}
 const pads=places.map(p=>({...p,r:p.kind==='village'?65:p.kind==='farm'?38:p.kind==='camp'?30:22}));
-function baseHeight(x:number,z:number){const p=original(x,z),mountain=150*Math.exp(-((p.x-3850)**2/1100000+(p.z+2850)**2/600000));let h=35+15*Math.sin(p.x/600)*Math.cos(p.z/750)+mountain+8*Math.sin(p.z/500);if(z>=riverStart-100&&z<=riverEnd){const d=Math.abs(x-riverX(z));h=T.MathUtils.lerp(waterY(z)+7,h,T.MathUtils.smoothstep(d,85,300))}return h}
+function baseHeight(x:number,z:number){const p=original(x,z),mountain=150*Math.exp(-((p.x-3850)**2/1100000+(p.z+2850)**2/600000));let h=35+15*Math.sin(p.x/600)*Math.cos(p.z/750)+mountain+8*Math.sin(p.z/500);if(z>=riverStart-100&&z<=riverEnd){const d=Math.abs(x-riverX(z));h=T.MathUtils.lerp(waterY(z)+7,h,T.MathUtils.smoothstep(d,85,300))}return coastalHeight(x,z,h)}
 function raw(x:number,z:number){let h=baseHeight(x,z);for(const p of pads){const d=Math.hypot(x-p.x,z-p.z);if(d<p.r+65)h=T.MathUtils.lerp(baseHeight(p.x,p.z),h,T.MathUtils.smoothstep(d,p.r,p.r+65))}
  const dLake=Math.hypot(x-lake.x,z-lake.z);if(dLake<lake.r+65)h=T.MathUtils.lerp(8,h,T.MathUtils.smoothstep(dLake,lake.r*.88,lake.r+65));
  if(z>=riverStart&&z<=riverEnd){const d=Math.abs(x-riverX(z));if(d<42)h=T.MathUtils.lerp(waterY(z)-3,h,T.MathUtils.smoothstep(d,riverWidth/2,42))}
@@ -29,8 +31,8 @@ export const roadLength=road.slice(1).reduce((sum,p,i)=>sum+p.distanceTo(road[i]
 export const dirtLength=routes.filter(t=>t.surface==='terra').reduce((sum,t)=>sum+t.points.slice(1).reduce((d,p,i)=>d+p.distanceTo(t.points[i]),0),0);
 export function surface(x:number,z:number){const n=nearestRoute(x,z,12);return bridgeAt(x,z)?'asfalto':n.distance<n.track.width/2?n.track.surface:pads.some(p=>Math.hypot(x-p.x,z-p.z)<p.r)?'terra':'grama'}
 export function ground(x:number,z:number){return roadBed(x,z)+.06}
-export function deepWater(x:number,z:number){if(bridgeAt(x,z))return false;if(Math.hypot(x-lake.x,z-lake.z)<lake.r*.88&&height(x,z)<11.5)return true;return z>=riverStart&&z<=riverEnd&&Math.abs(x-riverX(z))<riverWidth/2+3&&height(x,z)<waterY(z)-.4}
-export function terrain(cx=0,cz=0,size=256){const g=new T.PlaneGeometry(size,size,size/STEP,size/STEP);g.rotateX(-Math.PI/2);g.translate(cx,0,cz);const p=g.attributes.position,colors=[];for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),h=height(x,z);p.setY(i,h);const c=new T.Color().setHSL(.26+Math.sin(x/400)*.025,.28,.32+h*.0004);colors.push(c.r,c.g,c.b)}g.setAttribute('color',new T.Float32BufferAttribute(colors,3));g.computeVertexNormals();worldUV(g,6);const mesh=new T.Mesh(g,surfaceMaterial('grass',0xffffff,true));mesh.receiveShadow=true;return mesh}
+export function deepWater(x:number,z:number){if(x>shoreline(z)+8)return true;if(bridgeAt(x,z))return false;if(Math.hypot(x-lake.x,z-lake.z)<lake.r*.88&&height(x,z)<11.5)return true;return z>=riverStart&&z<=riverEnd&&Math.abs(x-riverX(z))<riverWidth/2+3&&height(x,z)<waterY(z)-.4}
+export function terrain(cx=0,cz=0,size=256){const g=new T.PlaneGeometry(size,size,size/STEP,size/STEP);g.rotateX(-Math.PI/2);g.translate(cx,0,cz);const p=g.attributes.position,colors=[];for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),h=height(x,z);p.setY(i,h);const c=biomeColor(x,z);colors.push(c.r,c.g,c.b)}g.setAttribute('color',new T.Float32BufferAttribute(colors,3));g.computeVertexNormals();worldUV(g,6);const mesh=new T.Mesh(g,surfaceMaterial('grass',0xffffff,true));mesh.receiveShadow=true;return mesh}
 export function ribbon(points:T.Vector3[],width:number,color:number,offset=.055){
   points=points.filter((p,i)=>i===0||p.distanceToSquared(points[i-1])>1e-10);
   const vertices:number[]=[],indices:number[]=[],columns=Math.max(2,Math.ceil(width/.5));

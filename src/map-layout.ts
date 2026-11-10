@@ -17,6 +17,7 @@ const south=path('south','Estrada do Lago','asfalto',[center,point(2050,-1050),p
 const at=(t:Track,f:number)=>t.points[Math.round((t.points.length-1)*f)].clone();
 const farm=point(420,-1940),camp=point(2650,380),falls=point(3850,-1970);
 export const tracks:Track[]=[{id:'main',name:'Estrada do Horizonte',surface:'asfalto',width:9.6,points:outer},north,west,east,south,
+ path('coast','Estrada da Brisa','asfalto',[anchor(28),new T.Vector3(5500,0,-1100),new T.Vector3(6000,0,-800),new T.Vector3(6100,0,-300),new T.Vector3(6030,0,300),new T.Vector3(5500,0,600),anchor(32)]),
  path('farm','Estrada dos Ipês','terra',[anchor(5),point(-220,-2070),point(50,-1830),farm,point(650,-1780),point(700,-1470),at(west,.45)]),
  path('fields','Trilha dos Pomares','terra',[farm,point(900,-1850),point(1030,-2050),point(1180,-1850),point(1000,-1650),at(west,.52)]),
  path('camp','Caminho do Camping','terra',[at(south,.55),point(2500,-600),point(2780,-390),point(2600,-170),anchor(35),camp]),
@@ -28,7 +29,7 @@ function beside(points:T.Vector3[],fraction:number,offset:number,name:string,kin
 const fractionAt=(i:number)=>{const p=anchor(i);return outer.indexOf(outer.reduce((a,b)=>a.distanceToSquared(p)<b.distanceToSquared(p)?a:b))/(outer.length-1)};
 export const villages:Place[]=[beside(outer,0,80,'Vila do Ipê','village'),beside(outer,fractionAt(7),80,'Santa Aurora','village'),{name:'Vila das Araucárias',kind:'village',x:center.x+70,z:center.z+80},beside(outer,fractionAt(31),80,'Porto do Sol','village')];
 export const stations:Place[]=[.003,.20,.41,.62,.82].map((f,i)=>beside(outer,f,24,['Posto do Ipê','Posto Aurora','Posto da Serra','Posto Boa Vista','Posto do Sol'][i],'station'));
-export const viewpoints:Place[]=[beside(outer,fractionAt(20),35,'Mirante da Serra Azul','lookout'),beside(outer,fractionAt(33),35,'Mirante do Lago','lookout')];
+export const viewpoints:Place[]=[beside(outer,fractionAt(20),35,'Mirante da Serra Azul','lookout'),beside(outer,fractionAt(33),35,'Mirante do Lago','lookout'),{name:'Praia da Brisa',kind:'lookout',x:6210,z:-180}];
 export const specials:Place[]=[{name:'Fazenda Boa Vista',kind:'farm',x:farm.x,z:farm.z},{name:'Camping do Lago',kind:'camp',x:camp.x,z:camp.z},{name:'Cachoeira',kind:'waterfall',x:falls.x,z:falls.z}];
 export const places=[...villages,...stations,...viewpoints,...specials];
 export const lake={...point(1820,1100),r:650*MAP_SCALE};

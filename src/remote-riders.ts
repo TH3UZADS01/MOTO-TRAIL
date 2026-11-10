@@ -1,3 +1,5 @@
+import {steeringAngle} from './riding';
+import {applyBikeColor,DEFAULT_COLORS} from './paint';
 import {enableShadows} from './graphics';
 import * as T from 'three';
 import {createBike,disposeBike} from './vehicle-models';
@@ -15,6 +17,7 @@ export class RemoteRiders {
    if(peer&&peer.vehicleId!==p.state.vehicleId){this.remove(p.id,peer);peer=undefined}
    if(!peer){const bike=createBike(p.state.vehicleId),label=this.label(p.name);enableShadows(bike.root);this.scene.add(bike.root,label);peer={bike,label,frames:[],name:p.name,connected:p.connected,vehicleId:p.state.vehicleId};this.peers.set(p.id,peer)}
    if(peer.name!==p.name||peer.connected!==p.connected){this.scene.remove(peer.label);peer.label.material.map?.dispose();peer.label.material.dispose();peer.label=this.label(p.name+(p.connected?'':' · reconectando'));this.scene.add(peer.label);peer.name=p.name;peer.connected=p.connected;}
+   applyBikeColor(peer.bike,p.state.color||DEFAULT_COLORS[p.state.vehicleId]);
    peer.frames.push({time:now,state:{...p.state,y:ground(p.state.x,p.state.z)}});if(peer.frames.length>20)peer.frames.shift();
   }
  }
@@ -25,7 +28,7 @@ export class RemoteRiders {
    const teleport=Math.hypot(s.x-e.x,s.z-e.z)>12,u=teleport?1:t;
    p.bike.root.position.set(T.MathUtils.lerp(s.x,e.x,u),T.MathUtils.lerp(s.y,e.y,u),T.MathUtils.lerp(s.z,e.z,u));
    p.bike.root.rotation.y=s.heading+Math.atan2(Math.sin(e.heading-s.heading),Math.cos(e.heading-s.heading))*u;
-   p.bike.body.rotation.set(-T.MathUtils.lerp(s.pitch,e.pitch,u),0,T.MathUtils.lerp(s.lean,e.lean,u));p.bike.steering.rotation.y=e.steer*.2;
+   p.bike.body.rotation.set(-T.MathUtils.lerp(s.pitch,e.pitch,u),0,T.MathUtils.lerp(s.lean,e.lean,u));p.bike.steering.rotation.y=steeringAngle(e.speed,e.steer);p.bike.riderRig.update(p.connected?e.speed:0,e.steer,dt);
    for(const wheel of p.bike.wheels)wheel.rotation.x+=(p.connected?e.speed:0)*dt/.28;
    p.label.position.copy(p.bike.root.position);p.label.position.y+=2.1;
   }

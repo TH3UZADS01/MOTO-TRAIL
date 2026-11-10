@@ -77,3 +77,7 @@ Esta atualização exige publicar tanto o servidor no Render quanto o frontend n
 Gasolina é local, salva por moto no navegador, e não sincronizada entre jogadores. Cada pessoa abastece sua própria moto.
 
 A revisão de serras, bifurcações e terra usa v5 porque o relevo e as posições das vias mudaram. Depois do push, confira ambos os deploys; se o Render não atualizar automaticamente, use Manual Deploy → Deploy latest commit. `/health` deve retornar `world: vale-horizonte-v5`. Recarregue todos os clientes e crie uma sala nova. O erro de incompatibilidade agora informa a versão do servidor e a necessidade de atualizar Render/Vercel.
+
+## Revisão atual — protocolo v6
+
+CG 150, cores por moto, vegetação e litoral usam `vale-horizonte-v6` nos dois lados. Publique o mesmo commit no Render e na Vercel; confira `/health`, recarregue os clientes e crie uma sala nova. O estado inclui opcionalmente `color` como `#RRGGBB`, validado pelo servidor. O limite de velocidade do protocolo passou a 34 m/s para comportar a CG (115 km/h). Motos e pilotos remotos continuam com interpolação; somente a buzina remota produz áudio. A seção v5 acima documenta a revisão anterior.
