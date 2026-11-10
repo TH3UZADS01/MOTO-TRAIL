@@ -65,7 +65,7 @@ Gasolina: tanques separados por moto, salvos a cada cinco segundos e ao pausar/s
 
 ## Limitações
 
-Sem suspensão independente rígida, quedas, farol funcional, garagem de acessórios, diário persistente, ciclo dia/noite. Retrovisores não refletem a cena e o painel 3D é ilustrativo; velocidade real do jogo está no HUD. Na primeira pessoa, apenas a cabeça e o pescoço do próprio piloto ficam ocultos; braços e pernas permanecem visíveis. Sons e ergonomia ainda precisam de avaliação humana. Gamepad físico e FPS no Vivobook de referência não foram medidos.
+Sem suspensão independente rígida, quedas, garagem de acessórios ou diário persistente. Faróis automáticos e ciclo dia/noite estão disponíveis no UPDATE 01. Retrovisores não refletem a cena e o painel 3D é ilustrativo; velocidade real do jogo está no HUD. Na primeira pessoa, apenas a cabeça e o pescoço do próprio piloto ficam ocultos; braços e pernas permanecem visíveis. Sons e ergonomia ainda precisam de avaliação humana. Gamepad físico e FPS no Vivobook de referência não foram medidos.
 
 TESTING.md registra o que efetivamente foi validado. Para vistoria local, `?inspect=posto`, `?inspect=mirante`, `?inspect=ponte`, `?inspect=terra`, `?inspect=centro`, `?inspect=camping` e `?inspect=cachoeira` no servidor de desenvolvimento; pontos de início de teste são eliminados do build de produção.
 
@@ -78,8 +78,12 @@ Salas reais para quatro pessoas, convite, apelidos, modelos remotos interpolados
 
 Terreno carregado por trechos, estradas, motos e construções recebem sombras. Sol quente com luz ambiente mais equilibrada e céu em degradê. Texturas procedurais locais de grama, asfalto, terra e água, com relevo de material e UVs em metros para não esticar ao longo das estradas. Nenhum download de textura nem dependência de hotlink.
 
-Todos os presets mantêm sombras próximas: Baixo 1024/32 m, Médio 2048/55 m, Alto 4096/80 m (resolução limitada à capacidade da GPU). O volume das sombras acompanha a moto. A revisão atual usa protocolo v6; publique frontend e servidor juntos.
+Todos os presets mantêm sombras próximas: Baixo 1024/32 m, Médio 2048/55 m, Alto 4096/80 m (resolução limitada à capacidade da GPU). O volume das sombras acompanha a moto. A revisão atual usa protocolo v7; publique frontend e servidor juntos.
 
 ## Revisão v6: piloto, motos e litoral
 
-Veja [REVISAO-V6.md](REVISAO-V6.md) para as sete melhorias, parâmetros ajustáveis, testes manuais, arquivos e placeholders. Agora são cinco motos (incluindo a CG 150 2008), pintura por moto, piloto animado, primeira pessoa com reações, biomas e a Estrada da Brisa até a praia. Publique frontend e servidor juntos: ambos usam `vale-horizonte-v6`.
+Veja [REVISAO-V6.md](REVISAO-V6.md) para as sete melhorias, parâmetros ajustáveis, testes manuais, arquivos e placeholders. Agora são cinco motos (incluindo a CG 150 2008), pintura por moto, piloto animado, primeira pessoa com reações, biomas e a Estrada da Brisa até a praia. Essa revisão anterior usava `vale-horizonte-v6`; o UPDATE 01 abaixo usa v7.
+
+## UPDATE 01 — postura, giro e dia/noite
+
+Veja [UPDATE-01.md](UPDATE-01.md) para comandos, limites, ajustes e roteiro de testes. Analógico esquerdo vertical (ou I/K) controla a postura: para frente dá até +15% na velocidade máxima; para trás, com aceleração, permite empinar até 45°. Agora há corte de giro integrado às marchas, ciclo de 24 minutos com faróis automáticos e consumo 10% maior. Cliente e servidor usam `vale-horizonte-v7`.

@@ -87,3 +87,12 @@ Onze testes de sombras, terreno, pilotagem, volta completa e postos aprovados. C
 O roteiro por item e as constantes ajustáveis estão em [REVISAO-V6.md](REVISAO-V6.md). Prévia local: `npm run dev`. Somente em desenvolvimento, `?inspect=model&vehicle=cg150`, `?inspect=first`, `?inspect=firstdown&vehicle=cg150`, `?inspect=lean`, `?inspect=dry` e `?inspect=coast` posicionam a câmera para inspeção. Esses atalhos não fazem parte do build de produção.
 
 Execute `npm run build`, `npm test` e `npm run test:online`. O teste de áudio preexistente exige 22050 Hz, mas os WAVs atuais são 44100 Hz; esta revisão não modifica esses assets. Para validar a hospedagem, use dois dispositivos após publicar cliente e servidor v6.
+
+## UPDATE 01 — verificação
+
+- Build de produção aprovado (permanece o aviso de bundle acima de 500 kB).
+- Suíte geral: 44 testes aprovados de 45; única falha preexistente no teste dos WAVs (44100 Hz versus 22050 Hz esperado).
+- Quatro testes WebSocket aprovados, incluindo postura/empinada, velocidade ampliada, limites inválidos e reconexão.
+- Novos testes de física, controle, combustível, RPM/corte, ciclo, faróis e pivô traseiro: aprovados.
+- Conferência visual local em Chrome: empinada a 45°, postura para frente, estrada iluminada em primeira pessoa à meia-noite e entardecer. Capturas em `artifacts/update01/`.
+- Roteiro manual, parâmetros e deploy v7 em [UPDATE-01.md](UPDATE-01.md). Não foram realizados deploy nem teste em dois dispositivos na hospedagem pública.

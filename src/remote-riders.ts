@@ -1,3 +1,4 @@
+import {applyBikePose} from './bike-pose';
 import {steeringAngle} from './riding';
 import {applyBikeColor,DEFAULT_COLORS} from './paint';
 import {enableShadows} from './graphics';
@@ -23,12 +24,12 @@ export class RemoteRiders {
  }
  private remove(id:string,p:Peer){this.scene.remove(p.bike.root,p.label);disposeBike(p.bike);p.label.material.map?.dispose();p.label.material.dispose();this.peers.delete(id)}
  clear(){for(const [id,p] of this.peers)this.remove(id,p)}
- render(now:number,dt:number){const target=now-120;
+ render(now:number,dt:number,night=0){const target=now-120;
   for(const p of this.peers.values()){const frames=p.frames;if(!frames.length)continue;while(frames.length>2&&frames[1].time<target)frames.shift();const a=frames[0],b=frames[1]||a,t=T.MathUtils.clamp((target-a.time)/Math.max(1,b.time-a.time),0,1),s=a.state,e=b.state;
    const teleport=Math.hypot(s.x-e.x,s.z-e.z)>12,u=teleport?1:t;
    p.bike.root.position.set(T.MathUtils.lerp(s.x,e.x,u),T.MathUtils.lerp(s.y,e.y,u),T.MathUtils.lerp(s.z,e.z,u));
    p.bike.root.rotation.y=s.heading+Math.atan2(Math.sin(e.heading-s.heading),Math.cos(e.heading-s.heading))*u;
-   p.bike.body.rotation.set(-T.MathUtils.lerp(s.pitch,e.pitch,u),0,T.MathUtils.lerp(s.lean,e.lean,u));p.bike.steering.rotation.y=steeringAngle(e.speed,e.steer);p.bike.riderRig.update(p.connected?e.speed:0,e.steer,dt);
+   applyBikePose(p.bike,T.MathUtils.lerp(s.pitch,e.pitch,u),T.MathUtils.lerp(s.lean,e.lean,u),T.MathUtils.lerp(s.wheelie??0,e.wheelie??0,u));p.bike.headlight.update(night);p.bike.steering.rotation.y=steeringAngle(e.speed,e.steer);p.bike.riderRig.update(p.connected?e.speed:0,e.steer,dt,false,T.MathUtils.lerp(s.bodyLean??0,e.bodyLean??0,u));
    for(const wheel of p.bike.wheels)wheel.rotation.x+=(p.connected?e.speed:0)*dt/.28;
    p.label.position.copy(p.bike.root.position);p.label.position.y+=2.1;
   }

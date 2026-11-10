@@ -1,3 +1,4 @@
+import {ENGINE_TUNING,type Powertrain} from './powertrain';
 import type {RemotePlayer} from './network';
 import {getVehicle,type VehicleId} from './vehicles';
 // High-RPM recordings supplied by the user; gains, pitch range and crossfade are tunable.
@@ -38,8 +39,8 @@ export class Sound {
   buffers.slice(0,AUDIO_ASSETS.length).forEach((buffer,i)=>{const asset=AUDIO_ASSETS[i];const source=c.createBufferSource(),gain=c.createGain(),filter=c.createBiquadFilter();source.buffer=buffer;source.loop=true;gain.gain.value=0;filter.type='lowpass';filter.frequency.value=asset.bank==='wind'?700:asset.bank==='cg150'?CG_AUDIO_TUNING.filter:1800;source.connect(filter);filter.connect(gain);gain.connect(limiter);source.start();this.layers.push({source,gain,filter,bank:asset.bank,load:asset.load})});
   this.hornBuffer=buffers[AUDIO_ASSETS.length];this.ready=true;
  }
- update(speed:number,gear:number,throttle:number,paused:boolean,brake=0){if(!this.ready||!this.ctx)return;const c=this.ctx,t=c.currentTime,spec=getVehicle(this.vehicle),v=Math.max(0,speed),ratio=v/spec.maxSpeed;
-  const rev=spec.gears===1?ratio:Math.max(0,Math.min(1,(v-(gear-1)*5)/7));
+ update(speed:number,gear:number,throttle:number,paused:boolean,brake=0,engine?:Pick<Powertrain,'ratio'|'limiting'|'cutting'>){if(!this.ready||!this.ctx)return;const c=this.ctx,t=c.currentTime,spec=getVehicle(this.vehicle),v=Math.max(0,speed),ratio=v/spec.maxSpeed;
+  const rev=engine?.ratio??(spec.gears===1?ratio:Math.max(0,Math.min(1,(v-(gear-1)*5)/7)));
   for(const layer of this.layers){let gain=0,rate=1;
    if(layer.bank==='wind')gain=paused?0:this.ambience*(.06+ratio*.16);
    else if(layer.bank==='cg150'&&spec.audio==='cg150'&&!paused){
@@ -50,7 +51,9 @@ export class Sound {
     rate=tuning.minRate+(tuning.maxRate-tuning.minRate)*Math.max(rev,gas*.3);layer.filter.frequency.setTargetAtTime(tuning.filter,t,.25);
    }
    else if(layer.bank===spec.audio&&!paused){const load=Math.min(1,throttle*.8+ratio*.2);gain=this.volume*(layer.load?.55*load:.42*(1-load*.7));rate=spec.pitch*(layer.load?.92+rev*.35:.85+rev*.25);layer.filter.frequency.setTargetAtTime(spec.filter,t,.25);}
-   layer.gain.gain.setTargetAtTime(gain,t,layer.bank==='cg150'?CG_AUDIO_TUNING.response:.16);layer.source.playbackRate.setTargetAtTime(rate,t,.2);
+   const cutting=!!engine?.limiting&&!!engine.cutting&&!paused&&throttle>.25&&brake<.05;
+   if(layer.bank!=='wind'&&cutting)gain*=ENGINE_TUNING.cutGain;
+   layer.gain.gain.setTargetAtTime(gain,t,layer.bank!=='wind'&&engine?.limiting ? .008 : layer.bank==='cg150'?CG_AUDIO_TUNING.response:.16);layer.source.playbackRate.setTargetAtTime(rate,t,.2);
   }
  }
  horn(){if(!this.ready||!this.ctx||!this.hornBuffer)return;const c=this.ctx;if(c.currentTime-this.lastHorn<.4)return;this.lastHorn=c.currentTime;const source=c.createBufferSource(),gain=c.createGain();source.buffer=this.hornBuffer;gain.gain.value=this.volume*.7;source.connect(gain);gain.connect(this.output!);source.start();source.onended=()=>{source.disconnect();gain.disconnect()};}

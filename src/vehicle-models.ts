@@ -1,9 +1,11 @@
+import {makeHeadlight} from './headlight';
 import {createCG150} from './cg150';
 import {createRider} from './rider';
 import * as T from 'three';
 import {createPop} from './vehicle';
 import {getVehicle,type VehicleId} from './vehicles';
-export function createBike(id:VehicleId='pop'){
+export function createBike(id:VehicleId='pop'){const bike=buildBike(id);return {...bike,headlight:makeHeadlight(bike.steering,getVehicle(id).eyeHeight)}}
+function buildBike(id:VehicleId){
  if(id==='cg150')return createCG150();
  if(id==='pop')return createPop();
  const spec=getVehicle(id),cub=id==='cub',moped=id==='caloi';

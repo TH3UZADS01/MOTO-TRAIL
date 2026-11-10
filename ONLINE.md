@@ -53,7 +53,7 @@ Abra a URL da Vercel em dois dispositivos. Crie uma sala, envie o convite e entr
 
 ## Comportamento e limites
 
-Até 4 jogadores por sala. Estado enviado a 10 Hz e interpolado no cliente. Motos remotas mostram o modelo escolhido e apelido; sem colisão entre jogadores. Todos usam o mesmo mundo e fim de tarde, identificados pela versão do protocolo. Menu/aba fora de foco para apenas o próprio jogador.
+Até 4 jogadores por sala. Estado enviado a 10 Hz e interpolado no cliente. Motos remotas mostram o modelo escolhido e apelido; sem colisão entre jogadores. Todos usam o mesmo mundo e ciclo de dia/noite, identificados pela versão do protocolo. Menu/aba fora de foco para apenas o próprio jogador.
 
 Sessões são gravadas antes da confirmação de entrada, com checkpoints de posição a cada segundo. Um crash pode perder até aproximadamente um segundo de posição. Reconexão automática com espera progressiva; vaga reservada por 120 segundos após desconexão detectada. Depois disso, entre novamente. Reiniciar o servidor exige o mesmo DATA_DIR durável; não se deve usar disco efêmero para prometer continuidade.
 
@@ -78,6 +78,10 @@ Gasolina é local, salva por moto no navegador, e não sincronizada entre jogado
 
 A revisão de serras, bifurcações e terra usa v5 porque o relevo e as posições das vias mudaram. Depois do push, confira ambos os deploys; se o Render não atualizar automaticamente, use Manual Deploy → Deploy latest commit. `/health` deve retornar `world: vale-horizonte-v5`. Recarregue todos os clientes e crie uma sala nova. O erro de incompatibilidade agora informa a versão do servidor e a necessidade de atualizar Render/Vercel.
 
-## Revisão atual — protocolo v6
+## Revisão anterior — protocolo v6
 
 CG 150, cores por moto, vegetação e litoral usam `vale-horizonte-v6` nos dois lados. Publique o mesmo commit no Render e na Vercel; confira `/health`, recarregue os clientes e crie uma sala nova. O estado inclui opcionalmente `color` como `#RRGGBB`, validado pelo servidor. O limite de velocidade do protocolo passou a 34 m/s para comportar a CG (115 km/h). Motos e pilotos remotos continuam com interpolação; somente a buzina remota produz áudio. A seção v5 acima documenta a revisão anterior.
+
+## UPDATE 01 — protocolo v7
+
+A revisão atual usa `vale-horizonte-v7`. Publique Vercel e Render juntos e crie uma sala nova. O servidor valida `bodyLean` entre -1 e 1, `wheelie` entre 0 e π/4, e velocidade até 38 m/s. Poses são interpoladas; o ciclo de iluminação usa o timestamp dos snapshots existentes, sem criar mensagens adicionais. Faróis são calculados em cada cliente a partir do mesmo horário. Motores/corte de giro continuam locais; somente buzinas são transmitidas como áudio/evento remoto. Instruções e testes em [UPDATE-01.md](UPDATE-01.md).
