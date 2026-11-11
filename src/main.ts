@@ -14,6 +14,7 @@ import {FollowCamera,CAMERA_TUNING} from './camera';
 import {RearViewMirror} from './rear-view-mirror';
 import {TireParticles} from './tire-particles';
 import {Sound} from './audio';
+import {ExplorationProgress,mountExplorationPanel} from './exploration';
 import {load,save} from './persistence';
 import {pois,surface,LOOKOUT,stations,road,roadLength,nearest,nearestRoute,routes,bridges,specials} from './terrain';
 import {RideNetwork} from './network';
@@ -24,9 +25,10 @@ mountInterface();
 const el=(id:string)=>document.getElementById(id)!;
 const scene=new T.Scene();scene.background=new T.Color(0xd2ded3);scene.fog=new T.Fog(0xd2ded3,150,780);const renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;el('scene').appendChild(renderer.domElement);
 const ambientLight=new T.HemisphereLight(0xd5e7f2,0x73835c,.85);scene.add(ambientLight);const sun=new T.DirectionalLight(0xffe0b5,2.5);sun.position.set(-70,140,80);sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-45;sun.shadow.camera.right=45;sun.shadow.camera.top=45;sun.shadow.camera.bottom=-45;sun.shadow.camera.near=.1;sun.shadow.camera.far=300;sun.shadow.bias=-.001;scene.add(sun,sun.target);const world=makeWorld(scene),sky=makeSky(scene),dayCycle=new DayCycle(scene,sun,ambientLight,sky);
-const settings=load(),bikeColors=loadColors();let bike=createBike(settings.vehicle);applyBikeColor(bike,bikeColors[settings.vehicle]);enableShadows(bike.root);scene.add(bike.root);const ride=new Ride(),camera=new FollowCamera(),sound=new Sound(),controller=new Controller();ride.spec=getVehicle(settings.vehicle);sound.vehicle=settings.vehicle;let playing=false,started=false,last=performance.now(),accumulator=0,throttle=0;const keys=new Set<string>(),discovered=new Set<string>();let notifyUntil=0;
+const settings=load(),bikeColors=loadColors();let bike=createBike(settings.vehicle);applyBikeColor(bike,bikeColors[settings.vehicle]);enableShadows(bike.root);scene.add(bike.root);const ride=new Ride(),camera=new FollowCamera(),sound=new Sound(),controller=new Controller();ride.spec=getVehicle(settings.vehicle);sound.vehicle=settings.vehicle;let playing=false,started=false,last=performance.now(),accumulator=0,throttle=0;const keys=new Set<string>();let notifyUntil=0;
 const rearMirror=new RearViewMirror(renderer,el('rear-mirror'),{enabled:settings.rearMirror,fps:settings.rearMirrorFps,width:settings.rearMirrorWidth});
 const tireParticles=new TireParticles(scene);
+const exploration=new ExplorationProgress(pois),explorationPanel=mountExplorationPanel(pois,exploration);
 if(import.meta.env.DEV){const q=new URLSearchParams(location.search).get('quality');if(q==='baixo'||q==='medio'||q==='alto')settings.quality=q;}
 ride.fuel.restore();
 window.addEventListener('pagehide',()=>ride.fuel.save());
@@ -133,7 +135,7 @@ function frame(now:number){
   const station=stations.find(s=>Math.hypot(ride.x-s.x,ride.z-s.z)<12);
   refueling=!!station&&Math.abs(ride.speed)<.5&&throttle===0&&!push&&(keys.has('KeyE')||pad.refuel);
   while(accumulator>=1/60){if(refueling)ride.fuel.refill(settings.vehicle,1/60);ride.step(1/60,refueling?0:throttle,refueling?1:brake,turn,obstacles,push,refueling?0:bodyInput);accumulator-=1/60}
-  for(const p of pois)if(Math.hypot(ride.x-p.x,ride.z-p.z)<24&&!discovered.has(p.name)){discovered.add(p.name);notify(`Novo lugar descoberto · ${p.name}`)}
+  for(const p of pois)if(Math.hypot(ride.x-p.x,ride.z-p.z)<24&&exploration.discover(p.name)){explorationPanel.update();notify(`Novo lugar descoberto · ${p.name}`);sound.playDiscovery()}
   camera.orbit-=pad.lookX*dt*2;camera.pitch=T.MathUtils.clamp(camera.pitch-pad.lookY*dt*1.4,camera.firstPerson?CAMERA_TUNING.minLookPitch:-.65,CAMERA_TUNING.maxLookPitch);
   if(!dragging&&!pad.lookX&&!pad.lookY){camera.orbit*=Math.exp(-dt*2);camera.pitch*=Math.exp(-dt*2)}
  }
@@ -164,5 +166,4 @@ function frame(now:number){
 }
 network.restore();
 requestAnimationFrame(frame);renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();playing=false;el('error').classList.remove('hidden');el('error').textContent='A conexão com a placa gráfica foi interrompida. Recarregue a página para continuar.'});
-
 

@@ -1,100 +1,18 @@
 {
   "planHash": "141b965363997766761d5a9341905495e8fe3ab7e321e196484d77f00c1c68ed",
   "phase": "standalone",
-  "recordedAtUtc": "2026-11-11T03:15:48.5537444Z",
-  "retryCount": 1,
+  "recordedAtUtc": "2026-11-11T04:14:49.0603316Z",
+  "retryCount": 0,
   "resetBaseline": false,
-  "complete": true,
+  "complete": false,
+  "runningStep": "tests-pass",
+  "partialOutput": "\r\n\u003E pe-na-estrada@0.1.0 test\r\n\u003E tsx --test tests/*.test.ts\r\n\r\nTAP version 13\r\n# Subtest: all recorded audio assets are valid compact mono PCM with no clipping\r\nnot ok 1 - all recorded audio assets are valid compact mono PCM with no clipping\r\n  ---\r\n  duration_ms: 48.7284\r\n  type: \u0027test\u0027\r\n  location: \u0027D:\\\\PROJETOS\\\\MOTOTRAIL\\\\tests\\\\audio.test.ts:4:1\u0027\r\n  failureType: \u0027testCodeFailure\u0027\r\n  error: |-\r\n    Expected values to be strictly equal:\r\n    \r\n    44100 !== 22050\r\n    \r\n  code: \u0027ERR_ASSERTION\u0027\r\n  name: \u0027AssertionError\u0027\r\n  expected: 22050\r\n  actual: 44100\r\n  operator: \u0027strictEqual\u0027\r\n  stack: |-\r\n    TestContext.\u003Canonymous\u003E (D:\\PROJETOS\\MOTOTRAIL\\tests\\audio.test.ts:6:139)\r\n    Test.runInAsyncScope (node:async_hooks:214:14)\r\n    Test.run (node:internal/test_runner/test:1047:25)\r\n    Test.start (node:internal/test_runner/test:944:17)\r\n    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)\r\n  ...\r\n# \\#\r\n# \\# Fatal process out of memory: Zone\r\n# \\#\r\n# ----- Native stack trace -----\r\n# \u003C--- Last few GCs ---\u003E\r\n# [1464:000001AC2D1C1000]      152 ms: Scavenge 3.7 (5.3) -\u003E 3.4 (5.6) MB, pooled: 0 MB, 1.70 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; \r\n# [1464:000001AC2D1C1000]      180 ms: Scavenge 5.0 (6.6) -\u003E 4.7 (7.3) MB, pooled: 0 MB, 5.46 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; \r\n# [1464:000001AC2D1C1000]      197 ms: Scavenge 5.9 (7.6) -\u003E 5.7 (10.3) MB, pooled: 0 MB, 1.91 / 0.00 ms  (average mu = 1.000, current mu = 1.000) task; \r\n# \u003C--- JS stacktrace ---\u003E\r\n# FATAL ERROR: MarkCompactCollector: young object promotion failed Allocation failed - JavaScript heap out of memory\r\n# ----- Native stack trace -----\r\n#  1: 00007FF60B947487 \r\n#  2: 00007FF60B8AB1B8 \r\n#  3: 00007FF60C41C011 \r\n#  4: 00007FF60C408B96 \r\n#  5: 00007FF60C2654E0 \r\n#  6: 00007FF60C23849F \r\n#  7: 00007FF60C249652 \r\n#  8: 00007FF60C2405CE \r\n#  9: 00007FF60C246DD9 \r\n# 10: 00007FF60C24B141 \r\n# 11: 00007FF60C60D7D6 \r\n# 12: 00007FF60B81F7F0 \r\n# 13: 00007FF60B9A8593 \r\n# 14: 00007FF60D196D9B \r\n# 15: 00007FFC9359DDA7 \r\n# 16: 00007FFC9491EE4C \r\n# Subtest: tests\\\\biomes.test.ts\r\nnot ok 2 - tests\\\\biomes.test.ts\r\n  ---\r\n  duration_ms: 906.4808\r\n  type: \u0027test\u0027\r\n  location: \u0027D:\\\\PROJETOS\\\\MOTOTRAIL\\\\tests\\\\biomes.test.ts:1:1\u0027\r\n  failureType: \u0027testCodeFailure\u0027\r\n  exitCode: 134\r\n  signal: ~\r\n  error: \u0027test failed\u0027\r\n  code: \u0027ERR_TEST_FAILURE\u0027\r\n  ...\r\n# \u003C--- Last few GCs ---\u003E\r\n# [17672:0000027384CB6000]       92 ms: Scavenge 3.7 (5.3) -\u003E 3.4 (5.8) MB, pooled: 0 MB, 10.59 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; \r\n# [17672:0000027384CB6000]      124 ms: Scavenge 5.0 (6.6) -\u003E 4.7 (7.3) MB, pooled: 0 MB, 1.51 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; \r\n# [17672:0000027384CB6000]      190 ms: Scavenge 5.9 (7.6) -\u003E 5.7 (10.1) MB, pooled: 0 MB, 46.35 / 0.00 ms  (average mu = 1.000, current mu = 1.000) task; \r\n# \u003C--- JS stacktrace ---\u003E\r\n# \\#\r\n# \\# Fatal process out of memory: Zone\r\n# \\#\r\n# ----- Native stack trace -----\r\n# \\#\r\n# \\# Fatal process out of memory: Zone\r\n# \\#\r\n# ----- Native stack trace -----\r\n# FATAL ERROR: Zone Allocation failed - process out of memory\r\n# ----- Native stack trace -----\r\n#  1: 00007FF60B947487 \r\n#  2: 00007FF60B8AB1B8 \r\n#  3: 00007FF60C41C011 \r\n#  4: 00007FF60C408B96 \r\n#  5: 00007FF60BEEB6BB \r\n#  6: 00007FF60CBAD463 \r\n#  7: 00007FF60CBAD2BB \r\n#  8: 00007FF60CAE3A9E \r\n#  9: 00007FF60CBA0650 \r\n# 10: 00007FF60CBA2DD2 \r\n# 11: 00007FF60C38AECB \r\n# 12: 00007FF60C385011 \r\n# 13: 00007FF60C384D2D \r\n# 14: 00007FF60C3887D0 \r\n# 15: 00007FF60C3830A5 \r\n# 16: 00007FF60BF5F2BD \r\n# 17: 00007FF60C4D74AE \r\n# 18: 00007FF60C438C39 \r\n# 19: 00007FF5AC66D7CC \r\n#  1: 00007FF60B947487 \r\n#  2: 00007FF60B81CA6F \r\n#  3: 00007FF60CA81DE6 \r\n#  4: 00007FF60C4089A1 \r\n#  5: 00007FF60BEEB6BB \r\n#  6: 00007FF60BE31526 \r\n#  7: 00007FF60CB97B52 \r\n#  8: 00007FF60CBA01D7 \r\n#  9: 00007FF60CBA208E \r\n# 10: 00007FF60CB9C23A \r\n# 11: 00007FF60C385CD4 \r\n# 12: 00007FF60C34C8B2 \r\n# 13: 00007FF60C60D7D6 \r\n# 14: 00007FF60B81F7F0 \r\n# 15: 00007FF60B9A8593 \r\n# 16: 00007FF\n\u2026[truncated]",
+  "cleanupCompleted": true,
   "result": {
-    "setupSucceeded": true,
+    "setupSucceeded": false,
     "setupDurationMs": 0,
     "setupFailureOutput": null,
-    "assertions": [
-      {
-        "name": "production-build",
-        "kind": "process",
-        "verificationMethod": "exit-code",
-        "passed": true,
-        "timedOut": false,
-        "skipped": false,
-        "skippedReason": null,
-        "exitCode": 0,
-        "outputSample": "\r\n\u003E pe-na-estrada@0.1.0 build\r\n\u003E tsc --noEmit \u0026\u0026 vite build\r\n\r\n\u001B[36mvite v7.3.7 \u001B[32mbuilding client environment for production...\u001B[36m\u001B[39m\r\ntransforming...\r\n\u001B[32m\u2713\u001B[39m 35 modules transformed.\r\nrendering chunks...\r\ncomputing gzip size...\r\n\u001B[2mdist/\u001B[22m\u001B[32mindex.html                 \u001B[39m\u001B[1m\u001B[2m  0.42 kB\u001B[22m\u001B[1m\u001B[22m\u001B[2m \u2502 gzip:   0.31 kB\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[35massets/index-D-wKvJS4.css  \u001B[39m\u001B[1m\u001B[2m  7.37 kB\u001B[22m\u001B[1m\u001B[22m\u001B[2m \u2502 gzip:   2.37 kB\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[36massets/index-BE9f1-03.js   \u001B[39m\u001B[1m\u001B[33m617.07 kB\u001B[39m\u001B[22m\u001B[2m \u2502 gzip: 169.49 kB\u001B[22m\r\n\u001B[33m\r\n(!) Some chunks are larger than 500 kB after minification. Consider:\r\n- Using dynamic import() to code-split the application\r\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\r\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\u001B[39m\r\n\u001B[32m\u2713 built in 4.48s\u001B[39m\r\n",
-        "durationMs": 9660
-      },
-      {
-        "name": "dev-server-serves-home",
-        "kind": "http-probe",
-        "verificationMethod": "http-status",
-        "passed": true,
-        "timedOut": false,
-        "skipped": false,
-        "skippedReason": null,
-        "exitCode": null,
-        "outputSample": "HTTP 200\n\u003C!doctype html\u003E\u003Chtml lang=\u0022pt-BR\u0022\u003E\u003Chead\u003E\n  \u003Cscript type=\u0022module\u0022 src=\u0022/@vite/client\u0022\u003E\u003C/script\u003E\n\u003Cmeta charset=\u0022UTF-8\u0022\u003E\u003Cmeta name=\u0022viewport\u0022 content=\u0022width=device-width, initial-scale=1\u0022\u003E\u003Cmeta name=\u0022theme-color\u0022 content=\u0022#263f37\u0022\u003E\u003Ctitle\u003EP\u00E9 na Estrada \u00B7 Vale do Horizonte\u003C/title\u003E\u003C/head\u003E\u003Cbody\u003E\u003Cdiv id=\u0022app\u0022\u003E\u003C/div\u003E\u003Cscript type=\u0022module\u0022 src=\u0022/src/main.ts?t=1794366833228\u0022\u003E\u003C/script\u003E\u003C/body\u003E\u003C/html\u003E\r\n",
-        "durationMs": 38
-      },
-      {
-        "name": "tests-pass",
-        "kind": "process",
-        "verificationMethod": "test-results",
-        "passed": false,
-        "timedOut": false,
-        "skipped": false,
-        "skippedReason": null,
-        "exitCode": 1,
-        "outputSample": "\r\n\u003E pe-na-estrada@0.1.0 test\r\n\u003E tsx --test tests/*.test.ts\r\n\r\nTAP version 13\r\n# Subtest: all recorded audio assets are valid compact mono PCM with no clipping\r\nnot ok 1 - all recorded audio assets are valid compact mono PCM with no clipping\r\n  ---\r\n  duration_ms: 11.5205\r\n  type: \u0027test\u0027\r\n  location: \u0027D:\\\\PROJETOS\\\\MOTOTRAIL\\\\tests\\\\audio.test.ts:4:1\u0027\r\n  failureType: \u0027testCodeFailure\u0027\r\n  error: |-\r\n    Expected values to be strictly equal:\r\n    \r\n    44100 !== 22050\r\n    \r\n  code: \u0027ERR_ASSERTION\u0027\r\n  name: \u0027AssertionError\u0027\r\n  expected: 22050\r\n  actual: 44100\r\n  operator: \u0027strictEqual\u0027\r\n  stack: |-\r\n    TestContext.\u003Canonymous\u003E (D:\\PROJETOS\\MOTOTRAIL\\tests\\audio.test.ts:6:139)\r\n    Test.runInAsyncScope (node:async_hooks:214:14)\r\n    Test.run (node:internal/test_runner/test:1047:25)\r\n    Test.start (node:internal/test_runner/test:944:17)\r\n    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)\r\n  ...\r\n# Subtest: biomes form a continuous normalized blend with deterministic vegetation\r\nok 2 - biomes form a continuous normalized blend with deterministic vegetation\r\n  ---\r\n  duration_ms: 151.1915\r\n  type: \u0027test\u0027\r\n  ...\r\n# Subtest: vegetation instance bounds are finite and trunk colliders match placements\r\nok 3 - vegetation instance bounds are finite and trunk colliders match placements\r\n  ---\r\n  duration_ms: 75.7613\r\n  type: \u0027test\u0027\r\n  ...\r\n# Subtest: first person FOV is smooth, speed dependent and contracts under braking\r\nok 4 - first person FOV is smooth, speed dependent and contracts under braking\r\n  ---\r\n  duration_ms: 52.4357\r\n  type: \u0027test\u0027\r\n  ...\r\n# Subtest: collision emits its lost speed once, small contacts cannot repeatedly shake camera\r\nok 5 - collision emits its lost speed once, small contacts cannot repeatedly shake camera\r\n  ---\r\n  duration_ms: 3.5044\r\n  type: \u0027test\u0027\r\n  ...\r\n# Subtest: impact recoil decays and braking advances the first-person camera\r\nok 6 - impact recoil decays and braking advances the first-person camera\r\n  ---\r\n  duration_ms: 36.144\r\n  type: \u0027test\u0027\r\n  ...\r\n# Subtest: CG selects supplied acceleration and coast loops with smoothed transitions\r\nok 7 - CG selects supplied acceleration and coast loops with smoothed transitions\r\n  ---\r\n  duration_ms: 4.0919\r\n  type: \u0027test\u0027\r\n  ...\r\n# Subtest: both CG recordings are nonempty mono PCM WAVs and have continuous loop seams\r\nok 8 - both CG recordings are nonempty mono PCM WAVs and have continuous loop seams\r\n  ---\r\n  duration_ms: 11.6243\r\n  type: \u0027test\u0027\r\n  ...\r\n# Subtest: CG 150 reaches its tuned limit and brakes harder than Pop from equal speed\r\nok 9 - CG 150 reaches its tuned limit and brakes harder than Pop from equal speed\r\n  ---\r\n  duration_ms: 6.6223\r\n  type: \u0027test\u0027\r\n  ...\r\n# Subtest: coastal road remains dry, smooth and inside world boundaries\r\nok 10 - coastal road remains dry, smooth and inside world boundaries\r\n  ---\r\n  duration_ms: 61.3464\r\n  type: \u0027test\u0027\r\n  ...\r\n# Subtest: beach descends continuously to sea and deep water blocks riding\r\nok 11 - beach descends continuously to sea and deep water blocks riding\r\n  ---\r\n  duration_ms: 19.9039\r\n  type: \u0027test\u0027\r\n  ...\r\n# Subtest: gamepad deadzone, analog triggers, edge buttons and disconnect\r\nok 12 - gamepad deadzone, analog triggers, edge buttons and disconnect\r\n  ---\r\n  duration_ms: 3.1187\r\n  type: \u0027test\u0027\r\n  ...\r\n# Subtest: push backwards escapes an overlapping obstacle without teleporting\r\nok 13 - push backwards escapes an overlapping obstacle without teleporting\r\n  ---\r\n  duration_ms: 30.8271\r\n  type: \u0027test\u0027\r\n  ...\r\n# Subtest: pushing at speed first brakes before moving backwards\r\nok 14 - pushing at speed first brakes before moving backwards\r\n  ---\r\n  duration_ms: 1.0714\r\n  type: \u0027test\u0027\r\n  ...\r\n# Subtest: all vehicle models have distinct geometry and dispose GPU resources\r\nok 15 - all vehicle models have distinct geometry and dispose GPU resources\r\n  ---\r\n  duration_ms: 232.9511\r\n  type: \u0027test\u0027\r\n  ...\r\n# Subtest: a full 20 km ride uses a comfortable part of the tank on every bike\r\nok 16 - a full 20 km ride uses a comfortable part of the tank on every bike\r\n  ---\r\n  duration_ms: 57.157\r\n\u2026[truncated]",
-        "durationMs": 30544,
-        "testResults": {
-          "testFramework": "unknown",
-          "runnerDetectedFrom": "none",
-          "testsTotal": 0,
-          "testsPassed": 0,
-          "testsFailed": 0,
-          "testsSkipped": 0,
-          "parseFailed": true
-        }
-      }
-    ],
-    "executions": [
-      {
-        "source": "production-build",
-        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.CMD",
-        "args": [
-          "run",
-          "build"
-        ],
-        "cwd": "D:\\PROJETOS\\MOTOTRAIL",
-        "env": {},
-        "prependPath": [],
-        "platform": "win32"
-      },
-      {
-        "source": "dev-server-serves-home",
-        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.CMD",
-        "args": [
-          "run",
-          "dev",
-          "--",
-          "--port",
-          "5175"
-        ],
-        "cwd": "D:\\PROJETOS\\MOTOTRAIL",
-        "env": {},
-        "prependPath": [],
-        "platform": "win32"
-      },
-      {
-        "source": "tests-pass",
-        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.CMD",
-        "args": [
-          "test"
-        ],
-        "cwd": "D:\\PROJETOS\\MOTOTRAIL",
-        "env": {},
-        "prependPath": [],
-        "platform": "win32"
-      }
-    ]
+    "assertions": [],
+    "executions": []
   }
 }

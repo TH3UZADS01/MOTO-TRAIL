@@ -112,3 +112,11 @@ Execute `npm run build`, `npm test` e `npm run test:online`. O teste de áudio p
 - Build e testes direcionados de partículas + rede/mapa aprovados (8 testes). Navegador: pilotagem na terra seguida por transição para grama, com superfície reportada pelo HUD; captura confirmou poeira na estrada de terra. O teste automatizado verifica que somente partículas em forma de folha são emitidas na grama.
 - Medição breve durante a pilotagem: 58 FPS com movimento/partículas na terra; 59 FPS quando parado após cruzar para grama. Valores limitados a 60 Hz deste navegador, sem comparação A/B nem benchmark em hardware real.
 - Suíte geral executada sequencialmente: 50/51 testes aprovados; única falha preexistente no teste de áudio (WAV em 44.100 Hz, expectativa de 22.050 Hz).
+
+## Descobertas e som local — 11/11/2026
+
+- Lista apresenta todos os pontos registrados com estado descoberto/não descoberto; `explored-places-v1` salva nomes válidos e ignora dados duplicados/obsoletos. Testes cobrem descoberta única, salvamento e recarga.
+- Som musical sintetizado no AudioContext local dura aproximadamente 3 s; descobertas ocorridas enquanto o áudio inicial carrega ficam enfileiradas. O som não é enviado pelo protocolo multiplayer.
+- Build de produção e testes direcionados de exploração/câmera aprovados (6 testes). No navegador, a lista exibiu os 15 locais; a primeira descoberta de “Posto do Ipê” atualizou HUD/notificação e persistiu após recarregar (1/15).
+- O teste auditivo da descoberta e a revisita sem repetição não foram confirmados: o cliente de navegador ficou indisponível nesta continuação. O código agenda cinco notas em sequência por aproximadamente 3 s no AudioContext local.
+- A validação runtime standalone expirou durante `npm test`; o resultado parcial em `.tsupgrader/runtime-validation/standalone-result.json` registra a falha preexistente de WAV (44.100 Hz versus 22.050 Hz) e processos de teste encerrados por falta de memória. A validação não concluiu asserções.

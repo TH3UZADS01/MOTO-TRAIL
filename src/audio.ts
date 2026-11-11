@@ -1,4 +1,5 @@
 import {ENGINE_TUNING,type Powertrain} from './powertrain';
+import {DISCOVERY_SOUND_DURATION} from './exploration';
 import type {RemotePlayer} from './network';
 import {getVehicle,type VehicleId} from './vehicles';
 // High-RPM recordings supplied by the user; gains, pitch range and crossfade are tunable.
@@ -26,7 +27,7 @@ export class Sound {
  }
  remoteHorn(id:string){if(!this.ready||!this.ctx||!this.hornBuffer)return;const v=this.voices.get(id);if(!v||v.horns.size>=2)return;const source=this.ctx.createBufferSource();source.buffer=this.hornBuffer;source.connect(v.gain);v.horns.add(source);source.onended=()=>{source.disconnect();v.horns.delete(source)};source.start()}
 
- ctx?:AudioContext;volume=.5;ambience=.35;vehicle:VehicleId='pop';layers:Layer[]=[];ready=false;private loading?:Promise<void>;private hornBuffer?:AudioBuffer;private lastHorn=-1;
+ ctx?:AudioContext;volume=.5;ambience=.35;vehicle:VehicleId='pop';layers:Layer[]=[];ready=false;private loading?:Promise<void>;private hornBuffer?:AudioBuffer;private lastHorn=-1;private queuedDiscoveries=0;private discoveryQueueUntil=0;
  async start(){
   if(!this.ctx)this.ctx=new AudioContext();await this.ctx.resume();
   if(this.ready)return;
@@ -38,6 +39,29 @@ export class Sound {
   const limiter=c.createDynamicsCompressor();this.output=limiter;limiter.threshold.value=-10;limiter.knee.value=12;limiter.ratio.value=6;limiter.attack.value=.008;limiter.release.value=.2;limiter.connect(c.destination);
   buffers.slice(0,AUDIO_ASSETS.length).forEach((buffer,i)=>{const asset=AUDIO_ASSETS[i];const source=c.createBufferSource(),gain=c.createGain(),filter=c.createBiquadFilter();source.buffer=buffer;source.loop=true;gain.gain.value=0;filter.type='lowpass';filter.frequency.value=asset.bank==='wind'?700:asset.bank==='cg150'?CG_AUDIO_TUNING.filter:1800;source.connect(filter);filter.connect(gain);gain.connect(limiter);source.start();this.layers.push({source,gain,filter,bank:asset.bank,load:asset.load})});
   this.hornBuffer=buffers[AUDIO_ASSETS.length];this.ready=true;
+  while(this.queuedDiscoveries>0){this.queuedDiscoveries--;this.scheduleDiscovery()}
+ }
+ playDiscovery(){
+  if(!this.ready||!this.ctx||!this.output){this.queuedDiscoveries=Math.min(this.queuedDiscoveries+1,32);return}
+  this.scheduleDiscovery();
+ }
+ private scheduleDiscovery(){
+  const c=this.ctx!,output=this.output!,start=Math.max(c.currentTime,this.discoveryQueueUntil);
+  const notes=[523.25,659.25,783.99,1046.5,1318.51];
+  for(let i=0;i<notes.length;i++){
+   const at=start+i*.55,duration=i===notes.length-1?.8:.58;
+   const oscillator=c.createOscillator(),gain=c.createGain();
+   oscillator.type=i===notes.length-1?'sine':'triangle';
+   oscillator.frequency.setValueAtTime(notes[i],at);
+   gain.gain.setValueAtTime(.0001,at);
+   gain.gain.exponentialRampToValueAtTime(.055,at+.045);
+   gain.gain.setValueAtTime(.022,at+.28);
+   gain.gain.exponentialRampToValueAtTime(.0001,at+duration);
+   oscillator.connect(gain);gain.connect(output);
+   oscillator.onended=()=>{oscillator.disconnect();gain.disconnect()};
+   oscillator.start(at);oscillator.stop(at+duration+.01);
+  }
+  this.discoveryQueueUntil=start+DISCOVERY_SOUND_DURATION;
  }
  update(speed:number,gear:number,throttle:number,paused:boolean,brake=0,engine?:Pick<Powertrain,'ratio'|'limiting'|'cutting'>){if(!this.ready||!this.ctx)return;const c=this.ctx,t=c.currentTime,spec=getVehicle(this.vehicle),v=Math.max(0,speed),ratio=v/spec.maxSpeed;
   const rev=engine?.ratio??(spec.gears===1?ratio:Math.max(0,Math.min(1,(v-(gear-1)*5)/7)));

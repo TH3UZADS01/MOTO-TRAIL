@@ -51,6 +51,8 @@ Todos são modelos procedurais estilizados, não réplicas dimensionais certific
 
 Circuito contínuo de aproximadamente 20,1 km, medido em metros no terreno, em um vale de 16 × 16 km. Curvas em S, serra com subidas e descidas, quatro vilas e cinco postos. Quatro ligações asfaltadas atravessam o interior; cinco trilhas de terra somam aproximadamente 8,6 km. Fazenda, camping, cachoeira cenográfica, lago e três pontes sobre um rio contínuo. O traçado parte do conceito aprovado em artifacts/map-v5/conceito-aprovado.png. Terreno em trechos de 256 m carregados ao redor da moto; vegetação instanciada, estrada dividida para descarte de trechos fora da câmera. Edificações com fundações, áreas niveladas e acessos; sinalização legível dos dois lados. Minimapa com asfalto, terra tracejada, rio, postos e posição. O HUD identifica a estrada atual; a distância ao posto mais próximo é em linha reta. Terra tem menos aderência, frenagem mais longa e resistência maior. A recuperação procura a estrada mais próxima de toda a rede. Água profunda bloqueia a moto, mas os tabuleiros das pontes permitem atravessar.
 
+Exploração: o botão **Locais** no topo lista todos os pontos de interesse, marcando os descobertos e os que faltam. A primeira descoberta é salva localmente e toca um breve sinal musical apenas no próprio jogo; revisitar locais ou conectar-se a outros jogadores não retransmite o áudio.
+
 Gasolina: tanques separados por moto, salvos a cada cinco segundos e ao pausar/sair. Um circuito consome aproximadamente metade do tanque em ritmo normal. Velocidade, aceleração e subida aumentam o consumo; empurrar não gasta. Pare próximo às bombas, solte o acelerador e segure E ou X/quadrado para abastecer gratuitamente (0,25 L/s). Postos separados por cerca de 4 km. Se esvaziar, o menu de pausa oferece 0,7 L de emergência; não é necessário resetar a posição. Recuperar ou trocar de moto não enche o tanque.
 
 Partículas leves saem do pneu traseiro em movimento: poeira marrom na terra e fragmentos verdes na grama. A emissão acompanha a velocidade, cessa ao parar e é limitada a um pool reutilizável de 96 partículas; ao trocar de superfície, o efeito anterior é limpo.
@@ -63,7 +65,7 @@ Partículas leves saem do pneu traseiro em movimento: poeira marrom na terra e f
 - `vehicles.ts`: cadastro e ajustes; `vehicle.ts`: Pop; `vehicle-models.ts`: demais modelos e descarte.
 - `riding.ts`: movimento, recuo e colisão; `input.ts`: gamepad.
 - `camera.ts`: primeira/terceira pessoa; `audio.ts`: reprodução e mixagem.
-- `main.ts`, `interface.ts`, `style.css`: integração e menus; `rear-view-mirror.ts`: câmera e captura traseira; `tire-particles.ts`: partículas reutilizáveis por superfície; `persistence.ts`: preferências locais.
+- `main.ts`, `interface.ts`, `style.css`: integração e menus; `exploration.ts`: progresso e lista de locais; `audio.ts`: efeitos locais e mixagem; `rear-view-mirror.ts`: câmera e captura traseira; `tire-particles.ts`: partículas reutilizáveis por superfície; `persistence.ts`: preferências locais.
 - `network.ts`, `remote-riders.ts` e `server/`: salas e sincronização multiplayer.
 - `tools/prepare_audio.py`: reproduz o processamento a partir de `tools/audio-originals/`. Originais não entram no build público.
 
