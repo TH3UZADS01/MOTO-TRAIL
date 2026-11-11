@@ -53,6 +53,8 @@ Circuito contínuo de aproximadamente 20,1 km, medido em metros no terreno, em u
 
 Gasolina: tanques separados por moto, salvos a cada cinco segundos e ao pausar/sair. Um circuito consome aproximadamente metade do tanque em ritmo normal. Velocidade, aceleração e subida aumentam o consumo; empurrar não gasta. Pare próximo às bombas, solte o acelerador e segure E ou X/quadrado para abastecer gratuitamente (0,25 L/s). Postos separados por cerca de 4 km. Se esvaziar, o menu de pausa oferece 0,7 L de emergência; não é necessário resetar a posição. Recuperar ou trocar de moto não enche o tanque.
 
+Partículas leves saem do pneu traseiro em movimento: poeira marrom na terra e fragmentos verdes na grama. A emissão acompanha a velocidade, cessa ao parar e é limitada a um pool reutilizável de 96 partículas; ao trocar de superfície, o efeito anterior é limpo.
+
 Áudio gravado CC0 da BigSoundBank: motor, aceleração, vento e buzina. Loops editados localmente em mono 22.050 Hz, com remoção de DC, filtragem, normalização e emendas suavizadas. Duas camadas por motor; crossfade por carga, reprodução suavizada por rotação/marcha e perfis de timbre por moto. Caloi usa gravação-base diferente. Não há oscilador sintetizando motor, vento ou buzina. Os sons não são gravações autênticas de cada modelo. Veja CREDITS.md.
 
 ## Organização
@@ -61,7 +63,7 @@ Gasolina: tanques separados por moto, salvos a cada cinco segundos e ao pausar/s
 - `vehicles.ts`: cadastro e ajustes; `vehicle.ts`: Pop; `vehicle-models.ts`: demais modelos e descarte.
 - `riding.ts`: movimento, recuo e colisão; `input.ts`: gamepad.
 - `camera.ts`: primeira/terceira pessoa; `audio.ts`: reprodução e mixagem.
-- `main.ts`, `interface.ts`, `style.css`: integração e menus; `rear-view-mirror.ts`: câmera e captura traseira; `persistence.ts`: preferências locais.
+- `main.ts`, `interface.ts`, `style.css`: integração e menus; `rear-view-mirror.ts`: câmera e captura traseira; `tire-particles.ts`: partículas reutilizáveis por superfície; `persistence.ts`: preferências locais.
 - `network.ts`, `remote-riders.ts` e `server/`: salas e sincronização multiplayer.
 - `tools/prepare_audio.py`: reproduz o processamento a partir de `tools/audio-originals/`. Originais não entram no build público.
 

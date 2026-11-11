@@ -104,3 +104,11 @@ Execute `npm run build`, `npm test` e `npm run test:online`. O teste de áudio p
 - Navegador integrado: imagem traseira da estrada visível e atualizada ao acelerar; desativar removeu a janela. FPS e resolução alternados para opções menores e restaurados aos padrões, com valores persistidos.
 - Medição breve de `requestAnimationFrame` no navegador integrado: 61 FPS com retrovisor desligado e 58 FPS ligado, no mesmo ambiente; não representa benchmark em hardware real.
 - Validação runtime: build e HTTP aprovados. Suíte geral: 47/48 testes; única falha preexistente nos WAVs (44100 Hz versus 22050 Hz esperado).
+
+## Partículas nos pneus — 11/11/2026
+
+- Módulo reutiliza buffer fixo de 96 pontos, com formas e cores distintas por superfície; a detecção existente seleciona terra e grama e limpa o efeito ao mudar para outra superfície. Não cria malhas por partícula.
+- Testes usam uma trilha de terra real e uma coordenada de grama do mapa; verificam emissão proporcional à velocidade, parada, desaparecimento, posição atrás do pneu, tipo exclusivo e remoção na troca de terreno.
+- Build e testes direcionados de partículas + rede/mapa aprovados (8 testes). Navegador: pilotagem na terra seguida por transição para grama, com superfície reportada pelo HUD; captura confirmou poeira na estrada de terra. O teste automatizado verifica que somente partículas em forma de folha são emitidas na grama.
+- Medição breve durante a pilotagem: 58 FPS com movimento/partículas na terra; 59 FPS quando parado após cruzar para grama. Valores limitados a 60 Hz deste navegador, sem comparação A/B nem benchmark em hardware real.
+- Suíte geral executada sequencialmente: 50/51 testes aprovados; única falha preexistente no teste de áudio (WAV em 44.100 Hz, expectativa de 22.050 Hz).
