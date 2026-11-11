@@ -7,7 +7,7 @@ export const WORLD='vale-horizonte-v7';
 const hash=token=>createHash('sha256').update(token).digest('hex');
 const validVehicle=id=>['pop','cub','urban','caloi','cg150'].includes(id);
 const finite=(v,min,max)=>typeof v==='number'&&Number.isFinite(v)&&v>=min&&v<=max;
-export function validState(s){return s&&validVehicle(s.vehicleId)&&(s.color===undefined||(typeof s.color==='string'&&/^#[0-9a-fA-F]{6}$/.test(s.color)))&&(s.bodyLean===undefined||finite(s.bodyLean,-1,1))&&(s.wheelie===undefined||finite(s.wheelie,0,Math.PI/4))&&finite(s.x,-7970,7970)&&finite(s.z,-7970,7970)&&finite(s.y,-50,250)&&finite(s.heading,-1e6,1e6)&&finite(s.pitch,-1.6,1.6)&&finite(s.lean,-.8,.8)&&finite(s.steer,-1,1)&&finite(s.speed,-1.3,38)&&Number.isSafeInteger(s.sequence)&&s.sequence>=0;}
+export function validState(s){return s&&validVehicle(s.vehicleId)&&(s.color===undefined||(typeof s.color==='string'&&/^#[0-9a-fA-F]{6}$/.test(s.color)))&&(s.bodyLean===undefined||finite(s.bodyLean,-1,1))&&(s.wheelie===undefined||finite(s.wheelie,0,Math.PI/4))&&(s.brake===undefined||finite(s.brake,0,1))&&finite(s.x,-7970,7970)&&finite(s.z,-7970,7970)&&finite(s.y,-50,250)&&finite(s.heading,-1e6,1e6)&&finite(s.pitch,-1.6,1.6)&&finite(s.lean,-.8,.8)&&finite(s.steer,-1,1)&&finite(s.speed,-1.3,38)&&Number.isSafeInteger(s.sequence)&&s.sequence>=0;}
 const publicMember=p=>({id:p.id,name:p.name,connected:!!p.socket,state:p.state});
 export function createGameServer({dataDir=resolve('server-data'),origins=['http://127.0.0.1:5173','http://127.0.0.1:5174','http://localhost:5173'],graceMs=120000,maxRooms=50}={}){
  mkdirSync(dataDir,{recursive:true});const file=resolve(dataDir,'rooms.json'),rooms=new Map();let dirty=false;
@@ -43,7 +43,7 @@ export function createGameServer({dataDir=resolve('server-data'),origins=['http:
      if(member.socket)return fail('Esta sessão já está conectada.',true);token=message.token;member.state.sequence=-1;
     }else{
      if(room.members.size>=4)return fail('Esta sala já tem quatro viajantes.',true);
-     token=randomBytes(32).toString('hex');member={id:randomBytes(8).toString('hex'),tokenHash:hash(token),name,offlineAt:0,state:{vehicleId:message.vehicleId,x:-310,z:room.members.size*3,y:0,heading:Math.PI,speed:0,pitch:0,lean:0,steer:0,sequence:-1}};room.members.set(member.id,member);
+     token=randomBytes(32).toString('hex');member={id:randomBytes(8).toString('hex'),tokenHash:hash(token),name,offlineAt:0,state:{vehicleId:message.vehicleId,x:-310,z:room.members.size*3,y:0,heading:Math.PI,speed:0,pitch:0,lean:0,steer:0,brake:0,sequence:-1}};room.members.set(member.id,member);
     }
     member.socket=ws;member.offlineAt=0;member.name=name;room.updated=now;joined=true;clearTimeout(handshake);dirty=true;
     // Persist session credentials before acknowledging admission, so reconnects survive a restart.
@@ -54,7 +54,7 @@ export function createGameServer({dataDir=resolve('server-data'),origins=['http:
    if(message.type==='horn'){if(now-lastHorn<400)return;lastHorn=now;for(const p of room.members.values())if(p.id!==member.id)send(p.socket,{type:'horn',id:member.id});return}
    if(message.type!=='state'||!validState(message.state))return fail('Estado inválido.',true);
    const state=message.state;if(state.sequence<=member.state.sequence)return;
-   member.state={vehicleId:state.vehicleId,color:state.color,bodyLean:state.bodyLean??0,wheelie:state.wheelie??0,x:state.x,y:state.y,z:state.z,heading:state.heading,speed:state.speed,pitch:state.pitch,lean:state.lean,steer:state.steer,sequence:state.sequence};room.updated=now;dirty=true;
+   member.state={vehicleId:state.vehicleId,color:state.color,bodyLean:state.bodyLean??0,wheelie:state.wheelie??0,brake:state.brake??0,x:state.x,y:state.y,z:state.z,heading:state.heading,speed:state.speed,pitch:state.pitch,lean:state.lean,steer:state.steer,sequence:state.sequence};room.updated=now;dirty=true;
   });
   ws.on('close',()=>{clearTimeout(handshake);if(member?.socket===ws){member.socket=null;member.offlineAt=Date.now();member.state.speed=0;member.state.bodyLean=0;member.state.wheelie=0;dirty=true;broadcast(room)}});
   ws.on('error',()=>{});

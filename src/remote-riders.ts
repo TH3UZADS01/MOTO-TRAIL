@@ -29,7 +29,7 @@ export class RemoteRiders {
    const teleport=Math.hypot(s.x-e.x,s.z-e.z)>12,u=teleport?1:t;
    p.bike.root.position.set(T.MathUtils.lerp(s.x,e.x,u),T.MathUtils.lerp(s.y,e.y,u),T.MathUtils.lerp(s.z,e.z,u));
    p.bike.root.rotation.y=s.heading+Math.atan2(Math.sin(e.heading-s.heading),Math.cos(e.heading-s.heading))*u;
-   p.bike.headlight.update(night);p.bike.steering.rotation.y=steeringAngle(e.speed,e.steer);p.bike.riderRig.update(p.connected?e.speed:0,e.steer,dt,false,T.MathUtils.lerp(s.bodyLean??0,e.bodyLean??0,u));applyBikePose(p.bike,T.MathUtils.lerp(s.pitch,e.pitch,u),T.MathUtils.lerp(s.lean,e.lean,u),T.MathUtils.lerp(s.wheelie??0,e.wheelie??0,u),p.bike.riderRig.stopPose);
+   p.bike.headlight.update(night);p.bike.brakeLight.update(p.connected?T.MathUtils.lerp(s.brake??0,e.brake??0,u):0,dt);p.bike.steering.rotation.y=steeringAngle(e.speed,e.steer);p.bike.riderRig.update(p.connected?e.speed:0,e.steer,dt,false,T.MathUtils.lerp(s.bodyLean??0,e.bodyLean??0,u));applyBikePose(p.bike,T.MathUtils.lerp(s.pitch,e.pitch,u),T.MathUtils.lerp(s.lean,e.lean,u),T.MathUtils.lerp(s.wheelie??0,e.wheelie??0,u),p.bike.riderRig.stopPose);
    for(const wheel of p.bike.wheels)wheel.rotation.x+=(p.connected?e.speed:0)*dt/.28;
    p.label.position.copy(p.bike.root.position);p.label.position.y+=2.1;
   }

@@ -60,3 +60,41 @@
 .exploration-state{font-size:10px;color:#edce92;white-space:nowrap}
 .exploration-list li[data-discovered=false] .exploration-state{color:#fff8e688}
 .exploration-sheet>.primary{flex:none}
+@media (pointer:coarse),(max-width:800px){
+ .overlay{overflow-y:auto;overscroll-behavior:contain;align-items:flex-start;padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom))}
+ .sheet{margin:auto;max-height:calc(100dvh - 24px)}
+ footer .destination{left:12px;right:auto;transform:none;bottom:calc(var(--control-height,52px) + 12px + env(safe-area-inset-bottom));max-width:34vw;text-align:left}
+ .route-panel{right:8px;width:clamp(88px,15vw,128px);padding:4px}
+ #rear-mirror{left:50%;right:auto}
+}
+@media (pointer:coarse) and (orientation:landscape) and (max-height:500px),(max-width:800px) and (orientation:landscape) and (max-height:500px){
+ #touch-controls.active{left:8px;right:8px;bottom:calc(6px + env(safe-area-inset-bottom))}
+ #touch-controls{--pedal-width:clamp(42px,5vw,58px);--steer-width:clamp(38px,4vw,48px);--control-height:clamp(38px,10vh,48px)}
+ .touch-steering,.touch-pedals{gap:5px}
+ .touch-steering button,.touch-pedals button{border-radius:12px}
+ .touch-utilities,.touch-shifts{bottom:calc(var(--control-height) + 5px)}
+ .touch-utilities button,.touch-shifts button{width:28px;height:27px}
+ footer{right:8px;bottom:calc(var(--control-height,44px) + 10px + env(safe-area-inset-bottom))}
+ footer .destination{left:8px;bottom:calc(var(--control-height,44px) + 8px + env(safe-area-inset-bottom));max-width:30vw}
+ .destination strong{font-size:12px}
+ .destination small{font-size:8px}
+ .speed strong{font-size:clamp(22px,5vh,30px)}
+ .fuel-panel{top:8px;left:8px;width:clamp(100px,14vw,142px);padding:5px 7px}
+ .fuel-panel small{font-size:8px}
+ .route-panel{top:8px;right:8px;width:clamp(82px,12vw,108px);padding:3px}
+ .route-panel small{font-size:7px}
+ #rear-mirror{top:8px;width:clamp(66px,9vw,82px)}
+ header{padding:8px}
+ header .icon{width:34px;height:34px}
+ .exploration-open{top:8px;right:52px;padding:4px 6px}
+ .exploration-open span{font-size:6px}
+ .exploration-open strong{font-size:10px}
+ .overlay{padding:8px 12px}
+ .sheet{padding:14px 18px}
+ .sheet h2{font-size:24px;margin:8px 0 12px}
+ .sheet label{margin:8px 0;font-size:11px}
+ .sheet select,.sheet input:not([type=range]){padding:6px}
+ .sheet p{font-size:10px;line-height:1.45;margin:8px 0}
+ .sheet>button{padding:7px}
+ .exploration-sheet{max-height:calc(100dvh - 16px)}
+}
