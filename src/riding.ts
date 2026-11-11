@@ -7,6 +7,7 @@ import type {Obstacle} from './world';
 export const TOP_SPEED=100/3.6;
 export const ACCELERATION_SCALE=.8; // 20% slower acceleration for every motorcycle.
 export function steeringAngle(speed:number,input:number){return input*.56/(1+(speed/5.8)**2);}
+export function automaticTuckInput(input:number,speed:number,topSpeed:number){return clamp(input+Math.min(1,Math.max(0,speed)/(topSpeed*.8)),-1,1);}
 export function acceleration(speed:number,throttle:number,brake:number,pitch:number,grip:number,aerodynamicDrag=.002){
   const drive=throttle*4.8*Math.max(0,1-speed/48);
   const net=drive-brake*8-.22-speed*speed*(aerodynamicDrag+(1-grip)*.012)-9.81*Math.sin(pitch)-(1-grip)*1.7;

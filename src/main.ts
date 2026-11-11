@@ -8,8 +8,8 @@ import * as T from 'three';
 import {makeWorld,obstacles} from './world';
 import {createBike,disposeBike} from './vehicle-models';
 import {vehicles,getVehicle,type VehicleId} from './vehicles';
-import {Controller} from './input';
-import {Ride,steeringAngle} from './riding';
+import {BrakePushAssist,Controller,touchSteering} from './input';
+import {Ride,automaticTuckInput,steeringAngle} from './riding';
 import {FollowCamera,CAMERA_TUNING} from './camera';
 import {RearViewMirror} from './rear-view-mirror';
 import {TireParticles} from './tire-particles';
@@ -23,13 +23,14 @@ import {river} from './map-layout';
 import {mountInterface} from './interface';
 mountInterface();
 const el=(id:string)=>document.getElementById(id)!;
-const touchInputs={throttle:false,brake:false,left:false,right:false,push:false,refuel:false};
-const touchControls=document.createElement('div');touchControls.id='touch-controls';touchControls.innerHTML='<div class="touch-steering"><button type="button" data-touch="left" aria-label="Virar à esquerda">◀</button><button type="button" data-touch="right" aria-label="Virar à direita">▶</button></div><div class="touch-utilities"><button type="button" data-touch="push" aria-label="Empurrar para trás">↶</button><button type="button" data-touch="refuel" aria-label="Abastecer">⛽</button><button type="button" data-touch-action="camera" aria-label="Alternar câmera">◉</button></div><div class="touch-pedals"><button type="button" data-touch="brake" aria-label="Frear">FREIO</button><button type="button" data-touch="throttle" aria-label="Acelerar">ACELERAR</button></div><div id="touch-shifts" class="touch-shifts hidden"><button type="button" data-touch-action="shift-down" aria-label="Reduzir marcha">−</button><button type="button" data-touch-action="shift-up" aria-label="Subir marcha">+</button></div>';
+const touchInputs={throttle:false,brake:false,left:false,right:false,refuel:false};
+let brakeHoldTime=0,brakePushActive=false;
+const touchControls=document.createElement('div');touchControls.id='touch-controls';touchControls.innerHTML='<div class="touch-steering"><button type="button" data-touch="left" aria-label="Virar à esquerda">◀</button><button type="button" data-touch="right" aria-label="Virar à direita">▶</button></div><div class="touch-utilities"><button type="button" data-touch="refuel" aria-label="Abastecer" class="hidden">⛽</button><button type="button" data-touch-action="camera" aria-label="Alternar câmera">◉</button></div><div class="touch-pedals"><button type="button" data-touch="brake" aria-label="Frear; segure parado para empurrar">FREIO</button><button type="button" data-touch="throttle" aria-label="Acelerar">ACELERAR</button></div><div id="touch-shifts" class="touch-shifts hidden"><button type="button" data-touch-action="shift-down" aria-label="Reduzir marcha">−</button><button type="button" data-touch-action="shift-up" aria-label="Subir marcha">+</button></div>';
 document.body.appendChild(touchControls);
-const clearTouchInputs=()=>{touchInputs.throttle=false;touchInputs.brake=false;touchInputs.left=false;touchInputs.right=false;touchInputs.push=false;touchInputs.refuel=false;touchControls.querySelectorAll('.pressed').forEach(button=>button.classList.remove('pressed'))};
+const clearTouchInputs=()=>{touchInputs.throttle=false;touchInputs.brake=false;touchInputs.left=false;touchInputs.right=false;touchInputs.refuel=false;brakeHoldTime=0;brakePushActive=false;touchControls.querySelectorAll('.pressed').forEach(button=>button.classList.remove('pressed'))};
 const scene=new T.Scene();scene.background=new T.Color(0xd2ded3);scene.fog=new T.Fog(0xd2ded3,150,780);const renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;el('scene').appendChild(renderer.domElement);
 const ambientLight=new T.HemisphereLight(0xd5e7f2,0x73835c,.85);scene.add(ambientLight);const sun=new T.DirectionalLight(0xffe0b5,2.5);sun.position.set(-70,140,80);sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-45;sun.shadow.camera.right=45;sun.shadow.camera.top=45;sun.shadow.camera.bottom=-45;sun.shadow.camera.near=.1;sun.shadow.camera.far=300;sun.shadow.bias=-.001;scene.add(sun,sun.target);const world=makeWorld(scene),sky=makeSky(scene),dayCycle=new DayCycle(scene,sun,ambientLight,sky);
-const settings=load(),bikeColors=loadColors();let bike=createBike(settings.vehicle);applyBikeColor(bike,bikeColors[settings.vehicle]);enableShadows(bike.root);scene.add(bike.root);const ride=new Ride(),camera=new FollowCamera(),sound=new Sound(),controller=new Controller();ride.spec=getVehicle(settings.vehicle);sound.vehicle=settings.vehicle;let playing=false,started=false,last=performance.now(),accumulator=0,throttle=0;const keys=new Set<string>();let notifyUntil=0;
+const settings=load(),bikeColors=loadColors();let bike=createBike(settings.vehicle);applyBikeColor(bike,bikeColors[settings.vehicle]);enableShadows(bike.root);scene.add(bike.root);const ride=new Ride(),camera=new FollowCamera(),sound=new Sound(),controller=new Controller(),brakePushAssist=new BrakePushAssist();ride.spec=getVehicle(settings.vehicle);sound.vehicle=settings.vehicle;let playing=false,started=false,last=performance.now(),accumulator=0,throttle=0;const keys=new Set<string>();let notifyUntil=0;
 const rearMirror=new RearViewMirror(renderer,el('rear-mirror'),{enabled:settings.rearMirror,fps:settings.rearMirrorFps,width:settings.rearMirrorWidth});
 const tireParticles=new TireParticles(scene);
 const exploration=new ExplorationProgress(pois),explorationPanel=mountExplorationPanel(pois,exploration);
@@ -110,6 +111,7 @@ transmission.value=settings.transmission;
 function updateTransmissionUi(){const manual=settings.transmission==='manual';manualShiftHelp.classList.toggle('hidden',!manual);el('touch-shifts').classList.toggle('hidden',!manual);transmissionControls.textContent=manual?'Manual: PageUp/PageDown ou direcional ↑/↓ no controle.':'Automático: trocas gerenciadas pelo motor.'}
 transmission.onchange=()=>{settings.transmission=transmission.value as typeof settings.transmission;updateTransmissionUi();save(settings)};
 updateTransmissionUi();
+const autoTuck=el('auto-tuck') as HTMLInputElement;autoTuck.checked=settings.autoTuck;autoTuck.onchange=()=>{settings.autoTuck=autoTuck.checked;save(settings)};
 for(const button of Array.from(touchControls.querySelectorAll<HTMLButtonElement>('[data-touch]'))){
  const control=button.dataset.touch as keyof typeof touchInputs;
  const release=()=>{touchInputs[control]=false;button.classList.remove('pressed')};
@@ -127,7 +129,7 @@ for(const button of Array.from(touchControls.querySelectorAll<HTMLButtonElement>
 function quality(){const q=settings.quality;renderer.setPixelRatio(Math.min(devicePixelRatio,q==='baixo'?.8:q==='medio'?1.25:1.7));configureShadows(renderer,sun,q);camera.camera.far=q==='baixo'?550:900;camera.camera.updateProjectionMatrix();(scene.fog as T.Fog).far=q==='baixo'?500:700;sound.volume=settings.motor;sound.ambience=settings.ambient;save(settings)}quality();
 (el('quality') as HTMLSelectElement).value=settings.quality;(el('motor') as HTMLInputElement).value=String(settings.motor);(el('ambient') as HTMLInputElement).value=String(settings.ambient);
 el('quality').onchange=e=>{settings.quality=(e.target as HTMLSelectElement).value as typeof settings.quality;quality()};for(const name of ['motor','ambient'] as const)el(name).oninput=e=>{settings[name]=Number((e.target as HTMLInputElement).value);quality()};
-function pause(){ride.resetBody();ride.brakeInput=0;ride.fuel.save();playing=false;rearMirror.setActive(false);ride.speed=0;keys.clear();clearTouchInputs();touchControls.classList.remove('active');network.send({vehicleId:settings.vehicle,color:bikeColors[settings.vehicle],bodyLean:ride.bodyLean,wheelie:ride.wheelie,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer},performance.now(),true);el('panel').classList.remove('hidden')}
+function pause(){ride.resetBody();ride.brakeInput=0;ride.fuel.save();playing=false;rearMirror.setActive(false);ride.speed=0;keys.clear();clearTouchInputs();brakePushAssist.reset();touchControls.classList.remove('active');network.send({vehicleId:settings.vehicle,color:bikeColors[settings.vehicle],bodyLean:ride.bodyLean,wheelie:ride.wheelie,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer},performance.now(),true);el('panel').classList.remove('hidden')}
 function resume(){started=true;playing=true;rearMirror.setActive(true);el('intro').classList.add('hidden');el('panel').classList.add('hidden');el('hud').classList.remove('hidden');touchControls.classList.add('active');void sound.start().then(()=>{el('audio-status').textContent='Áudio pronto'}).catch(()=>{el('audio-status').textContent='Falha ao carregar áudio. Tente continuar novamente.';notify('Não foi possível carregar o áudio.')});last=performance.now();accumulator=0}
 function notify(text:string){el('notification').textContent=text;el('notification').classList.add('visible');notifyUntil=performance.now()+4500}
 el('fuel-rescue').onclick=()=>{if(ride.fuel.rescue(settings.vehicle)){ride.fuel.save();notify('Ajuda chegou: 0,7 L para alcançar um posto.')}else notify('O socorro fica disponível quando o tanque esvaziar.');};
@@ -155,8 +157,9 @@ function frame(now:number){
  if(pad.camera&&playing)toggleCamera();if(pad.horn&&playing)honk();
  if(playing){
   accumulator+=dt;throttle=Math.max(keys.has('KeyW')||keys.has('ArrowUp')?1:0,pad.throttle,touchInputs.throttle?1:0);
-  const brake=Math.max(keys.has('KeyS')||keys.has('ArrowDown')?1:0,pad.brake,touchInputs.brake?1:0),keyboardTurn=(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)-(keys.has('KeyD')||keys.has('ArrowRight')?1:0),touchTurn=(touchInputs.right?1:0)-(touchInputs.left?1:0),turn=keyboardTurn||pad.turn||touchTurn,push=keys.has('KeyQ')||pad.push||touchInputs.push,bodyInput=(keys.has('KeyI')?1:0)-(keys.has('KeyK')?1:0)||pad.body;
+  const brakeRequest=Math.max(keys.has('KeyS')||keys.has('ArrowDown')?1:0,pad.brake,touchInputs.brake?1:0),keyboardTurn=(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)-(keys.has('KeyD')||keys.has('ArrowRight')?1:0),touchTurn=touchSteering(touchInputs.left,touchInputs.right),turn=keyboardTurn||pad.turn||touchTurn,brakePush=brakePushAssist.update(brakeRequest,ride.speed,dt),push=keys.has('KeyQ')||pad.push||brakePush,brake=push?0:brakeRequest,manualBodyInput=(keys.has('KeyI')?1:0)-(keys.has('KeyK')?1:0)||pad.body,bodyInput=settings.autoTuck?automaticTuckInput(manualBodyInput,ride.speed,ride.topSpeed):manualBodyInput;
   const station=stations.find(s=>Math.hypot(ride.x-s.x,ride.z-s.z)<12);
+  const refuelButton=touchControls.querySelector<HTMLButtonElement>('[data-touch=refuel]')!;refuelButton.classList.toggle('hidden',!station);if(!station)touchInputs.refuel=false;
   refueling=!!station&&Math.abs(ride.speed)<.5&&throttle===0&&!push&&(keys.has('KeyE')||pad.refuel||touchInputs.refuel);
   while(accumulator>=1/60){if(refueling)ride.fuel.refill(settings.vehicle,1/60);ride.step(1/60,refueling?0:throttle,refueling?1:brake,turn,obstacles,push,refueling?0:bodyInput,settings.transmission==='automatic');accumulator-=1/60}
   for(const p of pois)if(Math.hypot(ride.x-p.x,ride.z-p.z)<24&&exploration.discover(p.name)){explorationPanel.update();notify(`Novo lugar descoberto · ${p.name}`);sound.playDiscovery()}
@@ -181,7 +184,7 @@ function frame(now:number){
   el('fuel-level').textContent=`${fuel.toFixed(1)} L · ${Math.round(ratio*100)}%${ratio<.2?' · RESERVA':''}`;
   (el('fuel-meter') as HTMLMeterElement).value=ratio;
   const next=stations.map(s=>({s,d:Math.hypot(s.x-ride.x,s.z-ride.z)})).sort((a,b)=>a.d-b.d)[0],route=nearestRoute(ride.x,ride.z);
-  el('fuel-hint').textContent=refueling?'Abastecendo… solte E / X para sair':station?'Pare e segure E / X para abastecer grátis':fuel<=0?'Tanque vazio · solicite gasolina na pausa':`${next.s.name}: ${(next.d/1000).toFixed(1)} km em linha reta`;
+  el('fuel-hint').textContent=refueling?'Abastecendo… solte o botão para sair':station?'Pare e segure o botão de abastecimento ou E / X':fuel<=0?'Tanque vazio · solicite gasolina na pausa':`${next.s.name}: ${(next.d/1000).toFixed(1)} km em linha reta`;
   el('route-progress').textContent=route.track.id==='main'?`Horizonte · km ${progress.toFixed(1)} / ${(roadLength/1000).toFixed(1)}`:`${route.track.name} · ${route.track.surface}`;drawMap();
   el('gamepad-status').textContent=pad.connected?'Controle conectado · mapeamento padrão':'Conecte um controle padrão e pressione um botão.';
  }

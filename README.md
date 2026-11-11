@@ -29,14 +29,17 @@ Abra o endereço indicado pelo Vite. `npm run build` gera `dist/` para servir po
 | Continuar | Botão do menu | A / cruz |
 | Escolher moto na pausa | Seletor | Direcional ←/→ |
 | Recuperar na estrada | R | Botão do menu pela interface |
+| Celular | Toque nas setas, freio e acelerador na tela | — |
 
 Empurrar primeiro freia se estiver em movimento e depois recua a cerca de 4 km/h. Soltar interrompe o recuo suavemente. Não é marcha à ré motorizada. É possível sair de uma colisão recuando, inclusive de uma pequena sobreposição com um obstáculo.
+
+No celular, segure o freio por um segundo com a moto parada para começar a empurrar para trás; solte para interromper. O botão de abastecimento aparece apenas próximo a um posto e exige que a moto esteja parada. A interface touch reduz os controles e indicadores conforme o tamanho da tela.
 
 O retrovisor virtual mostra a estrada atrás da moto durante o passeio. Ative ou desative em Configurações; a atualização inicial é de 20 FPS em 512 × 256, com opções de 10–30 FPS e 256 × 128 a 768 × 384. A captura usa uma câmera traseira e `WebGLRenderTarget`, composta no canvas principal para evitar outro contexto WebGL.
 
 Controle usa Gamepad API com `mapping=standard`, gatilhos analógicos, zona morta e sensibilidade ajustáveis em Configurações → Controle e comandos. Pressione um botão para o navegador reconhecer o controle. Na primeira abertura, clique em Pegar a estrada para autorizar áudio; alguns navegadores não tratam um botão do gamepad como autorização de áudio. Desconexão durante o passeio pausa o jogo. Controles sem mapeamento padrão ainda não têm remapeamento manual.
 
-Em Configurações, escolha câmbio automático ou manual; a preferência é salva localmente. No automático, as marchas são controladas pelo RPM e pela velocidade. No manual, use PageUp/PageDown ou direcional ↑/↓ no controle; reduções que excederiam o limite de RPM são recusadas. Inclinar o corpo para frente reduz progressivamente o arrasto do ar, sem aumentar o limite individual de velocidade da moto.
+Em Configurações, escolha câmbio automático ou manual e ative opcionalmente a inclinação automática para frente; as preferências são salvas localmente. Com a inclinação automática, a postura avança progressivamente conforme a velocidade aumenta. No automático, as marchas são controladas pelo RPM e pela velocidade. No manual, use PageUp/PageDown ou direcional ↑/↓ no controle; reduções que excederiam o limite de RPM são recusadas. Inclinar o corpo para frente reduz progressivamente o arrasto do ar, sem aumentar o limite individual de velocidade da moto.
 
 ## Cinco opções de moto
 

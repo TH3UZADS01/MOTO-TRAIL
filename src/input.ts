@@ -1,4 +1,16 @@
 export function axis(value:number,deadzone:number,sensitivity=1){const v=Math.abs(value);return v<=deadzone?0:Math.sign(value)*Math.min(1,(v-deadzone)/(1-deadzone)*sensitivity);}
+export function touchSteering(left:boolean,right:boolean){return Number(left)-Number(right);}
+export class BrakePushAssist {
+  private stoppedFor=0;private active=false;
+  reset(){this.stoppedFor=0;this.active=false}
+  update(brake:number,speed:number,dt:number){
+    if(brake<=.05){this.stoppedFor=0;this.active=false;return false}
+    if(this.active)return true;
+    this.stoppedFor=Math.abs(speed)<.2?this.stoppedFor+Math.max(0,dt):0;
+    if(this.stoppedFor>=1)this.active=true;
+    return this.active;
+  }
+}
 export class Controller {
   previous:boolean[]=[];id='';
   poll(deadzone:number,sensitivity:number,pads:readonly (Gamepad|null)[]=Array.from(navigator.getGamepads?.()||[])){

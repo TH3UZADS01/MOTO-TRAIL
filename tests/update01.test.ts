@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
-import {Ride} from '../src/riding';
+import {Ride,automaticTuckInput} from '../src/riding';
 import {BODY_TUNING} from '../src/body-control';
 import {gearSpeedLimit} from '../src/powertrain';
 import {Controller} from '../src/input';
@@ -44,6 +44,7 @@ test('manual gear speed limits apply to every bike without abruptly clipping dow
   assert.ok(ride.speed<limit+.5&&ride.speed>limit,`${spec.id} downshift was abrupt or accelerated above gear ${gear} limit`);
  }
 }});
+test('automatic tuck increases progressively with speed and preserves manual body input',()=>{assert.equal(automaticTuckInput(0,0,40),0);assert.ok(automaticTuckInput(0,10,40)>.3);assert.equal(automaticTuckInput(0,40,40),1);assert.equal(automaticTuckInput(-1,40,40),0);assert.equal(automaticTuckInput(0,-10,40),0)});
 test('throttle animation rotates only the right hand and eases back on release for every bike',()=>{for(const spec of vehicles){
  const bike=createBike(spec.id),right=bike.riderRig.limbs.find(l=>l.side===-1)!,left=bike.riderRig.limbs.find(l=>l.side===1)!;
  const rightArm=right.upperArm.position.clone(),leftArm=left.upperArm.position.clone(),leftForearm=left.forearm.position.clone();

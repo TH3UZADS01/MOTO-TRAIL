@@ -2,6 +2,8 @@
 
 ## Controles e comportamento
 
+- **Celular:** setas direcionais, freio, acelerador, câmera e controles de marcha ficam na tela com escala responsiva. O botão de abastecimento aparece apenas perto de um posto; pare para usá-lo. Com a moto parada, segurar o freio por um segundo inicia o empurrão para trás; soltar interrompe.
+- **Inclinação automática:** opcional nas Configurações. Quando ativada, inclina o piloto para frente progressivamente conforme a velocidade aumenta; a postura manual continua podendo ser combinada.
 - **Analógico esquerdo para frente:** reduz gradualmente o arrasto aerodinâmico; não altera o limite de velocidade da moto. O eixo horizontal continua virando a moto. Alternativa de teclado: segurar **I**.
 - **Analógico esquerdo para trás:** desloca o corpo para trás; com aceleração e movimento, levanta a frente. Alternativa: segurar **K**. Começa acima de 5,4 km/h e pode alcançar 45° em relação ao terreno. A roda traseira permanece apoiada. A direção tem menos efeito com a frente levantada; o equilíbrio é assistido.
 - **Soltar, frear ou empurrar:** baixa a frente suavemente. Batidas, recuperação e troca de moto encerram a empinada. Em pausa a moto fica apoiada. Com tanque vazio não inicia uma empinada motorizada.
