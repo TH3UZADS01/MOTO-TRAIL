@@ -31,6 +31,8 @@ Abra o endereço indicado pelo Vite. `npm run build` gera `dist/` para servir po
 
 Empurrar primeiro freia se estiver em movimento e depois recua a cerca de 4 km/h. Soltar interrompe o recuo suavemente. Não é marcha à ré motorizada. É possível sair de uma colisão recuando, inclusive de uma pequena sobreposição com um obstáculo.
 
+O retrovisor virtual mostra a estrada atrás da moto durante o passeio. Ative ou desative em Configurações; a atualização inicial é de 20 FPS em 512 × 256, com opções de 10–30 FPS e 256 × 128 a 768 × 384. A captura usa uma câmera traseira e `WebGLRenderTarget`, composta no canvas principal para evitar outro contexto WebGL.
+
 Controle usa Gamepad API com `mapping=standard`, gatilhos analógicos, zona morta e sensibilidade ajustáveis em Configurações → Controle e comandos. Pressione um botão para o navegador reconhecer o controle. Na primeira abertura, clique em Pegar a estrada para autorizar áudio; alguns navegadores não tratam um botão do gamepad como autorização de áudio. Desconexão durante o passeio pausa o jogo. Controles sem mapeamento padrão ainda não têm remapeamento manual.
 
 ## Cinco opções de moto
@@ -59,13 +61,13 @@ Gasolina: tanques separados por moto, salvos a cada cinco segundos e ao pausar/s
 - `vehicles.ts`: cadastro e ajustes; `vehicle.ts`: Pop; `vehicle-models.ts`: demais modelos e descarte.
 - `riding.ts`: movimento, recuo e colisão; `input.ts`: gamepad.
 - `camera.ts`: primeira/terceira pessoa; `audio.ts`: reprodução e mixagem.
-- `main.ts`, `interface.ts`, `style.css`: integração e menus; `persistence.ts`: preferências locais.
+- `main.ts`, `interface.ts`, `style.css`: integração e menus; `rear-view-mirror.ts`: câmera e captura traseira; `persistence.ts`: preferências locais.
 - `network.ts`, `remote-riders.ts` e `server/`: salas e sincronização multiplayer.
 - `tools/prepare_audio.py`: reproduz o processamento a partir de `tools/audio-originals/`. Originais não entram no build público.
 
 ## Limitações
 
-Sem suspensão independente rígida, quedas, garagem de acessórios ou diário persistente. Faróis automáticos e ciclo dia/noite estão disponíveis no UPDATE 01. Retrovisores não refletem a cena e o painel 3D é ilustrativo; velocidade real do jogo está no HUD. Na primeira pessoa, apenas a cabeça e o pescoço do próprio piloto ficam ocultos; braços e pernas permanecem visíveis. Sons e ergonomia ainda precisam de avaliação humana. Gamepad físico e FPS no Vivobook de referência não foram medidos.
+Sem suspensão independente rígida, quedas, garagem de acessórios ou diário persistente. Faróis automáticos e ciclo dia/noite estão disponíveis no UPDATE 01. O retrovisor virtual reflete a cena; o painel 3D é ilustrativo e a velocidade real do jogo está no HUD. Na primeira pessoa, apenas a cabeça e o pescoço do próprio piloto ficam ocultos; braços e pernas permanecem visíveis. Sons e ergonomia ainda precisam de avaliação humana. Gamepad físico e FPS no Vivobook de referência não foram medidos.
 
 TESTING.md registra o que efetivamente foi validado. Para vistoria local, `?inspect=posto`, `?inspect=mirante`, `?inspect=ponte`, `?inspect=terra`, `?inspect=centro`, `?inspect=camping` e `?inspect=cachoeira` no servidor de desenvolvimento; pontos de início de teste são eliminados do build de produção.
 

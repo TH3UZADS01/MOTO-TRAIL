@@ -6,3 +6,8 @@
 .fuel-panel{position:fixed;bottom:115px;left:28px;display:grid;gap:5px;max-width:300px;padding:14px 18px;background:#173c37dc;border:1px solid #ffffff26;border-radius:10px;color:#fff1cc}.fuel-panel span{font-size:10px;letter-spacing:2px}.fuel-panel meter{width:100%;height:12px}.fuel-panel small{font-size:11px}.route-panel{position:fixed;right:28px;bottom:120px;padding:8px;background:#173c37d9;border-radius:12px;display:grid;text-align:center;color:#fff1cc}.route-panel canvas{width:180px;height:131px}.route-panel small{font-size:11px}@media(max-width:700px){.route-panel{display:none}.fuel-panel{bottom:100px;left:14px;max-width:220px}}
 
 .paint-choice{margin-top:10px;font-size:12px}.paint-choice label{display:flex;gap:12px;align-items:center}.paint-choice input[type=color]{width:55px!important;height:30px;padding:2px!important;border:1px solid #fff5;background:#24453f}.paint-palette{display:flex;gap:7px;margin:8px 0}.paint-palette button{width:22px;height:22px;border-radius:50%;border:1px solid #fff8}.paint-palette button:hover{outline:2px solid #edce92}
+#rear-mirror{position:fixed;z-index:2;top:14px;left:50%;transform:translateX(-50%);width:min(256px,calc(100vw - 32px));aspect-ratio:2;border:1px solid #ffffffa6;border-radius:4px;box-shadow:0 3px 14px #102d2a88;pointer-events:none}
+#rear-mirror::after{content:"REAR VIEW";position:absolute;top:5px;right:7px;padding:2px 5px;border-radius:2px;background:#102d2a99;color:#fff4d8;font-size:8px;letter-spacing:1px}
+.mirror-setting{justify-content:flex-start!important;gap:10px!important}
+.mirror-setting input[type=checkbox]{width:auto;margin:0;accent-color:#edce92}
+@media(max-width:800px){#rear-mirror{top:68px;width:min(220px,calc(100vw - 32px))}}

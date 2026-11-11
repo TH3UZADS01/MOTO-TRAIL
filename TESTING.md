@@ -96,3 +96,11 @@ Execute `npm run build`, `npm test` e `npm run test:online`. O teste de áudio p
 - Novos testes de física, controle, combustível, RPM/corte, ciclo, faróis e pivô traseiro: aprovados.
 - Conferência visual local em Chrome: empinada a 45°, postura para frente, estrada iluminada em primeira pessoa à meia-noite e entardecer. Capturas em `artifacts/update01/`.
 - Roteiro manual, parâmetros e deploy v7 em [UPDATE-01.md](UPDATE-01.md). Não foram realizados deploy nem teste em dois dispositivos na hospedagem pública.
+
+## Retrovisor virtual — 10/11/2026
+
+- Módulo independente com `WebGLRenderTarget` de 512 × 256 e captura limitada a 20 FPS; HUD central superior em 256 × 128 CSS. Configurações permitem desativar, ajustar 10–30 FPS e resolução de 256 × 128 a 768 × 384.
+- Três testes novos verificam posição/direção da câmera, inversão horizontal e cadência; testes focados de retrovisor e câmera: 6 aprovados. Build de produção aprovado.
+- Navegador integrado: imagem traseira da estrada visível e atualizada ao acelerar; desativar removeu a janela. FPS e resolução alternados para opções menores e restaurados aos padrões, com valores persistidos.
+- Medição breve de `requestAnimationFrame` no navegador integrado: 61 FPS com retrovisor desligado e 58 FPS ligado, no mesmo ambiente; não representa benchmark em hardware real.
+- Validação runtime: build e HTTP aprovados. Suíte geral: 47/48 testes; única falha preexistente nos WAVs (44100 Hz versus 22050 Hz esperado).
