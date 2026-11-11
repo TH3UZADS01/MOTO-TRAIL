@@ -64,4 +64,3 @@ export function createGameServer({dataDir=resolve('server-data'),origins=['http:
  const heartbeat=setInterval(()=>{for(const ws of wss.clients){if(!ws.alive){ws.terminate();continue}ws.alive=false;ws.ping()}},15000);heartbeat.unref();
  return {server,wss,rooms,listen:(port=8787,host='127.0.0.1')=>new Promise(resolve=>server.listen(port,host,()=>resolve(server.address()))),close:async()=>{clearInterval(tick);clearInterval(maintenance);clearInterval(heartbeat);for(const ws of wss.clients)ws.terminate();dirty=true;persist();await new Promise(resolve=>server.close(resolve));wss.close()}};
 }
-

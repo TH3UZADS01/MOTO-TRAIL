@@ -24,6 +24,7 @@ Abra o endereço indicado pelo Vite. `npm run build` gera `dist/` para servir po
 | Alternar primeira/terceira pessoa | C | Y / triângulo |
 | Olhar | Arrastar cenário | Analógico direito |
 | Buzina | H | LB / L1 |
+| Subir / reduzir marcha (câmbio manual) | PageUp / PageDown | Direcional ↑ / ↓ |
 | Pausa | Esc ou botão da tela | Start / Options |
 | Continuar | Botão do menu | A / cruz |
 | Escolher moto na pausa | Seletor | Direcional ←/→ |
@@ -35,15 +36,17 @@ O retrovisor virtual mostra a estrada atrás da moto durante o passeio. Ative ou
 
 Controle usa Gamepad API com `mapping=standard`, gatilhos analógicos, zona morta e sensibilidade ajustáveis em Configurações → Controle e comandos. Pressione um botão para o navegador reconhecer o controle. Na primeira abertura, clique em Pegar a estrada para autorizar áudio; alguns navegadores não tratam um botão do gamepad como autorização de áudio. Desconexão durante o passeio pausa o jogo. Controles sem mapeamento padrão ainda não têm remapeamento manual.
 
+Em Configurações, escolha câmbio automático ou manual; a preferência é salva localmente. No automático, as marchas são controladas pelo RPM e pela velocidade. No manual, use PageUp/PageDown ou direcional ↑/↓ no controle; reduções que excederiam o limite de RPM são recusadas. Inclinar o corpo para frente reduz progressivamente o arrasto do ar, sem aumentar o limite individual de velocidade da moto.
+
 ## Cinco opções de moto
 
 Seletores no menu inicial e na pausa; escolha salva localmente. Trocar de moto preserva o local e zera a velocidade.
 
-- Honda CG 150 2008: placeholder de rua com tanque, farol redondo e rodas raiadas; ajuste de jogo até 115 km/h.
-- Pop 110i ES: aproximação estilizada, ajuste de jogo até 100 km/h.
-- Cub clássica: amarela, escudo creme, banco curto marrom, bagageiro, rodas raiadas e farol redondo; até 72 km/h.
-- Shineray Phoenix: carenagem integral, banco longo, rodas de liga e farol largo; até 80 km/h. Nome informado pelo usuário; modelo estilizado.
-- Caloi XR: quadro aberto branco/vermelho, pedais, motor exposto, guidão alto, farol retangular e rodas raiadas; até 50 km/h.
+- Honda CG 150 2008: placeholder de rua com tanque, farol redondo e rodas raiadas; ajuste de jogo até 132 km/h.
+- Pop 110i ES: aproximação estilizada, ajuste de jogo até 115 km/h.
+- Cub clássica: amarela, escudo creme, banco curto marrom, bagageiro, rodas raiadas e farol redondo; até 82,8 km/h.
+- Shineray Phoenix: carenagem integral, banco longo, rodas de liga e farol largo; até 92 km/h. Nome informado pelo usuário; modelo estilizado.
+- Caloi XR: quadro aberto branco/vermelho, pedais, motor exposto, guidão alto, farol retangular e rodas raiadas; até 57,5 km/h.
 
 Todos são modelos procedurais estilizados, não réplicas dimensionais certificadas. Valores de desempenho e transmissão são ajustes de jogo, não fichas técnicas dos veículos fotografados. Não foi inferido um ano específico para as três referências novas. Os modelos possuem geometria distinta e recursos GPU são descartados ao trocar.
 
@@ -92,4 +95,4 @@ Veja [REVISAO-V6.md](REVISAO-V6.md) para as sete melhorias, parâmetros ajustáv
 
 ## UPDATE 01 — postura, giro e dia/noite
 
-Veja [UPDATE-01.md](UPDATE-01.md) para comandos, limites, ajustes e roteiro de testes. Analógico esquerdo vertical (ou I/K) controla a postura: para frente dá até +15% na velocidade máxima; para trás, com aceleração, permite empinar até 45°. Agora há corte de giro integrado às marchas, ciclo de 24 minutos com faróis automáticos e consumo 10% maior. Cliente e servidor usam `vale-horizonte-v7`.
+Veja [UPDATE-01.md](UPDATE-01.md) para comandos, limites, ajustes e roteiro de testes. Analógico esquerdo vertical (ou I/K) controla a postura: inclinar para frente reduz o arrasto aerodinâmico; para trás, com aceleração, permite empinar até 45°. O limite de velocidade é fixo por moto. Há câmbio manual ou automático, corte de giro integrado às marchas, ciclo de 24 minutos com faróis automáticos e consumo 10% maior. Cliente e servidor usam `vale-horizonte-v7`.

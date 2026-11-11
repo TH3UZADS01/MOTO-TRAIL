@@ -12,6 +12,37 @@
 @media(max-width:800px){#rear-mirror{top:68px;width:min(220px,calc(100vw - 32px))}}
 .exploration-open{position:fixed;top:18px;right:150px;z-index:1;pointer-events:auto;display:grid;gap:3px;padding:7px 10px;border:1px solid #ffffff66;border-radius:4px;background:#183f3b77;color:inherit;text-align:left}
 .exploration-open span{font-size:8px;letter-spacing:1.5px}
+#touch-controls{display:none}
+@media (pointer:coarse),(max-width:800px){
+ #touch-controls.active{position:fixed;z-index:4;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));display:flex;align-items:flex-end;justify-content:space-between;pointer-events:none;touch-action:none}
+ #scene canvas{touch-action:none}
+ #touch-controls button{pointer-events:auto;touch-action:none;color:#fff8e6;background:#173c37a8;border:1px solid #fff7;box-shadow:0 2px 10px #09251f44;backdrop-filter:blur(5px);user-select:none;-webkit-user-select:none}
+ #touch-controls button.pressed{background:#edce92;color:#293f34;transform:scale(.96)}
+ .touch-steering,.touch-pedals{display:flex;align-items:flex-end;gap:8px}
+ .touch-steering button{width:54px;height:58px;border-radius:18px;font-size:23px}
+ .touch-pedals button{height:66px;border-radius:18px;font-size:10px;font-weight:700;letter-spacing:.3px}
+ .touch-pedals [data-touch=brake]{width:58px}
+ .touch-pedals [data-touch=throttle]{width:74px;background:#d1a96eaa}
+ .touch-utilities{position:absolute;left:0;bottom:67px;display:flex;gap:6px}
+ .touch-utilities button,.touch-shifts button{width:34px;height:32px;border-radius:12px;font-size:16px}
+ .touch-shifts{position:absolute;right:0;bottom:72px;display:flex;gap:6px}
+ footer{bottom:calc(84px + env(safe-area-inset-bottom));padding:8px 14px;gap:8px;background:linear-gradient(transparent,#16382c88);justify-content:flex-end}
+ footer .destination,.controls{display:none}
+ .speed strong{font-size:34px}.speed span{font-size:10px}.speed small{font-size:9px;letter-spacing:1px;margin-top:3px}
+ .fuel-panel{top:68px;bottom:auto;left:12px;width:132px;padding:7px 9px;gap:3px;border-radius:8px}
+ .fuel-panel span{font-size:8px;letter-spacing:1px}.fuel-panel meter{height:8px}.fuel-panel small{font-size:9px}
+ .region{display:none}header{padding:14px}.icon{width:40px;height:40px}
+ .exploration-open{top:14px;right:66px;padding:6px 8px}.exploration-open span{font-size:7px}
+ #rear-mirror{top:62px;width:min(170px,45vw);left:auto;right:10px;transform:none}
+}
+@media (max-width:380px){
+ #touch-controls{left:8px;right:8px}
+ .touch-steering,.touch-pedals{gap:5px}
+ .touch-steering button{width:46px;height:52px}
+ .touch-pedals [data-touch=brake]{width:50px}
+ .touch-pedals [data-touch=throttle]{width:66px}
+ .fuel-panel{width:116px}
+}
 .exploration-open strong{font-size:12px;font-weight:500}
 #exploration-panel{z-index:6;background:#173c37c9}
 .exploration-sheet{max-height:82vh;display:flex;flex-direction:column}

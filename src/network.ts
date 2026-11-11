@@ -43,4 +43,3 @@ export class RideNetwork {
  send(state:Omit<RiderState,'sequence'>,now:number,force=false){if(!this.connected||(!force&&now-this.lastSent<100)||this.socket!.bufferedAmount>16384)return;this.lastSent=now;this.socket!.send(JSON.stringify({type:'state',state:{...state,sequence:this.sequence++}}));}
  leave(){this.wanted=false;this.generation++;clearTimeout(this.timer);if(this.socket?.readyState===WebSocket.OPEN)this.socket.send(JSON.stringify({type:'leave'}));this.socket?.close();this.socket=undefined;this.session=undefined;this.connecting=false;this.store();this.events.players([]);this.events.ended()}
 }
-

@@ -22,7 +22,7 @@ bar(body,metal,[-.25,.29,.03],[.25,.29,.03],.02);for(const side of [-1,1])bar(bo
 panel(steering,blue,.32,[[-.17,.87],[-.2,1.05],[-.06,1.1],[.12,1.03],[.14,.91],[.02,.83]]);
 const lens=new T.Shape();lens.moveTo(-.13,1.025);lens.lineTo(.13,1.025);lens.lineTo(.10,.94);lens.lineTo(0,.9);lens.lineTo(-.10,.94);lens.closePath();const lamp=new T.Mesh(new T.ShapeGeometry(lens),new T.MeshStandardMaterial({color:0xe1eff1,metalness:.25,roughness:.18,emissive:0x443c26,emissiveIntensity:.4}));lamp.position.z=.145;steering.add(lamp);
 ell(steering,blue,0,.66,.04,.10,.037,.24);ell(body,blue,0,.62,-.69,.105,.04,.22);
-panel(body,black,.12,[[-.8,.63],[-.85,.61],[-.94,.32],[-.9,.30]]);ell(body,mat(0xc8322b),0,.69,-.78,.125,.055,.025);
+panel(body,black,.12,[[-.8,.63],[-.85,.61],[-.94,.32],[-.9,.30]]);
 for(const side of [-1,1]){ell(steering,mat(0xe5a441),side*.2,.88,-.02,.035,.027,.04);ell(body,mat(0xe5a441),side*.15,.64,-.72,.035,.026,.035);bar(body,metal,[side*.16,.8,-.54],[side*.16,.81,-.76],.016)}
 bar(steering,metal,[-.34,1,-.12],[.34,1,-.12],.018);for(const side of [-1,1]){bar(steering,black,[side*.25,1,-.12],[side*.35,1,-.12],.026);bar(steering,metal,[side*.26,1,-.12],[side*.32,1.2,-.1],.009);ell(steering,black,side*.32,1.22,-.1,.065,.04,.025);ell(steering,metal,side*.32,1.22,-.126,.052,.029,.004)}
 ell(steering,black,0,1.06,-.14,.085,.022,.055);

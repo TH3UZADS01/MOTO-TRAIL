@@ -17,6 +17,28 @@ test('limiter only operates at redline with load, gives bounded pulses, then ups
   }
  }
 });
+test('manual shifting stays player-controlled, blocks over-rev downshifts, and automatic mode remains automatic',()=>{
+ for(const spec of vehicles){
+  const top=spec.maxSpeed,engine=new Powertrain();
+  engine.update(1/60,top,spec,top,1,0,false,false);
+  if(spec.gears===1){assert.equal(engine.requestShift(1,top,spec,top),false);continue}
+  assert.equal(engine.gear,1);
+  const firstLimit=gearSpeedLimit(spec.gears,1,top);
+  assert.equal(engine.requestShift(1,firstLimit*.2,spec,top),false);
+  assert.equal(engine.requestShift(1,firstLimit*.8,spec,top),true);
+  assert.equal(engine.gear,2);
+  engine.update(1/60,top,spec,top,1,0,false,false);
+  assert.equal(engine.gear,2);
+  assert.equal(engine.requestShift(-1,firstLimit*.95,spec,top),false);
+  engine.update(1/60,0,spec,top,0,0,false,true);
+  assert.equal(engine.gear,1);
+  engine.gear=1;
+  for(let i=0;i<30;i++)engine.update(1/60,firstLimit,spec,top,1,0,false,true);
+  assert.equal(engine.gear,2);
+  engine.update(1/60,firstLimit*.7,spec,top,0,0,false,true);
+  assert.equal(engine.gear,1);
+ }
+});
 test('audio cutoff affects only engine gain, leaves wind alone and restores on release',()=>{
  const s=new Sound();s.ctx={currentTime:1} as AudioContext;s.ready=true;s.vehicle='cg150';const parameter=()=>({value:0,setTargetAtTime(value:number){this.value=value}});s.layers=AUDIO_ASSETS.map(a=>({...a,gain:{gain:parameter()},source:{playbackRate:parameter()},filter:{frequency:parameter()}})) as any;
  const state={ratio:1,limiting:true,cutting:false};s.update(30,5,1,false,0,state);const before=s.layers.map(l=>l.gain.gain.value);s.update(30,5,1,false,0,{...state,cutting:true});s.layers.forEach((l,i)=>assert.ok(Math.abs(l.gain.gain.value-before[i]*(l.bank==='wind'?1:ENGINE_TUNING.cutGain))<1e-9));s.update(30,5,1,false,0,state);s.layers.forEach((l,i)=>assert.equal(l.gain.gain.value,before[i]));s.update(30,5,1,true,0,{...state,cutting:true});assert.ok(s.layers.every(l=>l.gain.gain.value===0));

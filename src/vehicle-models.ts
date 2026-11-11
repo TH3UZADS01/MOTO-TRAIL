@@ -4,7 +4,14 @@ import {createRider} from './rider';
 import * as T from 'three';
 import {createPop} from './vehicle';
 import {getVehicle,type VehicleId} from './vehicles';
-export function createBike(id:VehicleId='pop'){const bike=buildBike(id);return {...bike,headlight:makeHeadlight(bike.steering,getVehicle(id).eyeHeight)}}
+export function createBike(id:VehicleId='pop'){const bike=buildBike(id),brakeLight=createBrakeLight(bike.body,bike.wheels[0].position.z);return {...bike,headlight:makeHeadlight(bike.steering,getVehicle(id).eyeHeight),brakeLight}}
+function createBrakeLight(body:T.Group,rearZ:number){
+ const material=new T.MeshStandardMaterial({color:0x9b1010,emissive:0xff1010,emissiveIntensity:.12,roughness:.28});
+ const lens=new T.Mesh(new T.SphereGeometry(1,16,10),material);lens.name='brake-light';lens.position.set(0,.69,rearZ-.16);lens.scale.set(.09,.045,.025);body.add(lens);
+ const glow=new T.PointLight(0xff1717,0,2.4,2);glow.position.set(0,.69,rearZ-.2);glow.name='brake-light-glow';body.add(glow);
+ let intensity=0;
+ return {lens,glow,update(brake:number,dt:number){const target=T.MathUtils.clamp(brake,0,1);intensity=T.MathUtils.lerp(intensity,target,1-Math.exp(-18*Math.max(0,dt)));material.emissiveIntensity=.12+intensity*2.8;glow.intensity=intensity*1.6}};
+}
 function buildBike(id:VehicleId){
  if(id==='cg150')return createCG150();
  if(id==='pop')return createPop();
@@ -69,10 +76,8 @@ function buildBike(id:VehicleId){
  const dial=mesh(steering,new T.CircleGeometry(.065,24),black,0,dashY,-.14);dial.rotation.x=-Math.PI/2;
  for(let i=0;i<7;i++){const a=i/6*Math.PI;box(steering,white,Math.cos(a)*.047,dashY+.003,-.14-Math.sin(a)*.047,.007,.004,.012)}
  bar(steering,paint,[0,dashY+.008,-.14],[.03,dashY+.008,-.17],.004);
- ell(body,mat(0xc93930),0,.67,rear-.15,.08,.035,.02);
  const riderRig=createRider(steering,spec.eyeHeight,handleY,cub?0x49705a:moped?0x527f9a:0xb77d43),rider=riderRig.root;body.add(rider);
  return {root,body,steering,wheels,rider,riderRig,paintMaterials:[paint]};
 }
 
 export function disposeBike(bike:ReturnType<typeof createBike>){const geometries=new Set<T.BufferGeometry>(),materials=new Set<T.Material>();bike.root.traverse(o=>{if(o instanceof T.Mesh){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m)}});geometries.forEach(g=>g.dispose());materials.forEach(m=>{if(m instanceof T.MeshStandardMaterial)m.map?.dispose();m.dispose()});}
-

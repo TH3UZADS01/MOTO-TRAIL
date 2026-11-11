@@ -12,5 +12,5 @@ export function createCG150(){const root=new T.Group(),body=new T.Group(),steeri
  bar(body,silver,[.17,.46,.16],[.25,.27,.1],.026);bar(body,silver,[.25,.27,.1],[.25,.31,-.79],.055);ell(body,rubber,.25,.31,-.8,.05,.05,.025);
  const housing=mesh(steering,new T.CylinderGeometry(.145,.145,.14,24),silver,0,1.03,.02);housing.rotation.x=Math.PI/2;mesh(steering,new T.CircleGeometry(.125,24),lamp,0,1.03,.095);bar(steering,silver,[-.35,1.12,-.12],[.35,1.12,-.12],.021);
  for(const side of [-1,1]){bar(steering,rubber,[side*.26,1.12,-.12],[side*.36,1.12,-.12],.026);bar(steering,silver,[side*.27,1.12,-.12],[side*.36,1.34,-.1],.009);ell(steering,rubber,side*.36,1.36,-.1,.075,.045,.025);ell(steering,mat(0xe4a045),side*.22,1,.03,.045,.035,.04)}
- ell(steering,rubber,0,1.15,-.17,.12,.04,.08);ell(body,mat(0xb62e28),0,.77,-.87,.10,.045,.025);const riderRig=createRider(steering,1.60,1.12,0x526b72,.31),rider=riderRig.root;body.add(rider);return {root,body,steering,wheels,rider,riderRig,paintMaterials:[paint]};
+ ell(steering,rubber,0,1.15,-.17,.12,.04,.08);const riderRig=createRider(steering,1.60,1.12,0x526b72,.31),rider=riderRig.root;body.add(rider);return {root,body,steering,wheels,rider,riderRig,paintMaterials:[paint]};
 }
