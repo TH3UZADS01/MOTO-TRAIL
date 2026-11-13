@@ -14,8 +14,8 @@ test('real separate WebSocket sessions: rooms, movement, bikes, capacity, leave 
  try{
   let address=await game.listen(0);const a=await client(address.port);sockets.push(a.ws);a.send(hello('create','Ana'));const welcome=await a.wait(m=>m.type==='welcome');
   const b=await client(address.port);sockets.push(b.ws);b.send(hello('join','Bruno',{code:welcome.code}));const wb=await b.wait(m=>m.type==='welcome');assert.notEqual(wb.id,welcome.id);
-  a.send({type:'state',state:state(-300)});const received=await b.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===welcome.id&&p.state.x===-300));assert.equal(received.players.find(p=>p.id===welcome.id).state.vehicleId,'cub');assert.equal(received.players.find(p=>p.id===welcome.id).state.brake,0);
-  b.send({type:'state',state:{...state(-290),vehicleId:'cg150',color:'#4167ab',bodyLean:-1,wheelie:Math.PI/4,brake:.85,speed:36.7}});await a.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===wb.id&&p.state.vehicleId==='cg150'&&p.state.color==='#4167ab'&&p.state.wheelie===Math.PI/4&&p.state.bodyLean===-1&&p.state.brake===.85&&p.state.speed===36.7));
+  a.send({type:'state',state:state(-300)});const received=await b.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===welcome.id&&p.state.x===-300));assert.equal(received.players.find(p=>p.id===welcome.id).state.vehicleId,'cub');assert.equal(received.players.find(p=>p.id===welcome.id).state.braking,false);
+  b.send({type:'state',state:{...state(-290),vehicleId:'cg150',color:'#4167ab',bodyLean:-1,wheelie:Math.PI/2+.1,fallen:true,braking:true,speed:36.7}});await a.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===wb.id&&p.state.vehicleId==='cg150'&&p.state.color==='#4167ab'&&p.state.wheelie===Math.PI/2+.1&&p.state.fallen===true&&p.state.bodyLean===-1&&p.state.braking===true&&p.state.speed===36.7));
   const other=await client(address.port);sockets.push(other.ws);other.send(hello('create','Outra sala'));await other.wait(m=>m.type==='welcome');const isolated=await other.wait(m=>m.type==='snapshot');assert.equal(isolated.players.length,1);
   for(const name of ['C','D']){const c=await client(address.port);sockets.push(c.ws);c.send(hello('join',name,{code:welcome.code}));await c.wait(m=>m.type==='welcome')}
   const fifth=await client(address.port);sockets.push(fifth.ws);fifth.send(hello('join','E',{code:welcome.code}));assert.match((await fifth.wait(m=>m.type==='error')).message,/quatro/);
@@ -27,7 +27,30 @@ test('real separate WebSocket sessions: rooms, movement, bikes, capacity, leave 
   resumed.send({type:'state',state:state(-299,0)});await resumed.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===welcome.id&&p.state.x===-299));
  }finally{for(const socket of sockets)socket.terminate();await game.close();if(dir.startsWith(join(tmpdir(),'mototrail-online-')))rmSync(dir,{recursive:true,force:true});}
 });
-test('protocol rejects malformed positions, nonfinite numbers and unknown vehicles',()=>{assert.equal(validState(state(0)),true);assert.equal(validState({...state(0),brake:.5}),true);for(const patch of [{wheelie:Math.PI/4+.001},{wheelie:-1},{bodyLean:1.01},{bodyLean:NaN},{brake:-.01},{brake:1.01},{brake:NaN},{speed:39},{color:'invalid'},{color:'#123456<script>'},{x:Infinity},{speed:NaN},{vehicleId:'hacked'},{sequence:1.5},{z:10000}])assert.equal(validState({...state(0),...patch}),false)});
+test('protocol accepts loop-out state and rejects malformed positions and state flags',()=>{assert.equal(validState(state(0)),true);assert.equal(validState({...state(0),braking:true,fallen:true,petUnlocked:true,revMatchSequence:2,wheelie:Math.PI/2+.1}),true);assert.equal(validState({...state(0),brake:.5}),true);for(const patch of [{wheelie:101},{wheelie:-1},{fallen:'yes'},{bodyLean:1.01},{bodyLean:NaN},{braking:'yes'},{petUnlocked:'yes'},{revMatchSequence:-1},{revMatchSequence:1.5},{brake:-.01},{brake:1.01},{brake:NaN},{speed:39},{color:'invalid'},{color:'#123456<script>'},{x:Infinity},{speed:NaN},{vehicleId:'hacked'},{sequence:1.5},{z:10000}])assert.equal(validState({...state(0),...patch}),false)});
+
+test('braking state changes replicate, persist when omitted, and reach late joiners',async()=>{
+ const dir=mkdtempSync(join(tmpdir(),'mototrail-braking-')),game=createGameServer({dataDir:dir,origins:[origin]}),sockets=[];
+ try{
+  const {port}=await game.listen(0),a=await client(port),b=await client(port);sockets.push(a.ws,b.ws);
+  a.send(hello('create','Ana'));const wa=await a.wait(m=>m.type==='welcome');
+  b.send(hello('join','Bruno',{code:wa.code}));await b.wait(m=>m.type==='welcome');
+  a.send({type:'state',state:{...state(-300),braking:true,petUnlocked:true,revMatchSequence:2}});
+  await b.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===wa.id&&p.state.braking===true&&p.state.petUnlocked===true&&p.state.revMatchSequence===2));
+  a.send({type:'state',state:state(-299,1)});
+  const retained=await b.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===wa.id&&p.state.sequence===1));
+  assert.equal(retained.players.find(p=>p.id===wa.id).state.braking,true);
+  assert.equal(retained.players.find(p=>p.id===wa.id).state.petUnlocked,true);
+  assert.equal(retained.players.find(p=>p.id===wa.id).state.revMatchSequence,2);
+  const late=await client(port);sockets.push(late.ws);late.send(hello('join','Clara',{code:wa.code}));
+  const joined=await late.wait(m=>m.type==='welcome');assert.equal(joined.state.braking,false);
+  const snapshot=await late.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===wa.id&&p.state.braking===true&&p.state.petUnlocked===true&&p.state.revMatchSequence===2));
+  a.send({type:'state',state:{...state(-298,2),braking:false,revMatchSequence:3}});
+  const released=await b.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===wa.id&&p.state.sequence===2));
+  assert.equal(released.players.find(p=>p.id===wa.id).state.braking,false);
+  assert.equal(released.players.find(p=>p.id===wa.id).state.revMatchSequence,3);
+ }finally{for(const ws of sockets)ws.terminate();await game.close();if(dir.startsWith(join(tmpdir(),'mototrail-braking-')))rmSync(dir,{recursive:true,force:true});}
+});
 test('rate limit terminates flooding sessions',async()=>{const dir=mkdtempSync(join(tmpdir(),'mototrail-online-'));const game=createGameServer({dataDir:dir,origins:[origin]});let c;try{const address=await game.listen(0);c=await client(address.port);c.send(hello('create','Fast'));await c.wait(m=>m.type==='welcome');for(let i=0;i<40;i++)c.send({type:'state',state:state(0,i)});assert.match((await c.wait(m=>m.type==='error')).message,/Muitas/)}finally{c?.ws.terminate();await game.close();if(dir.startsWith(join(tmpdir(),'mototrail-online-')))rmSync(dir,{recursive:true,force:true});}});
 
 test('large map positions, 100 km/h and horns reach only other riders in the same room, with cooldown',async()=>{

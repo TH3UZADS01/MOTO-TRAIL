@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
-import {createMirroredQuadGeometry,REAR_MIRROR_DEFAULTS,rearMirrorCaptureDue,updateRearViewCamera} from '../src/rear-view-mirror';
+import {assignLocalBikeLayer,createMirroredQuadGeometry,enableLocalBikeLayer,LOCAL_BIKE_LAYER,REAR_MIRROR_DEFAULTS,rearMirrorCaptureDue,updateRearViewCamera} from '../src/rear-view-mirror';
 import {Ride} from '../src/riding';
 
 test('rear camera follows the bike and points opposite its heading',()=>{
@@ -30,4 +30,13 @@ test('rear capture cadence defaults to 20 FPS and can be reduced',()=>{
  assert.equal(rearMirrorCaptureDue(1000,1049,20),false);
  assert.equal(rearMirrorCaptureDue(1000,1050,20),true);
  assert.equal(rearMirrorCaptureDue(1000,1067,15),true);
+});
+
+test('local bike layer is visible to the main camera but excluded from rear view',()=>{
+ const bike=new T.Group(),rider=new T.Group(),remoteBike=new T.Group(),camera=new T.PerspectiveCamera(),mirrorCamera=new T.PerspectiveCamera();
+ bike.add(rider);assignLocalBikeLayer(bike);enableLocalBikeLayer(camera);mirrorCamera.layers.disable(LOCAL_BIKE_LAYER);
+ assert.equal(bike.layers.test(camera.layers),true);
+ assert.equal(rider.layers.test(camera.layers),true);
+ assert.equal(bike.layers.test(mirrorCamera.layers),false);
+ assert.equal(remoteBike.layers.test(mirrorCamera.layers),true);
 });

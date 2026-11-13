@@ -49,7 +49,7 @@ export class ExplorationProgress {
  }
 }
 
-export function mountExplorationPanel(places:readonly Place[],progress:ExplorationProgress){
+export function mountExplorationPanel(places:readonly Place[],progress:ExplorationProgress,onOpen=()=>{},onClose=()=>{}){
  const app=document.querySelector<HTMLDivElement>('#app')!;
  const openButton=document.createElement('button');
  openButton.id='exploration-open';
@@ -104,11 +104,11 @@ export function mountExplorationPanel(places:readonly Place[],progress:Explorati
    item.querySelector('.exploration-state')!.textContent=discovered?'Descoberto':'Não descoberto';
   }
  };
- const close=()=>panel.classList.add('hidden');
- openButton.addEventListener('click',()=>panel.classList.remove('hidden'));
+ const close=()=>{if(panel.classList.contains('hidden'))return;panel.classList.add('hidden');onClose();openButton.focus()};
+ openButton.addEventListener('click',()=>{onOpen();panel.classList.remove('hidden');closeButton.focus()});
  closeButton.addEventListener('click',close);
  panel.addEventListener('click',event=>{if(event.target===panel)close()});
  panel.addEventListener('keydown',event=>{if(event.key==='Escape'){close();event.stopPropagation()}});
  update();
- return {update};
+ return {update,close,get isOpen(){return !panel.classList.contains('hidden')}};
 }

@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {Ride,acceleration,steeringAngle,TOP_SPEED} from '../src/riding';
+import {getVehicle} from '../src/vehicles';
 import {road,height,ground,nearest,terrain,LOOKOUT,terrainPatch,roadLength,stations} from '../src/terrain';
 import * as T from 'three';
 test('closed continuous road has plausible gradients',()=>{assert.ok(road[0].distanceTo(road.at(-1)!)<.001);let max=0;for(let i=1;i<road.length;i++){const a=road[i-1],b=road[i];max=Math.max(max,Math.abs(b.y-a.y)/Math.hypot(b.x-a.x,b.z-a.z))}assert.ok(max<.3,`grade ${max}`)});
@@ -11,6 +12,14 @@ test('first two kilometers with feedback steering remains driveable',()=>{const 
 
 test('100 km/h attainable on level asphalt and braking remains effective',()=>{let speed=0;for(let i=0;i<60*90;i++)speed=Math.max(0,Math.min(TOP_SPEED,speed+acceleration(speed,1,0,0,1)/60));assert.ok(speed*3.6>=99.9);for(let i=0;i<60*4;i++)speed=Math.max(0,speed+acceleration(speed,0,1,0,1)/60);assert.equal(speed,0)});
 test('turn radius grows progressively with speed',()=>{const radius=(v:number)=>1.238/Math.tan(steeringAngle(v,1));assert.ok(radius(2)<3);assert.ok(radius(10)>radius(2)*3);assert.ok(radius(22)>radius(10)*3);assert.equal(steeringAngle(4,-1),-steeringAngle(4,1));});
+test('realistic wheelie responds to real first-gear pitch torque and stays unavailable in a high gear',()=>{
+ const r=new Ride();r.spec=getVehicle('cg150');r.speed=10/3.6;r.gear=1;r.bodyLean=-1;
+ for(let i=0;i<60;i++)r.step(1/60,1,0,0,[],false,-1,false,true);
+ assert.ok(r.wheelie>0,`expected first-gear lift; debug=${JSON.stringify(r.wheelieDebug)}`);
+ assert.ok(r.wheelieDebug.pitchTorque>r.wheelieDebug.stabilizingTorque*.95);
+ r.resetBody();r.gear=5;r.wheelie=0;r.speed=10/3.6;
+ for(let i=0;i<60;i++)r.step(1/60,1,0,0,[],false,0,false,true);
+ assert.equal(r.wheelie,0);
+});
 test('20 km route has reachable stations every few kilometers',()=>{assert.ok(roadLength>=20000&&roadLength<20200);const indices=stations.map(s=>nearest(s.x,s.z).index).sort((a,b)=>a-b);for(let i=0;i<indices.length;i++){const gap=((indices[(i+1)%indices.length]-indices[i]+5000)%5000)/5000*roadLength;assert.ok(gap<4500)}for(const p of stations)assert.ok(nearest(p.x,p.z).distance<30)});
 test('mirante patch follows ground triangles without floating',()=>{const m=terrainPatch(LOOKOUT.x,LOOKOUT.z,LOOKOUT.radius,0xffffff),p=m.geometry.attributes.position;for(let i=0;i<p.count;i++)assert.ok(Math.abs(p.getY(i)-height(p.getX(i),p.getZ(i))-.055)<.001);m.geometry.dispose()});
-

@@ -4,7 +4,21 @@ import {createRider} from './rider';
 import * as T from 'three';
 import {createPop} from './vehicle';
 import {getVehicle,type VehicleId} from './vehicles';
-export function createBike(id:VehicleId='pop'){const bike=buildBike(id),brakeLight=createBrakeLight(bike.body,bike.wheels[0].position.z);return {...bike,headlight:makeHeadlight(bike.steering,getVehicle(id).eyeHeight),brakeLight}}
+import {CARAMELO_PET_TUNING,createCarameloPet} from './caramelos-mission';
+export function createBike(id:VehicleId='pop'){
+ const bike=buildBike(id),brakeLight=createBrakeLight(bike.body,bike.wheels[0].position.z);
+ const passengerPetAnchor=new T.Group();passengerPetAnchor.name='passenger-pet-anchor';
+ const seatAnchor=id==='cg150'?[0,.85,-.52]:id==='cub'?[0,.82,-.35]:id==='caloi'?[0,.83,-.5]:[0,.84,-.52];
+ passengerPetAnchor.position.set(
+  seatAnchor[0]+CARAMELO_PET_TUNING.positionOffset.x,
+  seatAnchor[1]+CARAMELO_PET_TUNING.positionOffset.y,
+  seatAnchor[2]+CARAMELO_PET_TUNING.positionOffset.z
+ );
+ passengerPetAnchor.rotation.set(CARAMELO_PET_TUNING.rotation.x,CARAMELO_PET_TUNING.rotation.y,CARAMELO_PET_TUNING.rotation.z);
+ passengerPetAnchor.scale.setScalar(CARAMELO_PET_TUNING.scale);bike.body.add(passengerPetAnchor);
+ const pet=createCarameloPet(passengerPetAnchor);
+ return {...bike,headlight:makeHeadlight(bike.steering,getVehicle(id).eyeHeight),brakeLight,passengerPetAnchor,pet};
+}
 function createBrakeLight(body:T.Group,rearZ:number){
  const material=new T.MeshStandardMaterial({color:0x9b1010,emissive:0xff1010,emissiveIntensity:.12,roughness:.28});
  const lens=new T.Mesh(new T.SphereGeometry(1,16,10),material);lens.name='brake-light';lens.position.set(0,.69,rearZ-.16);lens.scale.set(.09,.045,.025);body.add(lens);

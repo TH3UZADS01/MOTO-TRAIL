@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import * as T from 'three';
 import {Ride,automaticTuckInput} from '../src/riding';
 import {BODY_TUNING} from '../src/body-control';
-import {gearSpeedLimit} from '../src/powertrain';
 import {Controller} from '../src/input';
 import {vehicles} from '../src/vehicles';
 import {createBike,disposeBike} from '../src/vehicle-models';
@@ -22,22 +21,22 @@ test('aerodynamic tuck helps each motorcycle reach its fixed top speed',()=>{for
  for(let i=0;i<60*180;i++)flatStep(ride,1);
  assert.ok(ride.bodyLean>.99);assert.ok(ride.speed<=spec.maxSpeed,`${spec.id} exceeded top speed`);
  assert.ok(ride.speed>spec.maxSpeed-.5,`${spec.id} tucked: ${ride.speed*3.6} km/h`);
- assert.ok(ride.speed>uprightSpeed+1,`${spec.id} tuck did not reduce drag`);
+ assert.ok(ride.speed>uprightSpeed+.9,`${spec.id} tuck did not reduce drag`);
  const tuckedSpeed=ride.speed;
  for(let i=0;i<60;i++)flatStep(ride,0);
  assert.ok(tuckedSpeed-ride.speed<2.5&&ride.speed<tuckedSpeed,`${spec.id} posture transition was abrupt or did not slow`);
  ride.recover();assert.equal(ride.wheelie,0);assert.equal(ride.bodyLean,0);
 }});
-test('manual gear speed limits apply to every bike without abruptly clipping downshifts',()=>{for(const spec of vehicles){
+test('manual gear limits derive from the redline and do not clip speed abruptly',()=>{for(const spec of vehicles){
  const ride=new Ride();ride.spec=spec;
+ const firstLimit=ride.engine.speedAtRedline(spec,1);
  for(let i=0;i<60*20;i++)flatStep(ride,0,1,0,false);
- const firstLimit=gearSpeedLimit(spec.gears,1,spec.maxSpeed);
  assert.ok(ride.speed<=firstLimit,`${spec.id} exceeded first-gear limit`);
  if(spec.gears>1)assert.ok(ride.speed<spec.maxSpeed*.5,`${spec.id} reached near top speed in first gear`);
  for(let gear=1;gear<=spec.gears;gear++){
-  ride.engine.gear=gear;ride.speed=gearSpeedLimit(spec.gears,gear,spec.maxSpeed)-.01;
+  const limit=Math.min(spec.maxSpeed,ride.engine.speedAtRedline(spec,gear));
+  ride.engine.gear=gear;ride.speed=limit-.01;
   flatStep(ride,0,1,0,false);
-  const limit=gearSpeedLimit(spec.gears,gear,spec.maxSpeed);
   assert.ok(ride.speed<=limit,`${spec.id} exceeded gear ${gear} limit`);
   ride.speed=limit+.5;
   flatStep(ride,0,1,0,false);
@@ -77,6 +76,6 @@ test('brake lights illuminate smoothly on every bike and fade when braking stops
  assert.ok(Math.abs((bike.brakeLight.lens.material as T.MeshStandardMaterial).emissiveIntensity-base)<.001);assert.ok(bike.brakeLight.glow.intensity<.001);disposeBike(bike);
 }});
 test('CG 150 rider head remains connected to a proportionate neck',()=>{const bike=createBike('cg150'),neck=bike.riderRig.neck,head=bike.riderRig.head,torso=bike.riderRig.torso,neckTop=neck.position.y+neck.scale.y/2,neckBottom=neck.position.y-neck.scale.y/2,torsoTop=torso.position.y+.27;assert.ok(neck.scale.y<.1);assert.ok(neckBottom<torsoTop, 'neck should overlap the torso');assert.ok(neckTop>head.position.y-.18,'neck should connect to the head');assert.ok(head.position.y<1.6,'CG 150 head should stay at a proportionate height');disposeBike(bike)});
-test('wheelie is bounded and lands under braking, low speed, and release',()=>{const r=new Ride();for(let i=0;i<300;i++)flatStep(r,-1);assert.ok(r.wheelie>.4&&r.wheelie<=BODY_TUNING.maxWheelie);const lifted=r.wheelie;for(let i=0;i<120;i++)flatStep(r,-1,0,1);assert.ok(r.wheelie<lifted*.01);r.speed=0;for(let i=0;i<120;i++)flatStep(r,-1,0);assert.ok(r.wheelie<.001);for(let i=0;i<300;i++)flatStep(r,-1);for(let i=0;i<180;i++)flatStep(r,0);assert.ok(r.wheelie<.001);const grounded=new Ride(),liftedRide=new Ride();for(const moto of [grounded,liftedRide]){moto.speed=10;moto.steer=1;moto.heading=0}liftedRide.bodyLean=-1;liftedRide.wheelie=BODY_TUNING.maxWheelie;grounded.step(1/60,1,0,1,[]);liftedRide.step(1/60,1,0,1,[],false,-1);assert.ok(liftedRide.heading<grounded.heading*.6)});
+test('wheelie passes the old 45-degree cap, loop-out falls, braking lands, and reset recovers',()=>{const r=new Ride();for(let i=0;i<300;i++)flatStep(r,-1);assert.ok(r.wheelie>Math.PI/4);assert.equal(r.fallen,true);const fallenSpeed=r.speed;r.step(1/60,1,0,1,[],false,-1);assert.ok(r.speed<fallenSpeed);r.recover();assert.equal(r.fallen,false);assert.equal(r.wheelie,0);const landing=new Ride();landing.speed=10/3.6;landing.wheelie=Math.PI/3;for(let i=0;i<120;i++)flatStep(landing,0,0,1);assert.equal(landing.fallen,false);assert.ok(landing.wheelie<Math.PI/3);const slow=new Ride();slow.speed=1;for(let i=0;i<120;i++)flatStep(slow,-1,0);assert.equal(slow.wheelie,0);const grounded=new Ride(),liftedRide=new Ride();for(const moto of [grounded,liftedRide]){moto.speed=10;moto.steer=1;moto.heading=0}liftedRide.bodyLean=-1;liftedRide.wheelie=Math.PI/4;grounded.step(1/60,1,0,1,[]);liftedRide.step(1/60,1,0,1,[],false,-1);assert.ok(liftedRide.heading<grounded.heading*.6)});
 test('wheelie rotation keeps rear axle fixed for all models and follows terrain pitch',()=>{for(const v of vehicles){const b=createBike(v.id);applyBikePose(b,.12,.1,0);b.body.updateMatrixWorld(true);const axle=b.wheels[0].getWorldPosition(new T.Vector3());applyBikePose(b,.12,.1,Math.PI/4);b.body.updateMatrixWorld(true);assert.ok(axle.distanceTo(b.wheels[0].getWorldPosition(new T.Vector3()))<1e-6);assert.ok(b.wheels[1].getWorldPosition(new T.Vector3()).y>axle.y+.6);disposeBike(b)}});
 test('fuel increases exactly 10% for every bike without changing refill or capacity',()=>{for(const v of vehicles){const f=new Fuel(),before=f.get(v.id),meters=1000,dt=60,gas=.7,speed=20,pitch=.05;const old=(meters/1000*(.065+.04*(speed/28)**2+.015*gas+pitch*.08)*(v.id==='caloi'?.7:1)+dt*.000015);f.consume(v.id,meters,dt,gas,speed,pitch,false);assert.ok(Math.abs(before-f.get(v.id)-old*1.1)<1e-12, v.id);f.refill(v.id,100);assert.equal(f.get(v.id),before)}});

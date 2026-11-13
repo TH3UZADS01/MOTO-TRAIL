@@ -70,11 +70,11 @@ void main(){
 
  constructor(private readonly scene:T.Scene,private readonly random:()=>number=Math.random){
   for(let i=0;i<CAPACITY;i++)this.particles[i]={life:0,duration:0,vx:0,vy:0,vz:0};
-  this.geometry.setAttribute('position',new T.BufferAttribute(this.positions,3).setUsage(T.DynamicDrawUsage));
-  this.geometry.setAttribute('particleColor',new T.BufferAttribute(this.colors,4).setUsage(T.DynamicDrawUsage));
-  this.geometry.setAttribute('particleSize',new T.BufferAttribute(this.sizes,1).setUsage(T.DynamicDrawUsage));
-  this.geometry.setAttribute('particleLeaf',new T.BufferAttribute(this.leaves,1).setUsage(T.DynamicDrawUsage));
-  this.geometry.setAttribute('particleRotation',new T.BufferAttribute(this.rotations,1).setUsage(T.DynamicDrawUsage));
+  this.geometry.setAttribute('position',new T.BufferAttribute(new Float32Array(this.positions.length),3).setUsage(T.DynamicDrawUsage));
+  this.geometry.setAttribute('particleColor',new T.BufferAttribute(new Float32Array(this.colors.length),4).setUsage(T.DynamicDrawUsage));
+  this.geometry.setAttribute('particleSize',new T.BufferAttribute(new Float32Array(this.sizes.length),1).setUsage(T.DynamicDrawUsage));
+  this.geometry.setAttribute('particleLeaf',new T.BufferAttribute(new Float32Array(this.leaves.length),1).setUsage(T.DynamicDrawUsage));
+  this.geometry.setAttribute('particleRotation',new T.BufferAttribute(new Float32Array(this.rotations.length),1).setUsage(T.DynamicDrawUsage));
   this.geometry.setDrawRange(0,0);
   this.points=new T.Points(this.geometry,this.material);
   this.points.frustumCulled=false;

@@ -1,11 +1,11 @@
 import type {VehicleId} from './vehicles';
-export const WORLD='vale-horizonte-v7';
-export interface RiderState {vehicleId:VehicleId;color?:string;bodyLean?:number;wheelie?:number;brake?:number;x:number;y:number;z:number;heading:number;speed:number;pitch:number;lean:number;steer:number;sequence:number}
+export const WORLD='vale-horizonte-v9';
+export interface RiderState {vehicleId:VehicleId;color?:string;bodyLean?:number;wheelie?:number;fallen?:boolean;braking?:boolean;petUnlocked?:boolean;revMatchSequence?:number;gear?:number;rpm?:number;x:number;y:number;z:number;heading:number;speed:number;pitch:number;lean:number;steer:number;sequence:number}
 export interface RemotePlayer {id:string;name:string;connected:boolean;state:RiderState}
 interface Session {code:string;id:string;token:string;name:string;vehicleId:VehicleId}
 interface Events {horn:(id:string)=>void;status:(text:string)=>void;welcome:(state:RiderState,code:string,id:string)=>void;players:(players:RemotePlayer[])=>void;ended:()=>void}
 export class RideNetwork {
- socket?:WebSocket;session?:Session;connecting=false;private wanted=false;private timer?:ReturnType<typeof setTimeout>;private attempt=0;private sequence=0;private lastSent=0;private generation=0;private name='';private vehicleId:VehicleId='pop';
+ socket?:WebSocket;session?:Session;connecting=false;private wanted=false;private timer?:ReturnType<typeof setTimeout>;private attempt=0;private sequence=0;private lastSent=0;private lastBraking?:boolean;private generation=0;private name='';private vehicleId:VehicleId='pop';
  private clockOffset=0;
  get clock(){return Date.now()+this.clockOffset}
  readonly url=import.meta.env.VITE_MULTIPLAYER_URL||(import.meta.env.DEV?'ws://127.0.0.1:8787/ws':'');
@@ -27,7 +27,7 @@ export class RideNetwork {
    if(m.type==='error'){this.events.status(m.message);if(m.fatal){this.wanted=false;this.session=undefined;this.store();this.events.players([]);this.events.ended();}return}
    if(m.type==='welcome'){
     clearTimeout(timeout);if(m.world!==WORLD){this.fail('Versão diferente do servidor. Recarregue o jogo.');return}
-    this.session={code:m.code,id:m.id,token:m.token,name:this.name,vehicleId:this.vehicleId};this.connecting=false;this.attempt=0;this.sequence=0;this.store();this.events.welcome(m.state,m.code,m.id);this.events.status(`Sala ${m.code} · conectado`);
+    this.session={code:m.code,id:m.id,token:m.token,name:this.name,vehicleId:this.vehicleId};this.connecting=false;this.attempt=0;this.sequence=0;this.lastBraking=undefined;this.store();this.events.welcome(m.state,m.code,m.id);this.events.status(`Sala ${m.code} · conectado`);
    }
    if(m.type==='horn'&&typeof m.id==='string')this.events.horn(m.id);
    if(m.type==='snapshot'&&Array.isArray(m.players)&&m.world===WORLD){if(Number.isFinite(m.at))this.clockOffset=m.at-Date.now();this.events.players(m.players.filter((p:RemotePlayer)=>p.id!==this.session?.id));}
@@ -40,6 +40,6 @@ export class RideNetwork {
  }
  private fail(message:string){this.wanted=false;this.connecting=false;this.session=undefined;this.store();this.socket?.close();this.events.players([]);this.events.status(message);this.events.ended()}
  horn(){if(this.connected)this.socket!.send(JSON.stringify({type:'horn'}))}
- send(state:Omit<RiderState,'sequence'>,now:number,force=false){if(!this.connected||(!force&&now-this.lastSent<100)||this.socket!.bufferedAmount>16384)return;this.lastSent=now;this.socket!.send(JSON.stringify({type:'state',state:{...state,sequence:this.sequence++}}));}
- leave(){this.wanted=false;this.generation++;clearTimeout(this.timer);if(this.socket?.readyState===WebSocket.OPEN)this.socket.send(JSON.stringify({type:'leave'}));this.socket?.close();this.socket=undefined;this.session=undefined;this.connecting=false;this.store();this.events.players([]);this.events.ended()}
+ send(state:Omit<RiderState,'sequence'>,now:number,force=false){if(!this.connected||(!force&&now-this.lastSent<100)||this.socket!.bufferedAmount>16384)return;this.lastSent=now;const {braking,...rest}=state,update:{sequence:number;braking?:boolean}={sequence:this.sequence++};if(braking!==undefined&&braking!==this.lastBraking){update.braking=braking;this.lastBraking=braking}this.socket!.send(JSON.stringify({type:'state',state:{...rest,...update}}));}
+ leave(){this.wanted=false;this.generation++;clearTimeout(this.timer);if(this.socket?.readyState===WebSocket.OPEN)this.socket.send(JSON.stringify({type:'leave'}));this.socket?.close();this.socket=undefined;this.session=undefined;this.connecting=false;this.lastBraking=undefined;this.store();this.events.players([]);this.events.ended()}
 }
