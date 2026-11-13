@@ -27,7 +27,7 @@ test('real separate WebSocket sessions: rooms, movement, bikes, capacity, leave 
   resumed.send({type:'state',state:state(-299,0)});await resumed.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===welcome.id&&p.state.x===-299));
  }finally{for(const socket of sockets)socket.terminate();await game.close();if(dir.startsWith(join(tmpdir(),'mototrail-online-')))rmSync(dir,{recursive:true,force:true});}
 });
-test('protocol accepts loop-out state and rejects malformed positions and state flags',()=>{assert.equal(validState(state(0)),true);assert.equal(validState({...state(0),braking:true,fallen:true,petUnlocked:true,revMatchSequence:2,wheelie:Math.PI/2+.1}),true);assert.equal(validState({...state(0),brake:.5}),true);for(const patch of [{wheelie:101},{wheelie:-1},{fallen:'yes'},{bodyLean:1.01},{bodyLean:NaN},{braking:'yes'},{petUnlocked:'yes'},{revMatchSequence:-1},{revMatchSequence:1.5},{brake:-.01},{brake:1.01},{brake:NaN},{speed:39},{color:'invalid'},{color:'#123456<script>'},{x:Infinity},{speed:NaN},{vehicleId:'hacked'},{sequence:1.5},{z:10000}])assert.equal(validState({...state(0),...patch}),false)});
+test('protocol accepts loop-out state and rejects malformed positions and state flags',()=>{assert.equal(validState(state(0)),true);assert.equal(validState({...state(0),braking:true,fallen:true,petUnlocked:true,revMatchSequence:2,wheelie:Math.PI/2+.1}),true);assert.equal(validState({...state(0),brake:.5}),true);for(const patch of [{wheelie:101},{wheelie:-1},{fallen:'yes'},{bodyLean:1.01},{bodyLean:NaN},{braking:'yes'},{drifting:'yes'},{petUnlocked:'yes'},{revMatchSequence:-1},{revMatchSequence:1.5},{brake:-.01},{brake:1.01},{brake:NaN},{speed:39},{color:'invalid'},{color:'#123456<script>'},{x:Infinity},{speed:NaN},{vehicleId:'hacked'},{sequence:1.5},{z:10000}])assert.equal(validState({...state(0),...patch}),false)});
 
 test('braking state changes replicate, persist when omitted, and reach late joiners',async()=>{
  const dir=mkdtempSync(join(tmpdir(),'mototrail-braking-')),game=createGameServer({dataDir:dir,origins:[origin]}),sockets=[];
@@ -35,11 +35,12 @@ test('braking state changes replicate, persist when omitted, and reach late join
   const {port}=await game.listen(0),a=await client(port),b=await client(port);sockets.push(a.ws,b.ws);
   a.send(hello('create','Ana'));const wa=await a.wait(m=>m.type==='welcome');
   b.send(hello('join','Bruno',{code:wa.code}));await b.wait(m=>m.type==='welcome');
-  a.send({type:'state',state:{...state(-300),braking:true,petUnlocked:true,revMatchSequence:2}});
-  await b.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===wa.id&&p.state.braking===true&&p.state.petUnlocked===true&&p.state.revMatchSequence===2));
+  a.send({type:'state',state:{...state(-300),braking:true,drifting:true,petUnlocked:true,revMatchSequence:2}});
+  await b.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===wa.id&&p.state.braking===true&&p.state.drifting===true&&p.state.petUnlocked===true&&p.state.revMatchSequence===2));
   a.send({type:'state',state:state(-299,1)});
   const retained=await b.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===wa.id&&p.state.sequence===1));
   assert.equal(retained.players.find(p=>p.id===wa.id).state.braking,true);
+  assert.equal(retained.players.find(p=>p.id===wa.id).state.drifting,false);
   assert.equal(retained.players.find(p=>p.id===wa.id).state.petUnlocked,true);
   assert.equal(retained.players.find(p=>p.id===wa.id).state.revMatchSequence,2);
   const late=await client(port);sockets.push(late.ws);late.send(hello('join','Clara',{code:wa.code}));

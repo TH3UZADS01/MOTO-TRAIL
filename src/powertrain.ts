@@ -1,11 +1,17 @@
 import type {VehicleSpec} from './vehicles';
 import {BODY_TUNING,clamp} from './body-control';
 // Gameplay RPM calibration, not manufacturer dyno data.
-export const ENGINE_TUNING={idleRpm:1400,redlineRpm:8500,shiftDelay:.22,downshiftRatio:.72,cutHz:8,cutDuty:.32,cutGain:.16,rpmResponse:12,clutchSlipRpm:700,revMatchDuration:.3,revMatchIntensity:.32,revMatchOvershootRpm:650,revMatchMinimumRpm:180,revMatchVolume:.45};
+export const ENGINE_TUNING={idleRpm:1400,redlineRpm:8500,shiftDelay:.22,downshiftRatio:.72,cutHz:8,cutDuty:.32,cutGain:.16,rpmResponse:12,clutchSlipRpm:700,revMatchDuration:.3,blipThrottle:.65,revMatchIntensity:.32,revMatchOvershootRpm:650,revMatchMinimumRpm:180,revMatchVolume:.45};
 // Keep the limiter latched through the small RPM dip caused by each ignition cut.
-export const LIMITER_TUNING={entryRpm:25,releaseRpm:180};
+export const LIMITER_TUNING={entryRpm:25,releaseRpm:100};
 const smoothstep=(value:number)=>{const t=clamp(value,0,1);return t*t*(3-2*t)};
 export class Powertrain {
+ private blipEnabled=true;
+ get autoBlip(){return this.blipEnabled}
+ set autoBlip(enabled:boolean){this.blipEnabled=enabled;if(!enabled)this.cancelBlip()}
+ cancelBlip(){this.revMatchTime=0;this.revMatchPeak=0}
+ get blipThrottle(){return this.autoBlip?ENGINE_TUNING.blipThrottle*this.revMatchEnvelope:0}
+ effectiveThrottle(input:number){return Math.max(clamp(input,0,1),this.blipThrottle)}
  gear=1;rpm=ENGINE_TUNING.idleRpm;ratio=0;limiting=false;cutting=false;clutch=0;lugging=false;revMatchTime=0;revMatchPeak=0;revMatchSequence=0;stalled=false;
  private shiftTime=0;private shiftCooldown=0;private phase=0;
  private kickTime=0;private kickCooldown=0;private kickHeld=false;private kickGear=1;private kickBaseRpm=0;
@@ -44,6 +50,7 @@ export class Powertrain {
   return Math.sin(Math.PI*clamp(1-this.revMatchTime/ENGINE_TUNING.revMatchDuration,0,1));
  }
  private startRevMatch(targetRpm:number,spec:VehicleSpec,gearSteps:number){
+  if(!this.autoBlip||targetRpm<=spec.idleRpm){this.cancelBlip();return}
   const target=clamp(targetRpm,spec.idleRpm,spec.redlineRpm),headroom=Math.max(0,spec.redlineRpm-target);
   const requested=Math.max(ENGINE_TUNING.revMatchMinimumRpm,Math.max(0,target-this.rpm)*ENGINE_TUNING.revMatchIntensity
     +Math.max(0,gearSteps-1)*ENGINE_TUNING.revMatchOvershootRpm*.25);
@@ -108,6 +115,7 @@ export class Powertrain {
   return true;
  }
  update(dt:number,speed:number,spec:VehicleSpec,topSpeed:number,throttle:number,brake:number,push:boolean,automatic=true,realistic=false){
+  if(push||speed<.5||this.stalled)this.cancelBlip();
   if(realistic){this.updateRealistic(dt,speed,spec,topSpeed,throttle,brake,push,automatic);return}
   const t=ENGINE_TUNING;dt=clamp(dt,0,.1);this.gear=clamp(this.gear,1,spec.gears);
   this.shiftCooldown=Math.max(0,this.shiftCooldown-dt);
@@ -143,6 +151,10 @@ export class Powertrain {
    }
   }
   const idle=spec.idleRpm,redline=spec.redlineRpm,gearMin=spec.gearMinSpeedKmh[this.gear-1]??0;
+  if(downshiftSteps)this.startRevMatch(clamp(wheelRpm,idle,redline),spec,downshiftSteps);
+  // The blip opens the throttle briefly, including clutch engagement and delivered torque.
+  this.revMatchTime=Math.max(0,this.revMatchTime-dt);
+  throttle=this.effectiveThrottle(throttle);
   const gearLowSpeed=gearMin>0&&speedKmh<gearMin*.45;
   const nearStall=gearLowSpeed&&this.gear>=3&&speedKmh<Math.max(2,gearMin*.1);
   const freeRpm=idle+(redline-idle)*(push?0:.025+clamp(throttle,0,1)*.58);
@@ -154,7 +166,6 @@ export class Powertrain {
   this.clutch=push?0:clamp(clutchSlipFactor,minimumSlip,1);
   this.lugging=!push&&this.gear>1&&(speedKmh<gearMin||gearLowSpeed||this.clutch<.18);
   this.updateLimiter(dt,wheelRpm,spec,throttle,brake,push);
-  if(downshiftSteps)this.startRevMatch(target,spec,downshiftSteps);
   const rpmFloor=nearStall&&this.gear>=5?spec.stallRpm*.72:idle;
   const shouldStall=!push&&this.gear>=5&&speedKmh<2&&throttle>.8&&this.rpm<spec.stallRpm;
   if(shouldStall||this.stalled){
@@ -167,7 +178,6 @@ export class Powertrain {
   if(fullyCoupled)this.rpm=clamp(rpmTarget,idle,redline);
   else this.rpm+=(rpmTarget-this.rpm)*(1-Math.exp(-dt*t.rpmResponse));
   this.rpm=clamp(this.rpm,rpmFloor,redline);
-  this.revMatchTime=Math.max(0,this.revMatchTime-dt);
   if(this.revMatchTime>0)this.rpm=clamp(Math.max(rpmTarget,this.estimatedRpm(spec,speed))+this.revMatchPeak*this.revMatchEnvelope,idle,redline);
   else this.revMatchPeak=0;
   this.ratio=clamp((this.rpm-idle)/(redline-idle),0,1);

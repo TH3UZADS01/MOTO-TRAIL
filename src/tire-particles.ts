@@ -1,9 +1,11 @@
 import * as T from 'three';
 
 export const TIRE_PARTICLE_CONFIG={capacity:96,minimumSpeed:.5,dirtParticlesPerMeter:.9,grassParticlesPerMeter:.55,maximumParticlesPerSecond:32} as const;
+const SMOKE_COLOR=new T.Color(0xe8e8e8);
 const DIRT_COLOR=new T.Color(0x80502b),GRASS_COLOR=new T.Color(0x548542),CAPACITY=TIRE_PARTICLE_CONFIG.capacity;
 
 export function tireParticleEmissionRate(surface:string,speed:number){
+ if(surface==='smoke')return Math.abs(speed)>.8?Math.min(32,Math.abs(speed)*4):0;
  if(surface!=='terra'&&surface!=='grama')return 0;
  const magnitude=Math.abs(speed);
  if(magnitude<TIRE_PARTICLE_CONFIG.minimumSpeed)return 0;
@@ -85,10 +87,11 @@ void main(){
  get count(){return this.activeCount}
  get surface(){return this.currentSurface}
 
- update(surface:string,speed:number,rearWheel:T.Object3D,heading:number,dt:number){
+ update(surface:string,speed:number,rearWheel:T.Object3D,heading:number,dt:number,smoking=false){
+  if(smoking)surface="smoke";
   dt=T.MathUtils.clamp(dt,0,.1);
   if(surface!==this.currentSurface){
-   this.clearParticles();
+   if(surface!=="smoke"&&this.currentSurface!=="smoke")this.clearParticles();
    this.currentSurface=surface;
   }
   const rate=tireParticleEmissionRate(surface,speed);
@@ -117,25 +120,25 @@ void main(){
   const index=this.next;
   this.next=(this.next+1)%CAPACITY;
   this.pendingUpdate=true;
-  const p=this.particles[index],isLeaf=surface==='grama';
+  const p=this.particles[index],isLeaf=surface==='grama',isSmoke=surface==='smoke';
   const spread=(this.random()-.5)*.24;
   const trailing=.16+this.random()*.2;
   const lateralX=Math.cos(heading),lateralZ=-Math.sin(heading);
   this.positions[index*3]=this.wheelPosition.x-this.movement.x*trailing+lateralX*spread;
   this.positions[index*3+1]=this.wheelPosition.y-.18+this.random()*.16;
   this.positions[index*3+2]=this.wheelPosition.z-this.movement.z*trailing+lateralZ*spread;
-  p.duration=isLeaf?.65+this.random()*.45:.75+this.random()*.6;
+  p.duration=isSmoke?1.1+this.random()*.5:isLeaf?.65+this.random()*.45:.75+this.random()*.6;
   p.life=p.duration;
   const lateralVelocity=(this.random()-.5)*.45;
   p.vx=-this.movement.x*(.45+this.random()*.7)+lateralX*lateralVelocity;
   p.vy=isLeaf?.45+this.random()*.55:.25+this.random()*.45;
   p.vz=-this.movement.z*(.45+this.random()*.7)+lateralZ*lateralVelocity;
-  this.color.copy(isLeaf?GRASS_COLOR:DIRT_COLOR).multiplyScalar(.82+this.random()*.36);
+  this.color.copy(isSmoke?SMOKE_COLOR:isLeaf?GRASS_COLOR:DIRT_COLOR).multiplyScalar(.82+this.random()*.36);
   this.colors[index*4]=this.color.r;
   this.colors[index*4+1]=this.color.g;
   this.colors[index*4+2]=this.color.b;
   this.colors[index*4+3]=1;
-  this.sizes[index]=isLeaf?.14+this.random()*.1:.12+this.random()*.1;
+  this.sizes[index]=isSmoke?.35+this.random()*.18:isLeaf?.14+this.random()*.1:.12+this.random()*.1;
   this.leaves[index]=isLeaf?1:0;
   this.rotations[index]=this.random()*Math.PI*2;
   if(direction<0)this.rotations[index]+=Math.PI;

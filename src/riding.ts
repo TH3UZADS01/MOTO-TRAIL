@@ -1,4 +1,5 @@
 import {Powertrain} from './powertrain';
+import {Drift,DRIFT_TUNING} from './drift';
 import {BODY_TUNING,bodyDragMultiplier,clamp} from './body-control';
 import {Fuel} from './fuel';
 import {getVehicle,type VehicleSpec} from './vehicles';
@@ -16,22 +17,24 @@ export function acceleration(speed:number,throttle:number,brake:number,pitch:num
   return throttle>0&&brake===0&&net>0?net*ACCELERATION_SCALE:net;
 }
 export class Ride {
-  engine=new Powertrain();
+  engine=new Powertrain();engineThrottle=0;
+  drift=new Drift();
   get gear(){return this.engine.gear}
   set gear(value:number){this.engine.gear=value}
   fuel=new Fuel();spec:VehicleSpec=getVehicle('pop');pushing=false;brakeInput=0;fallen=false;private impact=0;private fallTimer=0;private wheelieAngularVelocity=0;
   bodyLean=0;wheelie=0;wheelieDebug:WheelieDebugState={gear:1,rpm:0,wheelTorque:0,pitchTorque:0,stabilizingTorque:0,angle:0};
   get topSpeed(){return this.spec.maxSpeed}
-   resetBody(){this.bodyLean=0;this.wheelie=0;this.wheelieAngularVelocity=0;this.engine.resetClutchKick();}
+   resetBody(){this.engineThrottle=0;this.engine.cancelBlip();this.drift.reset();this.bodyLean=0;this.wheelie=0;this.wheelieAngularVelocity=0;this.engine.resetClutchKick();}
   takeImpact(){const impact=this.impact;this.impact=0;return impact}
   x=-310;z=0;heading=0;speed=0;steer=0;lean=0;pitch=0;distance=0;y=ground(this.x,this.z);
   constructor(){this.recover()}
   contact(){const dx=Math.sin(this.heading),dz=Math.cos(this.heading),front=ground(this.x+dx*this.spec.wheelbase/2,this.z+dz*this.spec.wheelbase/2),rear=ground(this.x-dx*this.spec.wheelbase/2,this.z-dz*this.spec.wheelbase/2);this.pitch=Math.atan2(front-rear,this.spec.wheelbase);this.y=(front+rear)/2;}
   recover(){const n=nearestRoute(this.x,this.z),p=n.track.points[n.index],q=n.track.points[n.index+1];this.x=p.x;this.z=p.z;this.heading=Math.atan2(q.x-p.x,q.z-p.z);this.speed=0;this.lean=0;this.steer=0;this.fallen=false;this.fallTimer=0;this.resetBody();this.engine.reset();this.contact()}
   step(dt:number,throttle:number,brake:number,turn:number,obstacles:Obstacle[],push=false,bodyInput=0,automatic=true,realistic=false){
-    dt=clamp(dt,0,.1);this.brakeInput=brake;
+    dt=clamp(dt,0,.1);this.brakeInput=brake;this.engineThrottle=0;
+    this.drift.update(dt,brake,this.speed,this.steer,push||this.fallen||this.wheelie>.08);
     if(this.fallen){
-      this.fallTimer+=dt;this.speed*=Math.exp(-4*dt);this.engine.update(dt,this.speed,this.spec,this.topSpeed,0,1,false,automatic,realistic);
+      this.fallTimer+=dt;this.speed*=Math.exp(-4*dt);this.engine.update(dt,this.speed,this.spec,this.topSpeed,0,1,false,automatic,realistic);this.engine.cancelBlip();
       this.wheelie=Math.max(this.wheelie,BODY_TUNING.loopOutAngle+Math.min(.3,this.fallTimer*.5));
       this.lean+=(Math.sign(this.lean||1)*.8-this.lean)*(1-Math.exp(-dt*3));this.contact();return;
     }
@@ -44,6 +47,8 @@ export class Ride {
     this.pushing=push;
     this.engine.update(dt,this.speed,this.spec,this.topSpeed,throttle,brake,push,automatic,realistic);
      this.engine.updateClutchKick(dt,this.spec,this.speed,throttle,brake,bodyInput,this.wheelie<BODY_TUNING.airborneThreshold,push);
+    if(this.fuel.get(this.spec.id)<=0||push||this.engine.stalled)this.engine.cancelBlip();
+    this.engineThrottle=push||this.engine.stalled||this.fuel.get(this.spec.id)<=0?0:this.engine.effectiveThrottle(throttle);
     const gearMax=this.engine.speedAtRedline(this.spec,this.engine.gear);
     const speedLimit=Math.min(this.topSpeed,gearMax);
     if(push){
@@ -53,22 +58,24 @@ export class Ride {
     else if(this.speed<.15&&throttle===0){this.speed=0;}
     else {
       const stalled=realistic&&this.engine.stalled;
-      const gearThrottle=stalled||(!automatic&&this.speed>speedLimit)?0:throttle;
-        const baseAcceleration=acceleration(this.speed,0,brake*grip*(this.spec.braking??1),this.pitch,grip,this.spec.aerodynamicDrag*bodyDragMultiplier(this.bodyLean));
+      const gearThrottle=stalled||this.drift.active||(!automatic&&this.speed>speedLimit)?0:this.engineThrottle;
+      const effectiveBrake=brake*(1-(1-DRIFT_TUNING.brakingFactor)*this.drift.amount);
+        const baseAcceleration=acceleration(this.speed,0,effectiveBrake*grip*(this.spec.braking??1),this.pitch,grip,this.spec.aerodynamicDrag*bodyDragMultiplier(this.bodyLean));
         const mass=(this.spec.mass??100)+this.spec.riderMass;
         const driveAcceleration=stalled?0:realistic
           ?this.engine.wheelForce(this.spec,this.speed,gearThrottle)*grip/mass
-          :acceleration(this.speed,gearThrottle*this.engine.driveFactor*this.spec.power*100/(this.spec.mass??100),brake*grip*(this.spec.braking??1),this.pitch,grip,this.spec.aerodynamicDrag*bodyDragMultiplier(this.bodyLean));
+          :acceleration(this.speed,gearThrottle*this.engine.driveFactor*this.spec.power*100/(this.spec.mass??100),effectiveBrake*grip*(this.spec.braking??1),this.pitch,grip,this.spec.aerodynamicDrag*bodyDragMultiplier(this.bodyLean));
          const nextSpeed=this.speed+(stalled?Math.min(0,baseAcceleration):realistic?baseAcceleration+driveAcceleration:driveAcceleration*this.engine.clutchKickGain)*dt;
         this.speed=Math.max(0,Math.min(this.speed>speedLimit?this.speed:speedLimit,nextSpeed));
     }
     // Front-wheel steering has less authority while lifted; retain assisted balance.
     const steeringGrip=1-(1-BODY_TUNING.wheelieSteering)*clamp(this.wheelie/BODY_TUNING.balancePoint,0,1);
-    const yaw=this.speed*Math.tan(steeringAngle(this.speed,this.steer))/this.spec.wheelbase*grip*steeringGrip;
+    const yaw=this.speed*Math.tan(steeringAngle(this.speed,this.steer))/this.spec.wheelbase*grip*steeringGrip*(1+DRIFT_TUNING.steeringBoost*this.drift.amount);
     this.heading+=yaw*dt;
-    const x=this.x+Math.sin(this.heading)*this.speed*dt,z=this.z+Math.cos(this.heading)*this.speed*dt;
+    const travelHeading=this.heading-this.drift.slip;
+    const x=this.x+Math.sin(travelHeading)*this.speed*dt,z=this.z+Math.cos(travelHeading)*this.speed*dt;
     const hit=deepWater(x,z)||Math.abs(x)>SIZE/2-30||Math.abs(z)>SIZE/2-30||obstacles.some(o=>{const next=(x-o.x)**2+(z-o.z)**2,old=(this.x-o.x)**2+(this.z-o.z)**2;return next<(o.r+.35)**2&&next<=old+1e-10;});
-    if(hit){this.wheelie=0;this.wheelieAngularVelocity=0;this.impact=Math.max(this.impact,Math.abs(this.speed));this.speed=0;}else {this.x=x;this.z=z;this.distance+=Math.abs(this.speed)*dt}
+    if(hit){this.drift.reset();this.wheelie=0;this.wheelieAngularVelocity=0;this.impact=Math.max(this.impact,Math.abs(this.speed));this.speed=0;}else {this.x=x;this.z=z;this.distance+=Math.abs(this.speed)*dt}
     const wheeliePhysics=this.engine.wheeliePhysics(this.spec,this.speed,throttle,this.bodyLean);
     this.wheelieDebug={gear:this.engine.gear,rpm:this.engine.rpm,wheelTorque:wheeliePhysics.wheelTorque,pitchTorque:wheeliePhysics.pitchTorque*BODY_TUNING.wheeliePitchForceScale,stabilizingTorque:wheeliePhysics.stabilizingTorque,angle:this.wheelie};
     const physicalWheelieMargin=this.engine.allowWheelie(this.spec,this.speed,throttle,brake,this.bodyLean);
@@ -100,7 +107,7 @@ export class Ride {
      if(this.wheelie===0)this.wheelieAngularVelocity=Math.max(0,this.wheelieAngularVelocity);
     this.wheelieDebug.angle=this.wheelie;
     if(this.wheelie>BODY_TUNING.loopOutAngle&&this.wheelieAngularVelocity>0){this.fallen=true;this.fallTimer=0}
-    this.fuel.consume(this.spec.id,this.distance-before,dt,throttle,this.speed,this.pitch,push);
+    this.fuel.consume(this.spec.id,this.distance-before,dt,this.engineThrottle,this.speed,this.pitch,push);
     this.contact();this.lean+=(Math.max(-.45,Math.min(.45,-yaw*this.speed*.045))-this.lean)*(1-Math.exp(-dt*7));
 
   }

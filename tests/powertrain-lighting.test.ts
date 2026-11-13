@@ -101,7 +101,8 @@ test('every downshift starts a bounded rev-match regardless of current RPM',()=>
    assert.equal(engine.revMatchTime,ENGINE_TUNING.revMatchDuration);
    engine.update(ENGINE_TUNING.revMatchDuration/2,speed,spec,spec.maxSpeed,0,0,false,false,true);
    assert.ok(engine.rpm>engine.estimatedRpm(spec,speed),`${spec.id} ${gear}→${gear-1} should blip above the new-gear RPM`);
-   assert.equal(engine.torqueRpm,engine.estimatedRpm(spec,speed),'rev-match must not add wheel torque');
+   assert.ok(engine.effectiveThrottle(0)>0,'rev-match briefly opens the throttle');
+   assert.ok(engine.wheelForce(spec,speed,engine.effectiveThrottle(0))>0,'blip must deliver actual torque');
   }
  }
 });

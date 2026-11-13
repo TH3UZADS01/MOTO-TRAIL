@@ -99,3 +99,7 @@ Veja [REVISAO-V6.md](REVISAO-V6.md) para as sete melhorias, parâmetros ajustáv
 ## UPDATE 01 — postura, giro e dia/noite
 
 Veja [UPDATE-01.md](UPDATE-01.md) para comandos, limites, ajustes e roteiro de testes. Analógico esquerdo vertical (ou I/K) controla a postura: inclinar para frente reduz o arrasto aerodinâmico; para trás, com aceleração, permite empinar até 45°. O limite de velocidade é fixo por moto. Há câmbio manual ou automático, corte de giro integrado às marchas, ciclo de 24 minutos com faróis automáticos e consumo 10% maior. Cliente e servidor usam `vale-horizonte-v7`.
+
+### Drift de freio
+
+Em movimento, segure o freio por 1 segundo (S/seta para baixo, LT/L2 ou FREIO no touch). Com velocidade suficiente, a roda traseira trava e emite fumaça branca; esterçar aumenta a rotação da moto e a traseira desliza. Soltar o freio recupera a aderência suavemente. Ao parar, permanece o comando de empurrar para trás. Empinada, queda, recuo, colisão e recuperação cancelam o drift. Ajustes: `src/drift.ts`. O estado de drift e a fumaça dos amigos precisam da atualização do cliente na Vercel e do servidor no Render; o campo é opcional e não muda a versão do protocolo.
