@@ -6,7 +6,7 @@ import {createPop} from './vehicle';
 import {getVehicle,type VehicleId} from './vehicles';
 import {CARAMELO_PET_TUNING,createCarameloPet} from './caramelos-mission';
 export function createBike(id:VehicleId='pop'){
- const bike=buildBike(id),brakeLight=createBrakeLight(bike.body,bike.wheels[0].position.z-(id==='pop'?.115:0));
+ const bike=buildBike(id),brakeLight=createBrakeLight(bike.body,bike.wheels[0].position.z-(id==='pop'?.115:id==='cg150'?.135:0));
  const passengerPetAnchor=new T.Group();passengerPetAnchor.name='passenger-pet-anchor';
  const seatAnchor=id==='cg150'?[0,.85,-.52]:id==='cub'?[0,.82,-.35]:id==='caloi'?[0,.83,-.5]:[0,.84,-.52];
  passengerPetAnchor.position.set(
@@ -17,7 +17,10 @@ export function createBike(id:VehicleId='pop'){
  passengerPetAnchor.rotation.set(CARAMELO_PET_TUNING.rotation.x,CARAMELO_PET_TUNING.rotation.y,CARAMELO_PET_TUNING.rotation.z);
  passengerPetAnchor.scale.setScalar(CARAMELO_PET_TUNING.scale);bike.body.add(passengerPetAnchor);
  const pet=createCarameloPet(passengerPetAnchor);
- return {...bike,headlight:makeHeadlight(bike.steering,getVehicle(id).eyeHeight),brakeLight,passengerPetAnchor,pet};
+ const headlight=makeHeadlight(bike.steering,getVehicle(id).eyeHeight);
+ // Match the Blender CG's round lens; coordinates are relative to the steering pivot.
+ if(id==='cg150'){headlight.light.position.set(0,1.01,.071);headlight.lens.position.copy(headlight.light.position)}
+ return {...bike,headlight,brakeLight,passengerPetAnchor,pet};
 }
 function createBrakeLight(body:T.Group,rearZ:number){
  const imported=body.getObjectByName('Body_TailLens') as T.Mesh<T.BufferGeometry,T.MeshStandardMaterial>|undefined;
