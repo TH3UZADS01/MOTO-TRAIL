@@ -6,7 +6,7 @@ import {createPop} from './vehicle';
 import {getVehicle,type VehicleId} from './vehicles';
 import {CARAMELO_PET_TUNING,createCarameloPet} from './caramelos-mission';
 export function createBike(id:VehicleId='pop'){
- const bike=buildBike(id),brakeLight=createBrakeLight(bike.body,bike.wheels[0].position.z);
+ const bike=buildBike(id),brakeLight=createBrakeLight(bike.body,bike.wheels[0].position.z-(id==='pop'?.115:0));
  const passengerPetAnchor=new T.Group();passengerPetAnchor.name='passenger-pet-anchor';
  const seatAnchor=id==='cg150'?[0,.85,-.52]:id==='cub'?[0,.82,-.35]:id==='caloi'?[0,.83,-.5]:[0,.84,-.52];
  passengerPetAnchor.position.set(
@@ -20,8 +20,11 @@ export function createBike(id:VehicleId='pop'){
  return {...bike,headlight:makeHeadlight(bike.steering,getVehicle(id).eyeHeight),brakeLight,passengerPetAnchor,pet};
 }
 function createBrakeLight(body:T.Group,rearZ:number){
- const material=new T.MeshStandardMaterial({color:0x9b1010,emissive:0xff1010,emissiveIntensity:.12,roughness:.28});
- const lens=new T.Mesh(new T.SphereGeometry(1,16,10),material);lens.name='brake-light';lens.position.set(0,.69,rearZ-.16);lens.scale.set(.09,.045,.025);body.add(lens);
+ const imported=body.getObjectByName('Body_TailLens') as T.Mesh<T.BufferGeometry,T.MeshStandardMaterial>|undefined;
+ const material=imported?.material??new T.MeshStandardMaterial({color:0x9b1010,roughness:.28});
+ material.emissive.setHex(0xff1010);material.emissiveIntensity=.12;
+ const lens=imported??new T.Mesh(new T.SphereGeometry(1,16,10),material);
+ if(!imported){lens.name='brake-light';lens.position.set(0,.69,rearZ-.16);lens.scale.set(.09,.045,.025);body.add(lens)}
  const glow=new T.PointLight(0xff1717,0,2.4,2);glow.position.set(0,.69,rearZ-.2);glow.name='brake-light-glow';body.add(glow);
  let intensity=0;
  return {lens,glow,update(brake:number,dt:number){const target=T.MathUtils.clamp(brake,0,1);intensity=T.MathUtils.lerp(intensity,target,1-Math.exp(-18*Math.max(0,dt)));material.emissiveIntensity=.12+intensity*2.8;glow.intensity=intensity*1.6}};
