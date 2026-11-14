@@ -1,6 +1,6 @@
 import * as T from 'three';
 // Radians, metres and response per second. Shared by local and remote riders.
-export const RIDER_TUNING={intensity:.30,response:7,maxLean:.28,fullEffectSpeed:12,steerReference:.56,steerSpeedScale:5.8,hipShift:.22,kneeOpening:.10,throttleWrist:.85,throttleElbowDrop:.08,throttleElbowBack:.10,wheelieSideShift:.34,wheelieSideLean:.18,wheelieSideResponse:6};
+export const RIDER_TUNING={intensity:.30,response:7,maxLean:.28,fullEffectSpeed:12,steerReference:.56,steerSpeedScale:5.8,hipShift:.22,kneeOpening:.10,upperArmLength:.40,forearmLength:.37,wristOffset:.045,throttleWrist:.85,throttleElbowDrop:.08,throttleElbowBack:.10,wheelieSideShift:.34,wheelieSideLean:.18,wheelieSideResponse:6};
 export type RiderRig=ReturnType<typeof createRider>;
 export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,jacketColor=0xc88b48,kneeWidth=.22){
  const root=new T.Group(),head=new T.Group();root.name='animated-rider';
@@ -14,6 +14,22 @@ export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,jacketC
  const limbs=[-1,1].map(side=>{const hand=new T.Group();root.add(hand);ell(hand,skin,0,0,0,.045,.04,.055);for(let i=0;i<3;i++)ell(hand,skin,(i-1)*.025,-.018,.036,.018,.018,.026);ell(hand,skin,.035,0,-.015,.026,.02,.032);return {side,upperArm:mesh(root,new T.CylinderGeometry(1,1,1,8),jacket),forearm:mesh(root,new T.CylinderGeometry(1,1,1,8),jacket),thigh:mesh(root,new T.CylinderGeometry(1,1,1,8),pants),shin:mesh(root,new T.CylinderGeometry(1,1,1,8),pants),hand,foot:ell(root,black,side*.21,.29,.02,.06,.045,.1),knee:new T.Vector3()}});
  const axis=new T.Vector3(0,1,0),delta=new T.Vector3(),hand=new T.Vector3(),shoulder=new T.Vector3(),elbow=new T.Vector3(),hip=new T.Vector3(),ankle=new T.Vector3(),straightKnee=new T.Vector3();let lean=0,foreAft=0,throttlePose=0,stopPose=0;
  function segment(mesh:T.Mesh,a:T.Vector3,b:T.Vector3,r:number){delta.copy(b).sub(a);mesh.position.copy(a).add(b).multiplyScalar(.5);mesh.scale.set(r,delta.length(),r);mesh.quaternion.setFromUnitVectors(axis,delta.normalize())}
+ // Two rigid bones: throttle changes the elbow angle/plane, never the arm lengths.
+ const wrist=new T.Vector3(),reach=new T.Vector3(),bend=new T.Vector3();
+ const wristTurn=new T.Quaternion(),gripAxis=new T.Vector3(1,0,0);
+ function solveArm(side:number,pose:number){
+  const upper=RIDER_TUNING.upperArmLength,lower=RIDER_TUNING.forearmLength;
+  reach.copy(wrist).sub(shoulder);let distance=reach.length();reach.normalize();
+  // At extreme body/steering poses the shoulder follows the reach slightly instead
+  // of stretching a bone or pulling the hand off its handlebar.
+  const reachable=T.MathUtils.clamp(distance,Math.abs(upper-lower)+.001,upper+lower-.001);
+  shoulder.addScaledVector(reach,distance-reachable);distance=reachable;
+  bend.set(side*.16,-.24-RIDER_TUNING.throttleElbowDrop*pose,RIDER_TUNING.throttleElbowBack*pose);
+  bend.addScaledVector(reach,-bend.dot(reach)).normalize();
+  const along=(upper*upper-lower*lower+distance*distance)/(2*distance);
+  const height=Math.sqrt(Math.max(0,upper*upper-along*along));
+  elbow.copy(shoulder).addScaledVector(reach,along).addScaledVector(bend,height);
+ }
  const eye=new T.Vector3();let fallBlend=0,wheelieSide=0;
  function update(speed:number,steer:number,dt:number,firstPerson=false,bodyInput=0,throttle=0,fallen=false,wheelie=0){
   const sideTarget=fallen?0:T.MathUtils.smoothstep(wheelie,.08,.65);
@@ -26,7 +42,16 @@ export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,jacketC
   head.position.set(hips.position.x-lean*.70+wheelieSide*(RIDER_TUNING.wheelieSideShift-.06),Math.min(eyeHeight+.025-Math.max(0,foreAft)*.18,1.565),-.1+foreAft*.29);head.rotation.z=lean*.8-wheelieSide*RIDER_TUNING.wheelieSideLean;head.rotation.x=fallen?0:Math.min(wheelie,Math.PI/2);const neckBaseY=Math.max(1.32-Math.max(0,foreAft)*.10,head.position.y-.185);segment(neck,new T.Vector3(torso.position.x,neckBaseY,-.12+foreAft*.20),new T.Vector3(head.position.x,head.position.y-.105,head.position.z),.055);head.visible=!firstPerson;neck.visible=!firstPerson;eye.copy(head.position);eye.z+=.10;
   for(const l of limbs){const side=l.side,inside=side*steer>0?Math.abs(lean)/RIDER_TUNING.maxLean:0;hip.set(side*.12+hips.position.x,.84,-.2);const leftStop=side===1?stopPose:0;ankle.set(side*(.21+leftStop*.27),.3-leftStop*.25,-.05+leftStop*.10);l.knee.set(side*(kneeWidth+inside*RIDER_TUNING.kneeOpening+leftStop*.20)+hips.position.x*.4,.60-leftStop*.15,.22+leftStop*.05);if(leftStop>0){straightKnee.copy(hip).lerp(ankle,.5);straightKnee.z+=.1;l.knee.lerp(straightKnee,leftStop*.75)}segment(l.thigh,hip,l.knee,.075);segment(l.shin,l.knee,ankle,.06);l.foot.position.copy(ankle);l.foot.position.y-=.035;
    // Hands are evaluated in the same parent coordinates as the turning handlebar.
-   hand.set(side*.31,handleY,-.12).applyQuaternion(steering.quaternion).add(steering.position);shoulder.set(side*.16+torso.position.x,1.27-Math.max(0,foreAft)*.10,-.12+foreAft*.20);elbow.copy(shoulder).lerp(hand,.52);elbow.x+=side*.045;elbow.y-=.055;if(side===-1){elbow.y-=RIDER_TUNING.throttleElbowDrop*throttlePose;elbow.z+=RIDER_TUNING.throttleElbowBack*throttlePose;}segment(l.upperArm,shoulder,elbow,.06);segment(l.forearm,elbow,hand,.05);l.hand.position.copy(hand);l.hand.rotation.x=side===-1?-RIDER_TUNING.throttleWrist*throttlePose:0;
+   hand.set(side*.31,handleY,-.12).applyQuaternion(steering.quaternion).add(steering.position);
+   const twist=side===-1?throttlePose:0;
+   l.hand.position.copy(hand);
+   l.hand.quaternion.copy(steering.quaternion).multiply(wristTurn.setFromAxisAngle(gripAxis,-RIDER_TUNING.throttleWrist*twist));
+   if(l.hand.rotation.x===0)l.hand.rotation.x=0;
+   // Follow the back of the rotating hand, not its grip centre, keeping the cuff attached.
+   wrist.set(0,0,-RIDER_TUNING.wristOffset).applyQuaternion(l.hand.quaternion).add(hand);
+   shoulder.set(side*.16+torso.position.x,1.27-Math.max(0,foreAft)*.10,-.12+foreAft*.20);
+   solveArm(side,twist);
+   segment(l.upperArm,shoulder,elbow,.06);segment(l.forearm,elbow,wrist,.05);
   }
   root.position.set(0,-.2*fallBlend,-.8*fallBlend);root.rotation.set(-.95*fallBlend,0,.12*fallBlend);
  }
