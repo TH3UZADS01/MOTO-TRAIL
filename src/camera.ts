@@ -6,10 +6,13 @@ export const CAMERA_TUNING={minLookPitch:-1.05,maxLookPitch:.65,baseFov:70,maxFo
 export class FollowCamera {
  camera=new T.PerspectiveCamera(52,typeof innerWidth==='number'?innerWidth/innerHeight:16/9,.04,900);look=new T.Vector3();target=new T.Vector3();initialized=false;orbit=0;pitch=0;firstPerson=false;
  private wheelieLook=0;private braking=0;private shake=0;private shakeLeft=0;private time=0;
- toggle(){this.firstPerson=!this.firstPerson;this.initialized=false;this.orbit=0;this.pitch=0;this.camera.fov=this.firstPerson?CAMERA_TUNING.baseFov:52;this.camera.updateProjectionMatrix()}
+ private firstFov=CAMERA_TUNING.baseFov;private thirdFov=52;
+ // Saved vertical FOV; speed adds the existing 25-degree range, capped for comfort.
+ setFov(first:number,third:number){this.firstFov=Number.isFinite(first)?T.MathUtils.clamp(first,55,90):70;this.thirdFov=Number.isFinite(third)?T.MathUtils.clamp(third,40,75):52;if(!this.firstPerson){this.camera.fov=this.thirdFov;this.camera.updateProjectionMatrix()}}
+ toggle(){this.firstPerson=!this.firstPerson;this.initialized=false;this.orbit=0;this.pitch=0;this.camera.fov=this.firstPerson?this.firstFov:this.thirdFov;this.camera.updateProjectionMatrix()}
  update(r:Ride,dt:number,eyeHeight=1.48,body?:T.Object3D,eye?:T.Vector3){dt=Math.max(0,Math.min(dt,.1));this.time+=dt;const c=CAMERA_TUNING,a=r.heading+this.orbit,impact=r.takeImpact();if(impact>c.impactMinimum){this.shake=Math.min(1,impact/c.impactReference);this.shakeLeft=c.shakeDuration}
   const braking=r.brakeInput*T.MathUtils.clamp(Math.abs(r.speed)/8,0,1);this.braking=T.MathUtils.lerp(this.braking,braking,1-Math.exp(-dt*c.brakeResponse));this.shakeLeft=Math.max(0,this.shakeLeft-dt);const envelope=this.shakeLeft/Math.max(.001,c.shakeDuration),shock=this.shake*envelope*envelope;
-  if(this.firstPerson){const targetFov=T.MathUtils.lerp(c.baseFov,c.maxFov,T.MathUtils.clamp(Math.abs(r.speed)/r.topSpeed,0,1))-c.brakeFov*this.braking;this.camera.fov=T.MathUtils.lerp(this.camera.fov,targetFov,1-Math.exp(-dt*c.fovResponse));this.camera.updateProjectionMatrix();
+  if(this.firstPerson){const targetFov=T.MathUtils.lerp(this.firstFov,Math.min(105,this.firstFov+c.maxFov-c.baseFov),T.MathUtils.clamp(Math.abs(r.speed)/r.topSpeed,0,1))-c.brakeFov*this.braking;this.camera.fov=T.MathUtils.lerp(this.camera.fov,targetFov,1-Math.exp(-dt*c.fovResponse));this.camera.updateProjectionMatrix();
    if(body&&eye){body.updateWorldMatrix(true,false);this.target.copy(eye);this.target.z+=c.eyeOffsetZ;body.localToWorld(this.target)}else this.target.set(r.x,r.y+eyeHeight,r.z);
    const advance=this.braking*c.brakeAdvance-shock*c.recoil;this.target.x+=Math.sin(r.heading)*advance;this.target.z+=Math.cos(r.heading)*advance;this.target.y-=this.braking*.025;
    this.camera.position.copy(this.target);this.camera.position.x+=Math.cos(this.time*93)*shock*c.shakeIntensity;this.camera.position.y+=Math.sin(this.time*117)*shock*c.shakeIntensity;

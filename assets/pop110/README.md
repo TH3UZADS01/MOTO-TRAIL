@@ -1,20 +1,19 @@
-# Pop 110 — modelo Blender
+# Pop 110 — modelo do usuário texturizado
 
-Modelo low-poly baseado na referência fornecida pelo usuário, sem textos, logotipos ou piloto incorporado.
+A geometria fornecida foi preservada e ajustada à escala do piloto e aos pivôs do jogo. Originais intactos em `source-user/pop110.blend` e `source-user/pop110.glb`.
 
-- `pop110.blend`: fonte editável. A coleção PreviewStudio contém somente cenário de renderização.
-- `../../public/models/pop110.glb`: exportação somente da moto.
-- `../../src/assets/pop110-model.json`: as mesmas malhas e pivôs, carregados sincronamente pelo jogo para preservar a criação de motos local e online.
-- `pop110-preview.png`: renderização do Blender.
+- `pop110.blend`: modelo editável com UVs e imagens de textura empacotadas. PreviewStudio contém apenas o cenário de renderização.
+- `../../public/models/pop110.glb`: moto exportada com materiais e texturas.
+- `../../src/assets/pop110-model.json`: mesmas malhas, materiais, UVs e pivôs usados pelo jogo.
+- `../../public/models/pop110-textures/`: texturas repetíveis de pintura, banco, borracha, plástico e metal; cor e rugosidade.
+- `pop110-textured-preview.png`: prévia do Blender.
 
-Grupos: Body, Steering, FrontSuspension, RearSuspension, FrontWheel e RearWheel. A roda e suspensão dianteiras são filhas de Steering; as rodas têm origem no eixo. Paint identifica as partes personalizáveis. O piloto é adicionado pelo sistema existente.
+66.545 triângulos e 20 grupos de material. Body, Steering, FrontSuspension, RearSuspension, FrontWheel e RearWheel mantêm peças separadas. Rodas giram em seus eixos; suspensão dianteira acompanha Steering. Paint identifica as carenagens personalizáveis. Piloto e luzes são adicionados pelo jogo.
 
-12.112 triângulos, 31 malhas agrupadas por material. Coordenadas do jogo: X transversal, Y vertical, Z para frente; no Blender, X transversal, Z vertical, -Y para frente.
-
-Para reconstruir a partir da raiz do projeto:
+Para reconstruir esta versão a partir dos originais preservados:
 
 ```powershell
-& 'D:\BLENDER\blender.exe' --background --factory-startup --python tools/build_pop_blender.py
+& 'D:\BLENDER\blender.exe' --background --factory-startup --threads 4 --python tools/texture_pop_source.py
 ```
 
-O script regenera o .blend, GLB, JSON e a prévia. Alterações manuais no .blend não são preservadas por essa reconstrução.
+O script sobrescreve os resultados, não os arquivos em source-user. Alterações posteriores no blend final devem ser preservadas antes de reconstruir. O antigo build_pop_blender.py cria outra geometria; não o execute para atualizar este modelo.

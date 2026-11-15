@@ -1,5 +1,5 @@
 import type {VehicleId} from './vehicles';
-export const capacities:Record<VehicleId,number>={pop:4.2,cub:4,urban:4,caloi:2.7,cg150:5.2};
+export const capacities:Record<VehicleId,number>={pop:4.2,cub:4,urban:4,caloi:2.7,cg150:5.2,sahara:14};
 export const CONSUMPTION_MULTIPLIER=1.10; // Includes distance and idle consumption, not refill or capacity.
 export class Fuel {
  private tanks={...capacities};

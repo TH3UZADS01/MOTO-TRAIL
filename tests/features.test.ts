@@ -1,4 +1,5 @@
 import {test} from 'node:test';
+import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
 import {axis,BrakePushAssist,Controller,touchSteering} from '../src/input';
 import {createBike,disposeBike} from '../src/vehicle-models';
@@ -14,4 +15,18 @@ test('touch direction buttons match keyboard steering direction',()=>{assert.equ
 test('holding brake for one second while stopped starts and sustains reverse push',()=>{const assist=new BrakePushAssist();assert.equal(assist.update(1,0,.5),false);assert.equal(assist.update(1,0,.49),false);assert.equal(assist.update(1,0,.02),true);assert.equal(assist.update(1,-.8,.1),true);assert.equal(assist.update(0,-.8,.1),false);assert.equal(assist.update(1,5,1.1),false);assert.equal(assist.update(1,0,1),true)});
 test('push backwards escapes an overlapping obstacle without teleporting',()=>{const r=new Ride(),x=r.x,z=r.z,dx=Math.sin(r.heading),dz=Math.cos(r.heading),o=[{x:x+dx*.65,z:z+dz*.65,r:.5}];for(let i=0;i<120;i++)r.step(1/60,0,0,0,o,true);assert.ok(r.speed<0);assert.ok((r.x-x)*dx+(r.z-z)*dz< -1);assert.ok(r.distance>1);const d=r.distance;for(let i=0;i<60;i++)r.step(1/60,0,0,0,o);assert.equal(r.speed,0);assert.ok(r.distance>=d);});
 test('pushing at speed first brakes before moving backwards',()=>{const r=new Ride();r.speed=15;r.step(1/60,0,0,0,[],true);assert.ok(r.speed>14);});
-test('all vehicle models have distinct geometry and dispose GPU resources',()=>{const counts=[];for(const spec of vehicles){const b=createBike(spec.id);assert.equal(b.wheels.length,2);assert.ok(b.rider.children.length>0);let meshes=0,disposed=0;b.root.traverse(o=>{if(o instanceof T.Mesh){meshes++;o.geometry.addEventListener('dispose',()=>disposed++)}});counts.push(meshes);disposeBike(b);assert.ok(disposed>0)}assert.equal(new Set(counts).size,vehicles.length);});
+// Different bikes may legitimately use the same number of batched meshes.
+test('all vehicle models have distinct geometry and dispose GPU resources',()=>{
+ const fingerprints=[];
+ for(const spec of vehicles){
+  const b=createBike(spec.id);assert.equal(b.wheels.length,2);assert.ok(b.rider.children.length>0);
+  const hash=createHash('sha256');let disposed=0;
+  b.root.traverse(o=>{if(o instanceof T.Mesh){
+   const positions=o.geometry.getAttribute('position').array;
+   hash.update(Buffer.from(positions.buffer,positions.byteOffset,positions.byteLength));
+   o.geometry.addEventListener('dispose',()=>disposed++);
+  }});
+  fingerprints.push(hash.digest('hex'));disposeBike(b);assert.ok(disposed>0);
+ }
+ assert.equal(new Set(fingerprints).size,vehicles.length);
+});

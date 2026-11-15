@@ -84,7 +84,7 @@ export class Ride {
      const activeWheelie=!hit&&!push&&!this.engine.stalled&&throttle>0&&(airborne||physicalWheelieMargin>0)&&this.speed>=BODY_TUNING.minWheelieSpeed;
     // Extra lift only during the pull/clutch impulse, not during neutral-body balancing.
     const launchLoad=Math.max(clamp(-this.bodyLean,0,1),clamp((this.engine.clutchKickGain-1)/BODY_TUNING.clutchBoost,0,1));
-    const pitchMoment=activeWheelie?wheeliePhysics.pitchTorque*BODY_TUNING.wheeliePitchForceScale*(1+BODY_TUNING.launchPitchBoost*launchLoad):0;
+    const pitchMoment=activeWheelie?wheeliePhysics.pitchTorque*BODY_TUNING.wheeliePitchForceScale*(this.spec.wheelieAssist??1)*(1+BODY_TUNING.launchPitchBoost*launchLoad):0;
      const mass=(this.spec.mass??100)+this.spec.riderMass;
      const gravityMoment=wheeliePhysics.stabilizingTorque*Math.cos(this.wheelie)-mass*9.81*this.spec.centerOfMassHeight*Math.sin(this.wheelie)*BODY_TUNING.gravityLiftFactor;
     const brakeMoment=brake*wheeliePhysics.stabilizingTorque*1.6;

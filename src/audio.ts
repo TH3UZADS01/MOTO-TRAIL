@@ -4,13 +4,15 @@ import type {RemotePlayer} from './network';
 import {getVehicle,type VehicleId} from './vehicles';
 // High-RPM recordings supplied by the user; gains, pitch range and crossfade are tunable.
 export const CG_AUDIO_TUNING={accelerationGain:.45,coastGain:.4,idleGain:.12,minRate:.65,maxRate:1.1,response:.16,filter:7000};
+export const SAHARA_AUDIO_TUNING={accelerationGain:.46,coastGain:.40,idleGain:.10,minRate:.55,maxRate:1.10,response:.16,filter:6500};
 export const AUDIO_ASSETS=[
  {name:'engine-idle',bank:'engine',load:false},{name:'engine-load',bank:'engine',load:true},
  {name:'moped-idle',bank:'moped',load:false},{name:'moped-load',bank:'moped',load:true},
  {name:'wind',bank:'wind',load:false},{name:'cg150-on-high',bank:'cg150',load:true},
- {name:'cg150-off-high',bank:'cg150',load:false}
+ {name:'cg150-off-high',bank:'cg150',load:false},
+ {name:'sahara-on-high',bank:'sahara',load:true},{name:'sahara-off-high',bank:'sahara',load:false}
 ] as const;
-type Layer={source:AudioBufferSourceNode;gain:GainNode;filter:BiquadFilterNode;bank:'engine'|'moped'|'wind'|'cg150';load:boolean};
+type Layer={source:AudioBufferSourceNode;gain:GainNode;filter:BiquadFilterNode;bank:'engine'|'moped'|'wind'|'cg150'|'sahara';load:boolean};
 type Position={x:number;y:number;z:number};
 type RemoteVoice={gain:GainNode;pan:StereoPannerNode;horns:Set<AudioBufferSourceNode>};
 export class Sound {
@@ -52,7 +54,7 @@ export class Sound {
  private async load(){const c=this.ctx!,names=[...AUDIO_ASSETS.map(a=>a.name),'horn'];
   const buffers=await Promise.all(names.map(async name=>{const response=await fetch(`/audio/${name}.wav`);if(!response.ok)throw new Error(`Não foi possível carregar ${name}`);return c.decodeAudioData(await response.arrayBuffer())}));
   const limiter=c.createDynamicsCompressor();this.output=limiter;limiter.threshold.value=-10;limiter.knee.value=12;limiter.ratio.value=6;limiter.attack.value=.008;limiter.release.value=.2;limiter.connect(c.destination);this.effectsOutput=c.createGain();this.effectsOutput.gain.value=this.effects;this.effectsOutput.connect(limiter);
-  buffers.slice(0,AUDIO_ASSETS.length).forEach((buffer,i)=>{const asset=AUDIO_ASSETS[i];const source=c.createBufferSource(),gain=c.createGain(),filter=c.createBiquadFilter();source.buffer=buffer;source.loop=true;gain.gain.value=0;filter.type='lowpass';filter.frequency.value=asset.bank==='wind'?700:asset.bank==='cg150'?CG_AUDIO_TUNING.filter:1800;source.connect(filter);filter.connect(gain);gain.connect(limiter);source.start();this.layers.push({source,gain,filter,bank:asset.bank,load:asset.load})});
+  buffers.slice(0,AUDIO_ASSETS.length).forEach((buffer,i)=>{const asset=AUDIO_ASSETS[i];const source=c.createBufferSource(),gain=c.createGain(),filter=c.createBiquadFilter();source.buffer=buffer;source.loop=true;gain.gain.value=0;filter.type='lowpass';filter.frequency.value=asset.bank==='wind'?700:asset.bank==='cg150'?CG_AUDIO_TUNING.filter:asset.bank==='sahara'?SAHARA_AUDIO_TUNING.filter:1800;source.connect(filter);filter.connect(gain);gain.connect(limiter);source.start();this.layers.push({source,gain,filter,bank:asset.bank,load:asset.load})});
   this.hornBuffer=buffers[AUDIO_ASSETS.length];this.ready=true;
   while(this.queuedDiscoveries>0){this.queuedDiscoveries--;this.scheduleDiscovery()}
   if(this.crashQueued){this.crashQueued=false;this.playCrash()}
@@ -98,10 +100,10 @@ export class Sound {
   const revBlip=engine?.revMatchEnvelope??(engine&&engine.revMatchTime&&engine.revMatchTime>0?Math.sin(Math.PI*(1-engine.revMatchTime/ENGINE_TUNING.revMatchDuration)):0);
   for(const layer of this.layers){let gain=0,rate=1;
    if(layer.bank==='wind')gain=paused?0:this.ambience*(.06+ratio*.16);
-   else if(layer.bank==='cg150'&&spec.audio==='cg150'&&!paused){
+   else if((layer.bank==='cg150'||layer.bank==='sahara')&&layer.bank===spec.audio&&!paused){
     // Throttle selects acceleration; releasing it (or braking) exposes the coast loop.
     // Both loops run continuously so switching never retriggers the recording.
-    const gas=Math.max(0,Math.min(1,throttle))*(1-Math.max(0,Math.min(1,brake))),moving=Math.min(1,v/5),tuning=CG_AUDIO_TUNING;
+    const gas=Math.max(0,Math.min(1,throttle))*(1-Math.max(0,Math.min(1,brake))),moving=Math.min(1,v/5),tuning=layer.bank==='sahara'?SAHARA_AUDIO_TUNING:CG_AUDIO_TUNING;
     gain=this.volume*(layer.load?tuning.accelerationGain*Math.sqrt(gas):(tuning.idleGain+(tuning.coastGain-tuning.idleGain)*moving)*Math.sqrt(1-gas));
     rate=tuning.minRate+(tuning.maxRate-tuning.minRate)*Math.max(rev,gas*.3);layer.filter.frequency.setTargetAtTime(tuning.filter,t,.25);
    }

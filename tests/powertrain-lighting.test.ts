@@ -45,7 +45,9 @@ test('manual shifting stays player-controlled, blocks over-rev downshifts, and a
 test('every gear has one redline and a redline-derived speed with positive torque at cutoff',()=>{
  for(const spec of vehicles){
   const engine=new Powertrain();
-  assert.ok(Math.abs(engine.speedAtRedline(spec,spec.gears)-spec.maxSpeed)<.001,`${spec.id} top gear must reach redline at its configured top speed`);
+  // The Sahara preserves factory ratios: aerodynamic top speed can precede redline.
+  if(spec.id==='sahara')assert.ok(engine.speedAtRedline(spec,spec.gears)>spec.maxSpeed);
+  else assert.ok(Math.abs(engine.speedAtRedline(spec,spec.gears)-spec.maxSpeed)<.001,`${spec.id} top gear must reach redline at its configured top speed`);
   for(let gear=1;gear<=spec.gears;gear++){
    const speed=engine.speedAtRedline(spec,gear);
    assert.ok(speed>0&&Number.isFinite(speed),`${spec.id} gear ${gear} speed`);
@@ -118,5 +120,5 @@ test('day cycle wraps continuously, sunrise/sunset fade, night lights preserve v
  const noon=sampleDay(timeAt(12)),midnight=sampleDay(timeAt(0));assert.equal(noon.daylight,1);assert.equal(noon.night,0);assert.equal(midnight.daylight,0);assert.equal(midnight.night,1);assert.ok(noon.elevation>.99&&midnight.elevation<-.99);
  for(let t=0;t<DAY_TUNING.cycleSeconds*1000;t+=1000){const a=sampleDay(t),b=sampleDay(t+10);assert.ok(Math.abs(a.daylight-b.daylight)<.01);assert.ok(Math.abs(a.night-b.night)<.01);assert.ok(Math.abs(a.elevation-sampleDay(t+DAY_TUNING.cycleSeconds*1000).elevation)<1e-12)}
  const scene=new T.Scene();scene.background=new T.Color();scene.fog=new T.Fog(0,150,700);const sun=new T.DirectionalLight(),ambient=new T.HemisphereLight(),cycle=new DayCycle(scene,sun,ambient,makeSky(scene));cycle.update(timeAt(0),0,20,0,0,700);assert.ok(sun.intensity>0&&ambient.intensity>0);assert.ok((scene.fog as T.Fog).far>400);
- for(const v of vehicles){const b=createBike(v.id);b.headlight.update(1);assert.ok(b.headlight.light.intensity>0);assert.equal(b.headlight.light.castShadow,false);assert.equal(b.headlight.light.parent,b.steering);b.headlight.update(0);assert.equal(b.headlight.light.intensity,0);assert.equal(b.headlight.lens.visible,false);disposeBike(b)}
+ for(const v of vehicles){const b=createBike(v.id);b.headlight.update(1);assert.ok(b.headlight.light.intensity>0);assert.equal(b.headlight.light.castShadow,false);assert.ok(b.headlight.light.parent===((v.id==='sahara'||v.id==='pop')?b.body:b.steering));b.headlight.update(0);assert.equal(b.headlight.light.intensity,0);assert.equal(b.headlight.lens.visible,false);disposeBike(b)}
 });

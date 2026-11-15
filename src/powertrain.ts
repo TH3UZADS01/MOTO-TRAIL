@@ -92,7 +92,7 @@ export class Powertrain {
   const maxKmh=spec.wheelieMaxSpeedKmh[this.gear-1]??0;
   if(maxKmh<=0||speed*3.6>maxKmh||speed<BODY_TUNING.minWheelieSpeed||throttle<.45||this.limiting||this.clutch<.12)return 0;
   const {pitchTorque,stabilizingTorque}=this.wheeliePhysics(spec,speed,throttle,bodyLean);
-  return pitchTorque*BODY_TUNING.wheeliePitchForceScale>=stabilizingTorque*BODY_TUNING.wheelieForceMargin?1:0;
+  return pitchTorque*BODY_TUNING.wheeliePitchForceScale*(spec.wheelieAssist??1)>=stabilizingTorque*BODY_TUNING.wheelieForceMargin?1:0;
  }
  reset(){this.resetClutchKick();this.gear=1;this.rpm=ENGINE_TUNING.idleRpm;this.ratio=0;this.limiting=false;this.cutting=false;this.clutch=0;this.lugging=false;this.shiftTime=0;this.shiftCooldown=0;this.phase=0;this.revMatchTime=0;this.revMatchPeak=0;this.stalled=false}
  requestShift(direction:-1|1,speed:number,spec:VehicleSpec,_topSpeed:number,realistic=false){

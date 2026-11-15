@@ -1,12 +1,14 @@
 import {makeHeadlight} from './headlight';
+import {createSahara} from './sahara';
 import {createCG150} from './cg150';
+import {createCub} from './cub';
 import {createRider} from './rider';
 import * as T from 'three';
 import {createPop} from './vehicle';
 import {getVehicle,type VehicleId} from './vehicles';
 import {CARAMELO_PET_TUNING,createCarameloPet} from './caramelos-mission';
 export function createBike(id:VehicleId='pop'){
- const bike=buildBike(id),brakeLight=createBrakeLight(bike.body,bike.wheels[0].position.z-(id==='pop'?.115:id==='cg150'?.135:0));
+ const bike=id==='sahara'?createSahara():id==='cub'?createCub():buildBike(id),brakeLight=createBrakeLight(bike.body,bike.wheels[0].position.z-(id==='pop'?.115:id==='cg150'?.135:id==='cub'?.14:id==='sahara'?.16:0));
  const passengerPetAnchor=new T.Group();passengerPetAnchor.name='passenger-pet-anchor';
  const seatAnchor=id==='cg150'?[0,.85,-.52]:id==='cub'?[0,.82,-.35]:id==='caloi'?[0,.83,-.5]:[0,.84,-.52];
  passengerPetAnchor.position.set(
@@ -17,9 +19,15 @@ export function createBike(id:VehicleId='pop'){
  passengerPetAnchor.rotation.set(CARAMELO_PET_TUNING.rotation.x,CARAMELO_PET_TUNING.rotation.y,CARAMELO_PET_TUNING.rotation.z);
  passengerPetAnchor.scale.setScalar(CARAMELO_PET_TUNING.scale);bike.body.add(passengerPetAnchor);
  const pet=createCarameloPet(passengerPetAnchor);
- const headlight=makeHeadlight(bike.steering,getVehicle(id).eyeHeight);
+ const headlight=makeHeadlight(id==='sahara'||id==='pop'?bike.body:bike.steering,getVehicle(id).eyeHeight);
  // Match the Blender CG's round lens; coordinates are relative to the steering pivot.
  if(id==='cg150'){headlight.light.position.set(0,1.01,.071);headlight.lens.position.copy(headlight.light.position)}
+ if(id==='cub'){headlight.light.position.set(0,1.01,.114);headlight.lens.position.copy(headlight.light.position)}
+ if(id==='sahara'){headlight.light.position.set(0,1.115,.752);headlight.lens.position.copy(headlight.light.position)}
+ if(id==='pop'){
+  const glass=bike.body.getObjectByName('Body_Headlamp') as T.Mesh|undefined;
+  if(glass?.geometry.boundingBox){const bounds=glass.geometry.boundingBox;bounds.getCenter(headlight.light.position);headlight.light.position.z=bounds.max.z+.012;headlight.lens.position.copy(headlight.light.position)}
+ }
  return {...bike,headlight,brakeLight,passengerPetAnchor,pet};
 }
 function createBrakeLight(body:T.Group,rearZ:number){
@@ -29,6 +37,7 @@ function createBrakeLight(body:T.Group,rearZ:number){
  const lens=imported??new T.Mesh(new T.SphereGeometry(1,16,10),material);
  if(!imported){lens.name='brake-light';lens.position.set(0,.69,rearZ-.16);lens.scale.set(.09,.045,.025);body.add(lens)}
  const glow=new T.PointLight(0xff1717,0,2.4,2);glow.position.set(0,.69,rearZ-.2);glow.name='brake-light-glow';body.add(glow);
+ if(imported?.geometry.boundingBox){imported.geometry.boundingBox.getCenter(glow.position);glow.position.z=imported.geometry.boundingBox.min.z-.035}
  let intensity=0;
  return {lens,glow,update(brake:number,dt:number){const target=T.MathUtils.clamp(brake,0,1);intensity=T.MathUtils.lerp(intensity,target,1-Math.exp(-18*Math.max(0,dt)));material.emissiveIntensity=.12+intensity*2.8;glow.intensity=intensity*1.6}};
 }
@@ -100,4 +109,4 @@ function buildBike(id:VehicleId){
  return {root,body,steering,wheels,rider,riderRig,paintMaterials:[paint]};
 }
 
-export function disposeBike(bike:ReturnType<typeof createBike>){const geometries=new Set<T.BufferGeometry>(),materials=new Set<T.Material>();bike.root.traverse(o=>{if(o instanceof T.Mesh){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m)}});geometries.forEach(g=>g.dispose());materials.forEach(m=>{if(m instanceof T.MeshStandardMaterial)m.map?.dispose();m.dispose()});}
+export function disposeBike(bike:ReturnType<typeof createBike>){const geometries=new Set<T.BufferGeometry>(),materials=new Set<T.Material>(),textures=new Set<T.Texture>();bike.root.traverse(o=>{if(o instanceof T.Mesh){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m)}});geometries.forEach(g=>g.dispose());materials.forEach(m=>{if(m instanceof T.MeshStandardMaterial){if(m.map)textures.add(m.map);if(m.roughnessMap)textures.add(m.roughnessMap)}m.dispose()});textures.forEach(t=>t.dispose());}

@@ -9,7 +9,7 @@ const chrome=spawn('C:/Program Files/Google/Chrome/Application/chrome.exe',[
 ],{windowsHide:true,stdio:'ignore'});
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 const baseUrl=process.argv[2]||'http://127.0.0.1:5186';
-const vehicle=process.argv[3]||'pop',asset=vehicle==='cg150'?'cg150':'pop110';
+const vehicle=process.argv[3]||'pop',asset=vehicle==='sahara'?'sahara':vehicle==='cg150'?'cg150':vehicle==='cub'?'cub':'pop110';
 let ws;
 try{
  let tabs;for(let i=0;i<30;i++){try{tabs=await(await fetch('http://127.0.0.1:9334/json')).json();break}catch{await delay(500)}}

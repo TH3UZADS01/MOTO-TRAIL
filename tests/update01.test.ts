@@ -11,7 +11,7 @@ import {Fuel} from '../src/fuel';
 function flatStep(r:Ride,body:number,gas=1,brake=0,automatic=true){r.x=-310;r.z=0;r.heading=0;r.contact=()=>{r.pitch=0};r.step(1/60,gas,brake,0,[],false,body,automatic)}
 test('left stick Y controls body independently of steering and resets on disconnect',()=>{const c=new Controller(),buttons=Array.from({length:16},()=>({pressed:false,value:0})),pad={id:'test',connected:true,mapping:'standard',axes:[.5,-1,0,0],buttons} as unknown as Gamepad;let s=c.poll(.14,1,[pad]);assert.equal(s.body,1);assert.ok(s.turn<0);buttons[12].pressed=true;assert.equal(c.poll(.14,1,[pad]).shiftUp,true);assert.equal(c.poll(.14,1,[pad]).shiftUp,false);buttons[12].pressed=false;buttons[13].pressed=true;assert.equal(c.poll(.14,1,[pad]).shiftDown,true);pad.axes[1]=1;assert.equal(c.poll(.14,1,[pad]).body,-1);assert.equal(c.poll(.14,1,[]).body,0)});
 test('aerodynamic tuck helps each motorcycle reach its fixed top speed',()=>{for(const spec of vehicles){
- const expectedTopSpeeds:Record<string,number>={cg150:132,pop:115,cub:82.8,urban:92,caloi:57.5};
+ const expectedTopSpeeds:Record<string,number>={sahara:150,cg150:132,pop:115,cub:82.8,urban:92,caloi:57.5};
  assert.ok(Math.abs(spec.maxSpeed*3.6-expectedTopSpeeds[spec.id])<1e-9,`${spec.id} top speed`);
  const ride=new Ride();ride.spec=spec;assert.equal(ride.topSpeed,spec.maxSpeed);
  for(let i=0;i<60*180;i++)flatStep(ride,0);
