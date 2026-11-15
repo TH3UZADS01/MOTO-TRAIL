@@ -19,11 +19,11 @@ try{
  const call=(method,params={})=>new Promise((resolve,reject)=>{const id=++seq;pending.set(id,{resolve,reject});ws.send(JSON.stringify({id,method,params}))});
  await call('Runtime.enable');await call('Page.enable');
  await call('Emulation.setDeviceMetricsOverride',{width:1400,height:1000,deviceScaleFactor:1,mobile:false});
- for(const view of ['model','first']){
+ for(const view of (process.argv[4]?.split(',')||['model','first'])){
   await call('Page.navigate',{url:`${baseUrl}/?inspect=${view}&vehicle=${vehicle}&hour=12&quality=alto`});
   await delay(12000);
   const shot=await call('Page.captureScreenshot',{format:'png'});
-  writeFileSync(`assets/${asset}/${asset}-${view==='model'?'in-game':'first-person'}.png`,Buffer.from(shot.data,'base64'));
+  writeFileSync(`assets/${asset}/${asset}-${view==='model'?'in-game':view==='first'?'first-person':view}.png`,Buffer.from(shot.data,'base64'));
  }
  console.log(JSON.stringify({errors}));
 }finally{ws?.close();chrome.kill()}

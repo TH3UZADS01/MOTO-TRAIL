@@ -1,13 +1,15 @@
 import * as T from 'three';
 // Radians, metres and response per second. Shared by local and remote riders.
-export const RIDER_TUNING={intensity:.30,response:7,maxLean:.28,fullEffectSpeed:12,steerReference:.56,steerSpeedScale:5.8,hipShift:.22,kneeOpening:.10,upperArmLength:.32,forearmLength:.29,wristOffset:.045,throttleWrist:.85,throttleElbowDrop:.08,throttleElbowBack:.10,wheelieSideShift:.34,wheelieSideLean:.18,wheelieSideResponse:6};
+export const RIDER_TUNING={bodyScale:.85,intensity:.30,response:7,maxLean:.28,fullEffectSpeed:12,steerReference:.56,steerSpeedScale:5.8,hipShift:.22,kneeOpening:.10,upperArmLength:.32,forearmLength:.29,wristOffset:.045,throttleWrist:.85,throttleElbowDrop:.08,throttleElbowBack:.10,wheelieSideShift:.34,wheelieSideLean:.18,wheelieSideResponse:6};
 export type RiderRig=ReturnType<typeof createRider>;
 export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,jacketColor=0xc88b48,kneeWidth=.22){
  const root=new T.Group(),head=new T.Group();root.name='animated-rider';
+ // Scale anatomy around the saddle, not the rig: grip and ground targets stay in bike space.
+ const size=RIDER_TUNING.bodyScale;
  const mat=(color:number)=>new T.MeshStandardMaterial({color,roughness:.8});
  const jacket=mat(jacketColor),pants=mat(0x33454e),skin=mat(0xbd9874),black=mat(0x20272b),helmet=mat(0xe9dfbf);
  const mesh=(parent:T.Object3D,g:T.BufferGeometry,m:T.Material)=>{const o=new T.Mesh(g,m);o.castShadow=o.receiveShadow=true;parent.add(o);return o};
- const ell=(parent:T.Object3D,m:T.Material,x:number,y:number,z:number,a:number,b:number,c:number)=>{const o=mesh(parent,new T.SphereGeometry(1,12,8),m);o.position.set(x,y,z);o.scale.set(a,b,c);return o};
+ const ell=(parent:T.Object3D,m:T.Material,x:number,y:number,z:number,a:number,b:number,c:number)=>{const o=mesh(parent,new T.SphereGeometry(1,12,8),m);const offset=parent===root?1:size;o.position.set(x*offset,y*offset,z*offset);o.scale.set(a*size,b*size,c*size);return o};
  const neck=mesh(root,new T.CylinderGeometry(1,1,1,8),skin);
  const hips=ell(root,pants,0,.86,-.21,.14,.11,.14),torso=ell(root,jacket,0,1.13,-.17,.175,.25,.12);root.add(head);
  ell(head,helmet,0,0,0,.133,.156,.133);ell(head,black,0,.01,.13,.11,.069,.025);
@@ -31,6 +33,7 @@ export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,jacketC
   const height=Math.sqrt(Math.max(0,upper*upper-along*along));
   elbow.copy(shoulder).addScaledVector(reach,along).addScaledVector(bend,height);
  }
+ const neckBase=new T.Vector3(),neckTop=new T.Vector3();
  const eye=new T.Vector3();let fallBlend=0,wheelieSide=0;
  function update(speed:number,steer:number,dt:number,firstPerson=false,bodyInput=0,throttle=0,fallen=false,wheelie=0){
   const sideTarget=fallen?0:T.MathUtils.smoothstep(wheelie,.08,.65);
@@ -39,9 +42,16 @@ export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,jacketC
   throttlePose=T.MathUtils.lerp(throttlePose,T.MathUtils.clamp(throttle,0,1),1-Math.exp(-10*Math.max(0,dt)));
   const stopTarget=1-T.MathUtils.smoothstep(Math.abs(speed),.12,.65);stopPose=T.MathUtils.lerp(stopPose,stopTarget,1-Math.exp(-5*Math.max(0,dt)));
   foreAft=T.MathUtils.lerp(foreAft,T.MathUtils.clamp(bodyInput,-1,1),1-Math.exp(-RIDER_TUNING.response*Math.max(0,dt)));const motion=T.MathUtils.clamp(Math.abs(speed)/RIDER_TUNING.fullEffectSpeed,0,1),angle=steer*RIDER_TUNING.steerReference/(1+(speed/RIDER_TUNING.steerSpeedScale)**2),turnLoad=angle/RIDER_TUNING.steerReference*(1+Math.abs(speed)/RIDER_TUNING.steerSpeedScale),target=T.MathUtils.clamp(-turnLoad*motion*RIDER_TUNING.intensity,-RIDER_TUNING.maxLean,RIDER_TUNING.maxLean);lean=T.MathUtils.lerp(lean,target,1-Math.exp(-RIDER_TUNING.response*Math.max(0,dt)));
-  hips.position.z=-.21-foreAft*.035;hips.position.x=-lean*RIDER_TUNING.hipShift+wheelieSide*.06;hips.rotation.z=lean*.4;torso.position.x=hips.position.x-lean*.35+wheelieSide*.12;torso.rotation.z=lean-wheelieSide*RIDER_TUNING.wheelieSideLean;torso.rotation.x=.10+foreAft*.5;torso.position.z=-.17+foreAft*.12;torso.position.y=1.13-Math.max(0,foreAft)*.06;
-  head.position.set(hips.position.x-lean*.70+wheelieSide*(RIDER_TUNING.wheelieSideShift-.06),Math.min(eyeHeight+.025-Math.max(0,foreAft)*.18,1.565),-.1+foreAft*.29);head.rotation.z=lean*.8-wheelieSide*RIDER_TUNING.wheelieSideLean;head.rotation.x=fallen?0:Math.min(wheelie,Math.PI/2);const neckBaseY=Math.max(1.32-Math.max(0,foreAft)*.10,head.position.y-.185);segment(neck,new T.Vector3(torso.position.x,neckBaseY,-.12+foreAft*.20),new T.Vector3(head.position.x,head.position.y-.105,head.position.z),.055);head.visible=!firstPerson;neck.visible=!firstPerson;eye.copy(head.position);eye.z+=.10;
-  for(const l of limbs){const side=l.side,inside=side*steer>0?Math.abs(lean)/RIDER_TUNING.maxLean:0;hip.set(side*.12+hips.position.x,.84,-.2);const leftStop=side===1?stopPose:0;ankle.set(side*(.21+leftStop*.27),.3-leftStop*.25,-.05+leftStop*.10);l.knee.set(side*(kneeWidth+inside*RIDER_TUNING.kneeOpening+leftStop*.20)+hips.position.x*.4,.60-leftStop*.15,.16+leftStop*.05);if(leftStop>0){straightKnee.copy(hip).lerp(ankle,.5);straightKnee.z+=.1;l.knee.lerp(straightKnee,leftStop*.75)}segment(l.thigh,hip,l.knee,.064);segment(l.shin,l.knee,ankle,.052);l.foot.position.copy(ankle);l.foot.position.y-=.035;
+  hips.position.z=-.21-foreAft*.035;hips.position.x=-lean*RIDER_TUNING.hipShift+wheelieSide*.06;hips.rotation.z=lean*.4;torso.position.x=hips.position.x-lean*.35+wheelieSide*.20;torso.rotation.z=lean-wheelieSide*RIDER_TUNING.wheelieSideLean;torso.rotation.x=.10+foreAft*.5;torso.position.z=-.17+foreAft*.12;torso.position.y=.86+(.27-Math.max(0,foreAft)*.06)*size+Math.max(0,eyeHeight-1.48)*.15;
+  // Attach head and neck to the oriented torso, including tuck, lean and wheelie poses.
+  // The helmet remains upright in wheelies, but its attachment moves with the chest.
+  neckBase.set(0,.19*size,0).applyQuaternion(torso.quaternion).add(torso.position);
+  head.position.set(0,.35*size,.015*size).applyQuaternion(torso.quaternion).add(torso.position);
+  head.rotation.z=torso.rotation.z;head.rotation.x=fallen?0:Math.min(wheelie,Math.PI/2);
+  neckTop.set(0,-.12*size,0).applyQuaternion(head.quaternion).add(head.position);
+  segment(neck,neckBase,neckTop,.047*size);head.visible=!firstPerson;neck.visible=!firstPerson;
+  eye.copy(head.position);eye.z+=.10*size;
+  for(const l of limbs){const side=l.side,inside=side*steer>0?Math.abs(lean)/RIDER_TUNING.maxLean:0;hip.set(side*.12+hips.position.x,.84,-.2);const leftStop=side===1?stopPose:0;ankle.set(side*(.21+leftStop*.27),.3-leftStop*(.3-(.035+.04*size)),-.05+leftStop*.10);l.knee.set(side*(kneeWidth+inside*RIDER_TUNING.kneeOpening+leftStop*.20)+hips.position.x*.4,.60-leftStop*.15,.16*size+leftStop*.05);if(leftStop>0){straightKnee.copy(hip).lerp(ankle,.5);straightKnee.z+=.1;l.knee.lerp(straightKnee,leftStop*.75)}segment(l.thigh,hip,l.knee,.064*size);segment(l.shin,l.knee,ankle,.052*size);l.foot.position.copy(ankle);l.foot.position.y-=.035;
    // Hands are evaluated in the same parent coordinates as the turning handlebar.
    hand.set(side*.31,handleY,-.12).applyQuaternion(steering.quaternion).add(steering.position);
    const twist=side===-1?throttlePose:0;
@@ -50,9 +60,9 @@ export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,jacketC
    if(l.hand.rotation.x===0)l.hand.rotation.x=0;
    // Follow the back of the rotating hand, not its grip centre, keeping the cuff attached.
    wrist.set(0,0,-RIDER_TUNING.wristOffset).applyQuaternion(l.hand.quaternion).add(hand);
-   shoulder.set(side*.16+torso.position.x,1.27-Math.max(0,foreAft)*.10,-.12+foreAft*.20);
+   shoulder.set(side*.16*size,.14*size,.05*size).applyQuaternion(torso.quaternion).add(torso.position);
    solveArm(side,twist);
-   segment(l.upperArm,shoulder,elbow,.051);segment(l.forearm,elbow,wrist,.043);
+   segment(l.upperArm,shoulder,elbow,.051*size);segment(l.forearm,elbow,wrist,.043*size);
   }
   root.position.set(0,-.2*fallBlend,-.8*fallBlend);root.rotation.set(-.95*fallBlend,0,.12*fallBlend);
  }

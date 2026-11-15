@@ -21,7 +21,10 @@ export function createBike(id:VehicleId='pop'){
  const pet=createCarameloPet(passengerPetAnchor);
  const headlight=makeHeadlight(id==='sahara'||id==='pop'?bike.body:bike.steering,getVehicle(id).eyeHeight);
  // Match the Blender CG's round lens; coordinates are relative to the steering pivot.
- if(id==='cg150'){headlight.light.position.set(0,1.01,.071);headlight.lens.position.copy(headlight.light.position)}
+ if(id==='cg150'){
+  const glass=bike.steering.getObjectByName('Steering_Headlamp') as T.Mesh|undefined;
+  if(glass?.geometry.boundingBox){const bounds=glass.geometry.boundingBox;bounds.getCenter(headlight.light.position);headlight.light.position.z=bounds.max.z+.008;headlight.lens.position.copy(headlight.light.position)}
+ }
  if(id==='cub'){headlight.light.position.set(0,1.01,.114);headlight.lens.position.copy(headlight.light.position)}
  if(id==='sahara'){headlight.light.position.set(0,1.115,.752);headlight.lens.position.copy(headlight.light.position)}
  if(id==='pop'){

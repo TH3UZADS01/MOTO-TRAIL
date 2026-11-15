@@ -29,3 +29,23 @@ test('throttle keeps rigid arms connected at elbow and rotating wrist on every m
   disposeBike(b);
  }
 });
+
+test('smaller riders keep the neck embedded in torso and helmet, with the stopped foot on ground',()=>{
+ for(const spec of vehicles){
+  const b=createBike(spec.id),rig=b.riderRig;
+  for(const body of [-1,0,1])for(const wheelie of [0,.7]){
+   for(let i=0;i<120;i++)rig.update(12,.4,1/60,false,body,1,false,wheelie);
+   const base=end(rig.neck,-.5).sub(rig.torso.position).applyQuaternion(rig.torso.quaternion.clone().invert());
+   assert.ok(Math.abs(base.y)<rig.torso.scale.y,'neck base stays inside chest');
+   const top=end(rig.neck,.5).sub(rig.head.position).applyQuaternion(rig.head.quaternion.clone().invert());
+   assert.ok(Math.abs(top.y)<.156*RIDER_TUNING.bodyScale,'neck reaches helmet');
+   const attached=rig.head.position.clone().sub(rig.torso.position).applyQuaternion(rig.torso.quaternion.clone().invert());
+   assert.ok(Math.abs(attached.y-.35*RIDER_TUNING.bodyScale)<1e-8,'head follows chest');
+  }
+  for(let i=0;i<300;i++)rig.update(0,0,1/60,false);
+  const foot=rig.limbs.find(l=>l.side===1)!.foot;
+  assert.ok(Math.abs(foot.position.y-foot.scale.y)<1e-7,'support foot reaches ground in bike space');
+  assert.equal(rig.root.scale.x,1,'contact targets are not scaled with anatomy');
+  disposeBike(b);
+ }
+});

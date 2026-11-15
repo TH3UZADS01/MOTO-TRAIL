@@ -5,3 +5,6 @@ server-data/
 .env
 .env.local
 .env.*.local
+# Local safety copies made by the Titan conversion; final assets remain tracked.
+assets/cg150/previous-model/
+assets/cg150/titan-conversion/*.blend1
