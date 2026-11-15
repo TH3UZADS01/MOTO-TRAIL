@@ -67,6 +67,13 @@ test('clutch flare reaches high RPM without exceeding redline and settles after 
   assert.ok(peak>7900,spec.id);assert.ok(e.rpm<6000,spec.id);assert.equal(e.clutchKickGain,1);
  }
 });
+
+test('clutch wheelie impulse also reaches about 7000 RPM with partial throttle',()=>{
+ for(const spec of vehicles){const e=new Powertrain();let peak=0;
+  for(let time=0;time<.6;time+=1/60){e.update(1/60,3,spec,spec.maxSpeed,.5,0,false,false,true);e.updateClutchKick(1/60,spec,3,.5,0,-1,true);peak=Math.max(peak,e.rpm);assert.ok(e.rpm<spec.redlineRpm)}
+  assert.ok(peak>6800,spec.id);
+ }
+});
 test('muted effects do not queue discovery or crash sounds',()=>{
  const s:any=new Sound();s.effects=0;s.playDiscovery();s.playCrash();assert.equal(s.queuedDiscoveries,0);assert.equal(s.crashQueued,false);
 });

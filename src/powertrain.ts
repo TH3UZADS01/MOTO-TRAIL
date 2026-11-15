@@ -25,7 +25,8 @@ export class Powertrain {
   if(held&&!this.kickHeld&&allowed&&grounded&&this.kickCooldown===0){this.kickHeld=true;this.kickTime=t.clutchCharge+t.clutchRelease;this.kickCooldown=t.clutchCooldown;this.kickGear=this.gear;this.kickBaseRpm=this.rpm}
   if(this.kickTime<=0)return;
   this.kickTime=Math.max(0,this.kickTime-dt);
-  const flare=Math.max(t.clutchRpm,(spec.idleRpm+(spec.redlineRpm-spec.idleRpm)*t.clutchPeakRatio*throttle)-this.kickBaseRpm);
+  // Keep a strong flare even with a partially pressed trigger; the redline clamp below still applies.
+  const flare=Math.max(t.clutchMinimumPeakRpm-this.kickBaseRpm,t.clutchRpm,(spec.idleRpm+(spec.redlineRpm-spec.idleRpm)*t.clutchPeakRatio*throttle)-this.kickBaseRpm);
   if(this.kickTime>t.clutchRelease){
    const charge=1-(this.kickTime-t.clutchRelease)/t.clutchCharge;
    // An RPM target, not an additive boost every frame, keeps the flare consistent at any tick rate.

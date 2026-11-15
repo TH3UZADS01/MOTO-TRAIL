@@ -56,3 +56,8 @@ Arquivos fornecidos pelo usuário, copiados sem edição de `D:/mods/bikes/titan
 - `minigp_off_high.wav` → `public/audio/cg150-off-high.wav`: desaceleração; também usado mais baixo e grave em marcha lenta, pois não foi fornecida uma gravação dedicada de lenta.
 
 Origem indicada: mod local `titan150luquine`. Autoria e licença não foram informadas; estes dois arquivos não estão incluídos na atribuição CC0 dos sons acima. Ambos são PCM mono de 44.100 Hz, preservados como recebidos. A alternância é feita por crossfade no jogo; ajustes em `CG_AUDIO_TUNING`, no topo de `src/audio.ts`. As outras motos mantêm seus bancos e o online continua reproduzindo apenas buzinas remotas.
+
+
+## Modelo da Super Cub
+
+[Honda Super cub](https://sketchfab.com/3d-models/honda-super-cub-9ce554228fc746c89f6d02b995f43c41), de [Aleksandr Sagidullin](https://sketchfab.com/jintrim3), licenciado sob [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). GLB fornecido pelo usuário; atribuição confirmada nos metadados do arquivo. Modificações: redução de polígonos, acabamento facetado, adaptação de escala, pivôs e pintura personalizável.
