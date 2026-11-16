@@ -4,7 +4,15 @@ import type {RemotePlayer} from './network';
 import {getVehicle,type VehicleId} from './vehicles';
 // High-RPM recordings supplied by the user; gains, pitch range and crossfade are tunable.
 export const CG_AUDIO_TUNING={accelerationGain:.45,coastGain:.4,idleGain:.12,minRate:.65,maxRate:1.1,response:.16,filter:7000};
-export const SAHARA_AUDIO_TUNING={accelerationGain:.46,coastGain:.40,idleGain:.10,minRate:.55,maxRate:1.10,response:.16,filter:6500};
+export const SAHARA_AUDIO_TUNING = {
+  accelerationGain: .46,
+  coastGain: .40,
+  idleGain: .10,
+  minRate: .65,
+  maxRate: 1.20,
+  response: .16,
+  filter: 6500
+};
 export const AUDIO_ASSETS=[
  {name:'engine-idle',bank:'engine',load:false},{name:'engine-load',bank:'engine',load:true},
  {name:'moped-idle',bank:'moped',load:false},{name:'moped-load',bank:'moped',load:true},
