@@ -3,7 +3,7 @@ import * as T from 'three';
 import model from './assets/sahara-model.json';
 
 
-// Exact meshes and pivots exported by tools/build_sahara_blender.py.
+// Exact meshes and pivots exported by tools/export_sahara_edf.py.
 // Own resources per instance: online bike swaps cannot dispose another rider's model.
 export function createSahara(){
  const root=new T.Group();root.name='Sahara-Blender';
@@ -30,6 +30,6 @@ export function createSahara(){
  }
  const body=parts.get('Body')!,steering=parts.get('Steering')!;
  const wheels=[parts.get('RearWheel')!,parts.get('FrontWheel')!];
- const riderRig=createRider(steering,1.60,1.12,0x526b72,.31),rider=riderRig.root;body.add(rider);
+ const riderRig=createRider(steering,1.60,.24,0x526b72,.31,.075),rider=riderRig.root;body.add(rider);
  return {root,body,steering,wheels,rider,riderRig,paintMaterials:[materials.get('Paint')!]};
 }

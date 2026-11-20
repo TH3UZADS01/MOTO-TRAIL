@@ -44,7 +44,7 @@ test('smaller riders keep the neck embedded in torso and helmet, with the stoppe
   }
   for(let i=0;i<300;i++)rig.update(0,0,1/60,false);
   const foot=rig.limbs.find(l=>l.side===1)!.foot;
-  assert.ok(Math.abs(foot.position.y-foot.scale.y)<1e-7,'support foot reaches ground in bike space');
+  assert.ok(Math.abs(rig.root.position.y+foot.position.y-foot.scale.y)<1e-7,'support foot reaches ground in bike space');
   assert.equal(rig.root.scale.x,1,'contact targets are not scaled with anatomy');
   disposeBike(b);
  }

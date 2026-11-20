@@ -1,3 +1,4 @@
+import {makePlaceLights} from './place-lights';
 import {makeSea} from './coast';
 import {vegetationFactory} from './vegetation';
 import {BIOME_TUNING} from './biomes';
@@ -69,5 +70,6 @@ export function makeWorld(scene:T.Scene){
  }
  enableShadows(scene);
  let cell='';const birds=new T.Group();for(let i=0;i<12;i++){const bird=new T.Mesh(new T.ConeGeometry(.5,2,3),material(0x55645c));bird.rotation.z=Math.PI/2;birds.add(bird)}scene.add(birds);
- return {update(x:number,z:number,time:number){sea.update(time);const gx=Math.round(x/256),gz=Math.round(z/256),key=gx+','+gz;if(key!==cell){cell=key;const wanted=new Set<string>();for(let a=gx-3;a<=gx+3;a++)for(let b=gz-3;b<=gz+3;b++){const k=a+','+b;wanted.add(k);if(!chunks.has(k))chunks.set(k,chunk(a,b))}for(const [k,c] of chunks)if(!wanted.has(k)){scene.remove(c.group);c.group.traverse(o=>{if(o instanceof T.InstancedMesh)o.dispose();else if(o instanceof T.Mesh){o.geometry.dispose();(o.material as T.Material).dispose()}});chunks.delete(k)}obstacles.length=0;obstacles.push(...fixed);for(const c of chunks.values())obstacles.push(...c.hits)}for(const c of chunks.values())c.details.visible=Math.hypot(c.cx-x,c.cz-z)<BIOME_TUNING.detailDistance;birds.position.set(x,height(x,z)+55,z);birds.children.forEach((b,i)=>b.position.set(Math.sin(time*.00012+i*.2)*100,Math.sin(time*.002+i)*2,Math.cos(time*.00012+i*.2)*100));}};
+ const updatePlaceLights=makePlaceLights(scene,fixed);
+ return {updatePlaceLights,update(x:number,z:number,time:number){sea.update(time);const gx=Math.round(x/256),gz=Math.round(z/256),key=gx+','+gz;if(key!==cell){cell=key;const wanted=new Set<string>();for(let a=gx-3;a<=gx+3;a++)for(let b=gz-3;b<=gz+3;b++){const k=a+','+b;wanted.add(k);if(!chunks.has(k))chunks.set(k,chunk(a,b))}for(const [k,c] of chunks)if(!wanted.has(k)){scene.remove(c.group);c.group.traverse(o=>{if(o instanceof T.InstancedMesh)o.dispose();else if(o instanceof T.Mesh){o.geometry.dispose();(o.material as T.Material).dispose()}});chunks.delete(k)}obstacles.length=0;obstacles.push(...fixed);for(const c of chunks.values())obstacles.push(...c.hits)}for(const c of chunks.values())c.details.visible=Math.hypot(c.cx-x,c.cz-z)<BIOME_TUNING.detailDistance;birds.position.set(x,height(x,z)+55,z);birds.children.forEach((b,i)=>b.position.set(Math.sin(time*.00012+i*.2)*100,Math.sin(time*.002+i)*2,Math.cos(time*.00012+i*.2)*100));}};
 }

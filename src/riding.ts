@@ -50,7 +50,7 @@ export class Ride {
     if(this.fuel.get(this.spec.id)<=0||push||this.engine.stalled)this.engine.cancelBlip();
     this.engineThrottle=push||this.engine.stalled||this.fuel.get(this.spec.id)<=0?0:this.engine.effectiveThrottle(throttle);
     const gearMax=this.engine.speedAtRedline(this.spec,this.engine.gear);
-    const speedLimit=Math.min(this.topSpeed,gearMax);
+    const speedLimit=this.gear===0?this.topSpeed:Math.min(this.topSpeed,gearMax);
     if(push){
       if(this.speed>.2)this.speed=Math.max(0,this.speed-6*dt);
       else this.speed+=(-1.15-this.speed)*(1-Math.exp(-dt*5));
@@ -58,7 +58,7 @@ export class Ride {
     else if(this.speed<.15&&throttle===0){this.speed=0;}
     else {
       const stalled=realistic&&this.engine.stalled;
-      const gearThrottle=stalled||this.drift.active||(!automatic&&this.speed>speedLimit)?0:this.engineThrottle;
+      const gearThrottle=this.gear===0||stalled||this.drift.active||(!automatic&&this.speed>speedLimit)?0:this.engineThrottle;
       const effectiveBrake=brake*(1-(1-DRIFT_TUNING.brakingFactor)*this.drift.amount);
         const baseAcceleration=acceleration(this.speed,0,effectiveBrake*grip*(this.spec.braking??1),this.pitch,grip,this.spec.aerodynamicDrag*bodyDragMultiplier(this.bodyLean));
         const mass=(this.spec.mass??100)+this.spec.riderMass;

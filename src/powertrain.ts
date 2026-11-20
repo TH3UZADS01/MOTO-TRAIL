@@ -30,11 +30,11 @@ export class Powertrain {
   if(this.kickTime>t.clutchRelease){
    const charge=1-(this.kickTime-t.clutchRelease)/t.clutchCharge;
    // An RPM target, not an additive boost every frame, keeps the flare consistent at any tick rate.
-   this.clutch*=.35;this.rpm=Math.min(spec.redlineRpm-100,Math.max(this.rpm,this.kickBaseRpm+flare*smoothstep(charge)));
+   this.clutch*=.35;this.rpm=Math.min(spec.redlineRpm-100,Math.max(this.rpm,this.kickBaseRpm+flare*smoothstep(Math.min(1,charge/.65))));
   }else {
    const release=this.kickTime/t.clutchRelease;
    this.clutchKickGain=1+t.clutchBoost*Math.sin(Math.PI*release);
-   this.rpm=Math.min(spec.redlineRpm-100,Math.max(this.rpm,this.kickBaseRpm+flare*release*release));
+   this.rpm=Math.min(spec.redlineRpm-100,Math.max(this.rpm,this.kickBaseRpm+flare*smoothstep(Math.min(1,release/.85))));
   }
   this.ratio=clamp((this.rpm-spec.idleRpm)/(spec.redlineRpm-spec.idleRpm),0,1);
  }
@@ -59,10 +59,10 @@ export class Powertrain {
   this.revMatchTime=ENGINE_TUNING.revMatchDuration;
   this.revMatchSequence++;
  }
- getGearRatio(spec:VehicleSpec,gear=this.gear){return spec.gearRatios[Math.max(0,Math.min(gear-1,spec.gearRatios.length-1))]??1}
+ getGearRatio(spec:VehicleSpec,gear=this.gear){if(gear===0)return 0;return spec.gearRatios[Math.max(0,Math.min(gear-1,spec.gearRatios.length-1))]??1}
  getTotalRatio(spec:VehicleSpec,gear=this.gear){return this.getGearRatio(spec,gear)*spec.finalDrive}
  wheelRpmFromSpeed(speed:number,spec:VehicleSpec,gear=this.gear){if(speed<=0)return 0;return speed*60*this.getTotalRatio(spec,gear)/(2*Math.PI*spec.wheelRadius)}
- speedAtRpm(rpm:number,spec:VehicleSpec,gear=this.gear){return Math.max(0,rpm)*(2*Math.PI*spec.wheelRadius)/(60*this.getTotalRatio(spec,gear))}
+ speedAtRpm(rpm:number,spec:VehicleSpec,gear=this.gear){if(gear===0)return 0;return Math.max(0,rpm)*(2*Math.PI*spec.wheelRadius)/(60*this.getTotalRatio(spec,gear))}
  speedAtRedline(spec:VehicleSpec,gear=this.gear){return this.speedAtRpm(spec.redlineRpm,spec,gear)}
  torqueAtRpm(rpm:number,spec:VehicleSpec){
   const curve=spec.torqueCurve,limited=clamp(rpm,curve[0].rpm,curve[curve.length-1].rpm);
@@ -98,7 +98,13 @@ export class Powertrain {
  reset(){this.resetClutchKick();this.gear=1;this.rpm=ENGINE_TUNING.idleRpm;this.ratio=0;this.limiting=false;this.cutting=false;this.clutch=0;this.lugging=false;this.shiftTime=0;this.shiftCooldown=0;this.phase=0;this.revMatchTime=0;this.revMatchPeak=0;this.stalled=false}
  requestShift(direction:-1|1,speed:number,spec:VehicleSpec,_topSpeed:number,realistic=false){
   if(spec.gears===1||this.shiftCooldown>0)return false;
-  const next=clamp(this.gear+direction,1,spec.gears);
+  const next=clamp(this.gear+direction,0,spec.gears);
+  if(next===0&&this.gear===1){
+   if(Math.abs(speed)>0.001)return false;
+   this.gear=0;this.shiftCooldown=ENGINE_TUNING.shiftDelay;this.shiftTime=0;this.clutch=0;
+   this.cancelBlip();this.resetClutchKick();this.limiting=this.cutting=this.lugging=this.stalled=false;
+   return true;
+  }
   if(next===this.gear)return false;
   const oldGear=this.gear,previousRpm=this.rpm,nextRpm=this.wheelRpmFromSpeed(speed,spec,next),target=clamp(nextRpm,spec.idleRpm,spec.redlineRpm);
   if(direction===-1&&nextRpm>spec.redlineRpm)return false;
@@ -117,6 +123,16 @@ export class Powertrain {
  }
  update(dt:number,speed:number,spec:VehicleSpec,topSpeed:number,throttle:number,brake:number,push:boolean,automatic=true,realistic=false){
   if(push||speed<.5||this.stalled)this.cancelBlip();
+  if(this.gear===0){
+   if(automatic||spec.gears===1)this.gear=1;
+   else{
+    dt=clamp(dt,0,.1);this.shiftCooldown=Math.max(0,this.shiftCooldown-dt);
+    const target=spec.idleRpm+clamp(throttle,0,1)*(spec.redlineRpm-spec.idleRpm);
+    this.rpm+=(target-this.rpm)*(1-Math.exp(-ENGINE_TUNING.rpmResponse*dt));
+    this.ratio=clamp((this.rpm-spec.idleRpm)/(spec.redlineRpm-spec.idleRpm),0,1);
+    this.clutch=0;this.updateLimiter(dt,this.rpm,spec,throttle,0,push);return;
+   }
+  }
   if(realistic){this.updateRealistic(dt,speed,spec,topSpeed,throttle,brake,push,automatic);return}
   const t=ENGINE_TUNING;dt=clamp(dt,0,.1);this.gear=clamp(this.gear,1,spec.gears);
   this.shiftCooldown=Math.max(0,this.shiftCooldown-dt);

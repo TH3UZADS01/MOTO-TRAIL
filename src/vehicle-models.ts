@@ -29,7 +29,7 @@ export function createBike(id:VehicleId='pop'){
   const glass=bike.steering.getObjectByName('Steering_Headlamp') as T.Mesh|undefined;
   if(glass?.geometry.boundingBox){const bounds=glass.geometry.boundingBox;bounds.getCenter(headlight.light.position);headlight.light.position.z=bounds.max.z+.008;headlight.lens.position.copy(headlight.light.position)}
  }
- if(id==='sahara'){headlight.light.position.set(0,1.115,.752);headlight.lens.position.copy(headlight.light.position)}
+ if(id==='sahara'){headlight.light.position.set(0,1.075,.627);headlight.lens.position.copy(headlight.light.position)}
  if(id==='pop'){
   const glass=bike.body.getObjectByName('Body_Headlamp') as T.Mesh|undefined;
   if(glass?.geometry.boundingBox){const bounds=glass.geometry.boundingBox;bounds.getCenter(headlight.light.position);headlight.light.position.z=bounds.max.z+.012;headlight.lens.position.copy(headlight.light.position)}

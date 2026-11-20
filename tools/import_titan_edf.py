@@ -9,9 +9,13 @@ ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'assets/cg150/titan-conversion
 args=argparse.ArgumentParser(description=__doc__)
 args.add_argument('--zip',default=r'C:/Users/olive/OneDrive/Desktop/titan150luquine.zip')
 args.add_argument('--wheels',default=r'D:/mods/tyres/rodatitan15008luq')
+args.add_argument("--sahara",type=Path,help="Decode the Sahara 300 model.edf instead of the Titan archive")
 options=args.parse_args(sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else [])
 bpy.context.preferences.filepaths.save_version=0
-with zipfile.ZipFile(options.zip) as z:b=z.read('titan150luquine/model.edf')
+if options.sahara:
+ OUT=ROOT/'artifacts/sahara';OUT.mkdir(parents=True,exist_ok=True);b=options.sahara.read_bytes()
+else:
+ with zipfile.ZipFile(options.zip) as z:b=z.read('titan150luquine/model.edf')
 assert b[:4]==b'EDF\0'
 u=lambda o:struct.unpack_from('<I',b,o)[0]
 o=4;blocks=[];textures=[]
@@ -77,6 +81,9 @@ for name,w,h,raw in textures:
 # Assembly anchors follow the supplied bike.geom (steering head and swingarm pivot).
 assembly=[Matrix.Identity(4),Matrix.Translation((0,.9912,.3372))@Matrix.Rotation(math.radians(-26.1),4,'X')@Matrix.Translation((0,-.3018,.0213)),Matrix.Translation((0,.9912,.3372))@Matrix.Rotation(math.radians(-26.1),4,'X'),Matrix.Translation((0,.47,-.17))]
 assembly.extend([Matrix.Translation((0,.47,.72)),Matrix.Translation((0,.45,-.80))])
+if options.sahara:
+ head=Matrix.Translation((0,1.0276,.319))@Matrix.Rotation(math.radians(-26.5),4,'X')
+ assembly=[Matrix.Identity(4),head@Matrix.Translation((0,-.37,.02)),head,Matrix.Translation((0,.47,-.17)), Matrix.Translation((0,.362,.75)),Matrix.Translation((0,.325,-.66))]
 parts=['Body','FrontSuspension','Steering','RearSuspension','FrontWheel','RearWheel'];allmeshes=[]
 for bi,block in enumerate(blocks):
  nodes=block['nodes'];world={}
@@ -88,7 +95,9 @@ for bi,block in enumerate(blocks):
  for mi,desc in enumerate(block['mats']):
   m=bpy.data.materials.new(f'{parts[bi]}_Material{mi}');m.diffuse_color=(*desc['color'],1);m.use_nodes=True
   bs=m.node_tree.nodes.get('Principled BSDF');bs.inputs['Base Color'].default_value=m.diffuse_color;bs.inputs['Roughness'].default_value=.48
-  if desc['texture']:
+  if options.sahara and bi>=4:
+   rgb=[(.36,.37,.39),(.018,.018,.019),(.58,.58,.57)][mi];m.diffuse_color=(*rgb,1);bs.inputs['Base Color'].default_value=m.diffuse_color
+  elif desc['texture']:
    im=images[desc['texture']-1];t=m.node_tree.nodes.new('ShaderNodeTexImage');t.image=im;m.node_tree.links.new(t.outputs['Color'],bs.inputs['Base Color'])
   materials.append(m)
  for ni,node in enumerate(nodes):
@@ -102,7 +111,8 @@ for bi,block in enumerate(blocks):
    allmeshes.append(obj)
    print(obj.name,'bounds',p.min(0).round(3),p.max(0).round(3),flush=True)
 
-bpy.ops.wm.save_as_mainfile(filepath=str(OUT/'titan-decoded.blend'))
+bpy.ops.wm.save_as_mainfile(filepath=str(OUT/('decoded.blend' if options.sahara else 'titan-decoded.blend')))
+if options.sahara:sys.exit(0)
 scene=bpy.context.scene;bpy.ops.object.camera_add(location=(3,-4,2.3));cam=bpy.context.object;cam.rotation_euler=(Vector((0,0,.75))-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.type='ORTHO';cam.data.ortho_scale=2.8;scene.camera=cam
 scene.render.engine='BLENDER_WORKBENCH';scene.display.shading.light='STUDIO';scene.display.shading.color_type='MATERIAL';scene.display.shading.show_shadows=True;scene.display.shading.show_cavity=True
 scene.render.resolution_x=1100;scene.render.resolution_y=900;scene.render.resolution_percentage=100;scene.render.filepath=str(OUT/'decoded-preview.png');bpy.ops.render.render(write_still=True)

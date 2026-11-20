@@ -56,7 +56,7 @@ test('exploration reveals and persists hints; interaction alone collects the nea
 });
 
 test('pet is seated in a scaled passenger anchor on every bike and follows only its hierarchy',()=>{
- for(const vehicle of ['pop','cub','urban','caloi','cg150'] as const){
+ for(const vehicle of ['pop','cub','urban','caloi','cg150','sahara'] as const){
   const bike=createBike(vehicle);
   try{
    const {passengerPetAnchor,pet}=bike;
@@ -70,7 +70,7 @@ test('pet is seated in a scaled passenger anchor on every bike and follows only 
    bike.root.updateMatrixWorld(true);
    const bounds=new T.Box3().setFromObject(pet.group);
    const height=bounds.max.y-bounds.min.y;
-   assert.ok(height>=.4&&height<=.5,`${vehicle} pet height ${height}`);
+   assert.ok(height>=.28&&height<=.34,`${vehicle} pet height ${height}`);
    const anchorPosition=passengerPetAnchor.position.clone(),petPosition=pet.group.position.clone();
    pet.update(-1,1,.1);
    assert.ok(passengerPetAnchor.position.distanceTo(anchorPosition)<1e-12);

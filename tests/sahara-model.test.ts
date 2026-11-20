@@ -10,8 +10,8 @@ test('Sahara Blender geometry retains steering and wheel pivots and separate sus
  assert.equal(bike.wheels[1].parent,bike.steering);
  assert.equal(bike.body.getObjectByName('FrontSuspension')?.parent,bike.steering);
  assert.equal(bike.body.getObjectByName('RearSuspension')?.parent,bike.body);
- assert.ok(Math.abs(bike.wheels[0].position.z+.698)<1e-6);
- assert.ok(Math.abs(bike.wheels[1].position.z)<1e-6);
+ assert.ok(Math.abs(bike.wheels[0].position.z+.7125)<1e-6);
+ assert.ok(Math.abs(bike.wheels[1].getWorldPosition(new T.Vector3()).z-.7125)<1e-6);
  assert.equal(bike.brakeLight.lens,bike.body.getObjectByName('Body_TailLens'));
  const bounds=new T.Box3();let triangles=0;
  bike.root.updateMatrixWorld(true);
@@ -21,8 +21,8 @@ test('Sahara Blender geometry retains steering and wheel pivots and separate sus
   bounds.union(o.geometry.boundingBox!.clone().applyMatrix4(o.matrixWorld));
  }});
  const size=bounds.getSize(new T.Vector3());
- assert.ok(size.z>1.9&&size.z<2.3);assert.ok(size.y>1.3&&size.y<1.6);assert.ok(size.x<1.0);
- assert.ok(triangles>5000&&triangles<18000);
+ assert.ok(size.z>1.9&&size.z<2.3);assert.ok(size.y>1.19&&size.y<1.6);assert.ok(size.x<1.0);
+ assert.ok(triangles>5000&&triangles<65000);
  disposeBike(bike);
 });
 

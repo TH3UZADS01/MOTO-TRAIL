@@ -5,12 +5,12 @@ import {Powertrain} from '../src/powertrain';
 import {Ride} from '../src/riding';
 import {capacities} from '../src/fuel';
 
-test('Sahara uses original six ratios, wheelbase, capacity and published engine peaks',()=>{
+test('Sahara uses six ordered ratios, wheelbase, capacity and published engine peaks',()=>{
  const s=getVehicle('sahara'),p=new Powertrain();
- assert.equal(s.gears,6);assert.equal(s.wheelbase,1.396);assert.equal(capacities.sahara,14);
- assert.equal(s.finalDrive,(65/24)*(38/14));
- assert.ok(Math.abs(p.torqueAtRpm(6500,s)-30.6948)<.001);
- assert.ok(Math.abs(p.torqueAtRpm(7500,s)*7500*2*Math.PI/60/735.49875-31.5)<.001);
+ assert.equal(s.gears,6);assert.equal(s.wheelbase,1.425);assert.equal(capacities.sahara,13.8);
+ assert.equal(s.mass,159);
+ assert.ok(Math.abs(p.torqueAtRpm(5750,s)-26.5)<.001);
+ assert.ok(Math.abs(p.torqueAtRpm(7500,s)*7500*2*Math.PI/60/735.49875-24.8)<.001);
  let previous=0;for(let g=1;g<=6;g++){const speed=p.speedAtRedline(s,g);assert.ok(speed>previous);previous=speed}
  assert.ok(previous*3.6>150&&previous*3.6<160);
 });

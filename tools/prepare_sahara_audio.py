@@ -15,7 +15,8 @@ for kind in ['on','off']:
     samples=samples[n:-n]+seam
     gain=24000/max(1,max(abs(x) for x in samples))
     pcm=array.array('h',[round(v*gain) for v in samples])
-    out=root/'public'/'audio'/('sahara-'+kind+'-high.wav')
+    out=root/'artifacts'/'sahara-audio'/('sahara-'+kind+'-high.wav')
+    out.parent.mkdir(parents=True,exist_ok=True)
     with wave.open(str(out),'wb') as w:
         w.setnchannels(1);w.setsampwidth(2);w.setframerate(rate);w.writeframes(pcm.tobytes())
     print(out.name,'seconds',round(len(pcm)/rate,3),'peak',max(abs(v) for v in pcm))

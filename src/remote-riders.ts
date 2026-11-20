@@ -22,6 +22,7 @@ export class RemoteRiders {
    if(peer.name!==p.name||peer.connected!==p.connected){this.scene.remove(peer.label);peer.label.material.map?.dispose();peer.label.material.dispose();peer.label=this.label(p.name+(p.connected?'':' · reconectando'));this.scene.add(peer.label);peer.name=p.name;peer.connected=p.connected;}
    const sequence=p.state.revMatchSequence??0;if(sequence>peer.blipSequence&&p.connected)peer.blipTime=ENGINE_TUNING.revMatchDuration;peer.blipSequence=sequence;
    applyBikeColor(peer.bike,p.state.color||DEFAULT_COLORS[p.state.vehicleId]);
+   peer.bike.riderRig.setFullFace(p.state.fullFace===true);
    peer.bike.pet.setUnlocked(!!p.state.petUnlocked&&!p.state.fallen);
    peer.frames.push({time:now,state:{...p.state,y:ground(p.state.x,p.state.z)}});if(peer.frames.length>20)peer.frames.shift();
   }

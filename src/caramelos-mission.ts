@@ -148,10 +148,10 @@ export class CarameloMission {
 }
 
 export const CARAMELO_PET_TUNING = {
-  scale: 1,
+  scale: .76,
   positionOffset: {x: 0, y: 0, z: 0},
   rotation: {x: 0, y: 0, z: 0},
-  modelPivotY: 0.23,
+  modelPivotY: 0,
   secondaryMotion: 0.025,
 };
 
@@ -164,46 +164,58 @@ export function createCarameloPet(anchor: T.Object3D, color = 0xd9a555) {
   group.visible = false;
   anchor.add(group);
 
-  const fur = new T.MeshStandardMaterial({color, roughness: 0.9});
-  const dark = new T.MeshStandardMaterial({color: 0x4d3120, roughness: 1});
-  const ear = new T.MeshStandardMaterial({color: 0x8f6132, roughness: 0.9});
-  const pose = new T.Group();
-  group.add(pose);
-
-  const body = new T.Mesh(new T.SphereGeometry(.17, 18, 14), fur);
-  body.scale.set(1.15, 0.8, 1.5);
-  body.position.y = 0.02;
-  pose.add(body);
-
-  const head = new T.Mesh(new T.SphereGeometry(.11, 16, 12), fur);
-  head.position.set(0, 0.12, 0.19);
-  head.scale.set(1.1, 1, 1);
-  pose.add(head);
-
-  const snout = new T.Mesh(new T.SphereGeometry(.06, 12, 10), dark);
-  snout.position.set(0, 0.05, 0.28);
-  snout.scale.set(1.2, 0.8, 1.6);
-  pose.add(snout);
-
-  const earLeft = new T.Mesh(new T.ConeGeometry(.04, .09, 8), ear);
-  earLeft.rotation.z = -0.3;
-  earLeft.position.set(-0.09, 0.22, 0.17);
-  pose.add(earLeft);
-
-  const earRight = earLeft.clone();
-  earRight.position.x = 0.09;
-  pose.add(earRight);
-
-  const tail = new T.Mesh(new T.ConeGeometry(.04, .12, 8), fur);
-  tail.rotation.x = Math.PI / 2;
-  tail.position.set(0, 0.08, -0.22);
-  pose.add(tail);
-
-  const legPositions = [[-0.08, -0.12, 0.06], [0.08, -0.12, 0.06], [-0.08, -0.12, -0.06], [0.08, -0.12, -0.06]];
-  for (const [x, y, z] of legPositions) {
-    const leg = new T.Mesh(new T.CapsuleGeometry(.03, .09, 4, 8), dark);
-    leg.position.set(x, y, z);
-    pose.add(leg);
+  // Local Y=0 is the sole of the paws, both on the saddle and on the ground.
+  const pose=new T.Group(),head=new T.Group(),tail=new T.Group();
+  group.add(pose);pose.add(head,tail);
+  head.position.set(0,.294,.057);tail.position.set(.043,.084,-.098);
+  const coat=new T.Color(color),honey=coat.clone().multiplyScalar(.81);
+  const cream=0xf2cb8f,umber=0x97623b,ink=0x332b27;
+  // Bake rigid details into one vertex-coloured mesh per moving piece.
+  const material=new T.MeshStandardMaterial({vertexColors:true,roughness:.92,flatShading:true});
+  const patches=new Map<T.Group,{p:number[];c:number[]}>();
+  function oval(parent:T.Group,tint:T.ColorRepresentation,x:number,y:number,z:number,
+    w:number,h:number,d:number,tilt=0,roll=0){
+    const geo=new T.SphereGeometry(1,12,8);
+    geo.scale(w,h,d);geo.rotateX(tilt);geo.rotateZ(roll);geo.translate(x,y,z);
+    const positions=geo.getAttribute('position'),indices=geo.getIndex()!,rgb=new T.Color(tint);
+    let batch=patches.get(parent);
+    if(!batch){batch={p:[],c:[]};patches.set(parent,batch)}
+    for(let i=0;i<indices.count;i++){const j=indices.getX(i);batch.p.push(positions.getX(j),positions.getY(j),positions.getZ(j));batch.c.push(rgb.r,rgb.g,rgb.b)}
+    geo.dispose();
+  }
+  oval(pose,coat,0,.158,-.014,.079,.129,.098,.34);
+  oval(pose,cream,0,.196,.057,.053,.080,.036,.36);
+  for(const side of [-1,1]){
+    // Folded haunches and long, slim forelegs give the seated silhouette.
+    oval(pose,honey,side*.059,.074,-.046,.047,.068,.075,-.30);
+    oval(pose,coat,side*.067,.026,-.003,.035,.025,.060);
+    oval(pose,coat,side*.040,.102,.067,.023,.083,.024,-.09);
+    oval(pose,cream,side*.040,.020,.087,.027,.020,.042);
+  }
+  oval(head,coat,0,0,0,.079,.079,.073);
+  oval(head,cream,0,-.030,.073,.049,.031,.061,.05);
+  oval(head,ink,0,-.019,.121,.025,.017,.017);
+  for(const side of [-1,1]){
+    oval(head,ink,side*.044,.014,.059,.011,.014,.009);
+    oval(head,0xfff4d4,side*.044-.002,.018,.067,.0035,.0035,.002);
+    oval(head,honey,side*.047,.033,.051,.018,.006,.009,0,-side*.16);
+  }
+  const ears=[-1,1].map(side=>{
+    const ear=new T.Group();ear.position.set(side*.058,.049,-.009);head.add(ear);
+    // One ear pricks up; the other folds forward with a darker tip.
+    const drop=side===1;
+    oval(ear,umber,side*.016,drop?-.010:.018,.004,.029,drop?.055:.048,.023,drop?-.45:.14,-side*.34);
+    oval(ear,drop?honey:0xbc8262,side*.018,drop?-.022:.021,.017,.020,.032,.012,drop?-.45:.14,-side*.34);
+    return ear;
+  });
+  oval(tail,honey,.022,.008,-.040,.021,.021,.063,0,.1);
+  oval(tail,coat,.041,.036,-.086,.015,.042,.019,-.46);
+  oval(tail,cream,.042,.069,-.092,.011,.021,.012,.28);
+  for(const [parent,{p,c}] of patches){
+    const geometry=new T.BufferGeometry();
+    geometry.setAttribute('position',new T.Float32BufferAttribute(p,3));
+    geometry.setAttribute('color',new T.Float32BufferAttribute(c,3));geometry.computeVertexNormals();
+    const mesh=new T.Mesh(geometry,material);mesh.receiveShadow=mesh.castShadow=true;parent.add(mesh);
   }
 
   let reaction = 0, animationTime = 0;
@@ -224,9 +236,9 @@ export function createCarameloPet(anchor: T.Object3D, color = 0xd9a555) {
         + T.MathUtils.clamp(braking, 0, 1) * CARAMELO_PET_TUNING.secondaryMotion * 0.25
         - pose.rotation.z) * response;
       const earSway = T.MathUtils.clamp(-lean, -1, 1) * CARAMELO_PET_TUNING.secondaryMotion;
-      earLeft.rotation.z += (-0.3 + earSway - earLeft.rotation.z) * response;
-      earRight.rotation.z += (0.3 - earSway - earRight.rotation.z) * response;
-      tail.rotation.z += ((reaction>0?Math.sin(animationTime*38)*.7:0)-tail.rotation.z)*response;
+      ears[0].rotation.z += (earSway-ears[0].rotation.z)*response;
+      ears[1].rotation.z += (-earSway-ears[1].rotation.z)*response;
+      tail.rotation.y=Math.sin(animationTime*(reaction>0?26:4))*(reaction>0?.65:.13);
       head.rotation.x += ((reaction>0?-.16:0)-head.rotation.x)*response;
     },
   };
