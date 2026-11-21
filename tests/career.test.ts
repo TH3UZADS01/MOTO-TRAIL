@@ -26,5 +26,7 @@ test('equipment spending and storage are isolated by vehicle',()=>{
 });
 test('tyres modify grip and directional slip with surface and wear',()=>{
  const g=factory();g.tyre='pista';const pista=tyreResponse(g,false,18,1,1);g.tyre='trilha';const trail=tyreResponse(g,false,18,1,1);
+ const asphalt=tyreResponse(g,true,18,1,1);
+ assert.equal(asphalt.grip,.98);assert.equal(asphalt.slip,.06);
  assert.ok(trail.grip>pista.grip&&trail.slip<pista.slip);g.pneus=10;assert.ok(tyreResponse(g,false,18,1,1).grip<trail.grip);
 });

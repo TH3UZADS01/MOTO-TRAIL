@@ -23,7 +23,7 @@ function travellerGeometry(name:keyof typeof traveller){
 // Radians, metres and response per second. Shared by local and remote riders.
 export const RIDER_TUNING={bodyScale:.85,seatSetback:.15,intensity:.30,response:7,maxLean:.28,fullEffectSpeed:12,counterweightLean:.39,steerSpeedScale:5.8,hipShift:.22,kneeOpening:.10,upperArmLength:.32,forearmLength:.29,wristOffset:.045,throttleWrist:.85,throttleElbowDrop:.08,throttleElbowBack:.10,wheelieSideShift:.34,wheelieSideLean:.18,wheelieSideResponse:6};
 export type RiderRig=ReturnType<typeof createRider>;
-export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,_jacketColor=0xc88b48,kneeWidth=.22,seatLift=0,gripLocalZ=-.12){
+export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,_jacketColor=0xc88b48,kneeWidth=.22,seatLift=0,gripLocalZ=-.12,gripHalfWidth=.31){
  const root=new T.Group(),head=new T.Group();root.name='animated-rider';
  // Scale anatomy around the saddle, not the rig: grip and ground targets stay in bike space.
  const size=RIDER_TUNING.bodyScale;
@@ -95,7 +95,7 @@ export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,_jacket
    }
    ankle.y-=seatLift*leftStop;l.knee.set(side*(kneeWidth+inside*RIDER_TUNING.kneeOpening+leftStop*.20)+hips.position.x*.4,.60-leftStop*.15,.16*size-RIDER_TUNING.seatSetback*.45+leftStop*.05);if(leftStop>0){straightKnee.copy(hip).lerp(ankle,.5);straightKnee.z+=.1;l.knee.lerp(straightKnee,leftStop*.75)}segment(l.thigh,hip,l.knee,.064*size);segment(l.shin,l.knee,ankle,.052*size);l.foot.position.copy(ankle);l.foot.position.y-=.035;
    // Hands are evaluated in the same parent coordinates as the turning handlebar.
-   hand.set(side*.31,handleY,gripLocalZ).applyQuaternion(steering.quaternion).add(steering.position);hand.y-=seatLift;
+   hand.set(side*gripHalfWidth,handleY,gripLocalZ).applyQuaternion(steering.quaternion).add(steering.position);hand.y-=seatLift;
    const twist=side===-1?throttlePose:0;
    l.hand.position.copy(hand);
    l.hand.quaternion.copy(steering.quaternion).multiply(wristTurn.setFromAxisAngle(gripAxis,-RIDER_TUNING.throttleWrist*twist));

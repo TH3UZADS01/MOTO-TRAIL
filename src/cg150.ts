@@ -52,6 +52,7 @@ export function createCG150(){
  }
  const body=parts.get('Body')!,steering=parts.get('Steering')!;
  const wheels=[parts.get('RearWheel')!,parts.get('FrontWheel')!];
- const riderRig=createRider(steering,1.48,.24,0x526b72,.25),rider=riderRig.root;body.add(rider);
+ // Grip centres measured on the rubber sleeves in steering-local metres.
+ const riderRig=createRider(steering,1.48,.214,0x526b72,.25,0,-.142,.29),rider=riderRig.root;body.add(rider);
  return {root,body,steering,wheels,rider,riderRig,paintMaterials:[materials.get('Paint')!]};
 }
