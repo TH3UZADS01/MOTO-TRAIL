@@ -1,6 +1,6 @@
 import type {Place} from './map-layout';
 
-const STORAGE_KEY='explored-places-v1';
+const STORAGE_KEY='explored-places-v2';
 type StorageAdapter=Pick<Storage,'getItem'|'setItem'>;
 export const DISCOVERY_SOUND_DURATION=3;
 

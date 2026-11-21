@@ -1,6 +1,6 @@
 import type {VehicleId} from './vehicles';
 export const WORLD='vale-horizonte-v9';
-export interface RiderState {dirt?:number;fullFace?:boolean;vehicleId:VehicleId;color?:string;bodyLean?:number;wheelie?:number;fallen?:boolean;braking?:boolean;drifting?:boolean;petUnlocked?:boolean;revMatchSequence?:number;gear?:number;rpm?:number;x:number;y:number;z:number;heading:number;speed:number;pitch:number;lean:number;steer:number;sequence:number}
+export interface RiderState {hornHeld?:boolean;cargo?:boolean;dirt?:number;fullFace?:boolean;vehicleId:VehicleId;color?:string;bodyLean?:number;wheelie?:number;fallen?:boolean;braking?:boolean;drifting?:boolean;burnoutSpeed?:number;petUnlocked?:boolean;revMatchSequence?:number;gear?:number;rpm?:number;x:number;y:number;z:number;heading:number;speed:number;pitch:number;lean:number;steer:number;sequence:number}
 export interface RemotePlayer {id:string;name:string;connected:boolean;state:RiderState}
 interface Session {code:string;id:string;token:string;name:string;vehicleId:VehicleId}
 interface Events {horn:(id:string)=>void;status:(text:string)=>void;welcome:(state:RiderState,code:string,id:string)=>void;players:(players:RemotePlayer[])=>void;ended:()=>void}
@@ -12,8 +12,8 @@ export class RideNetwork {
  constructor(private events:Events){}
  get active(){return !!this.session}
  get connected(){return this.socket?.readyState===WebSocket.OPEN&&!!this.session&&!this.connecting}
- private store(){try{if(this.session)sessionStorage.setItem('ride-room',JSON.stringify(this.session));else sessionStorage.removeItem('ride-room')}catch{}}
- restore(){try{const s=JSON.parse(sessionStorage.getItem('ride-room')||'null');if(s?.token&&s?.code){this.session=s;this.name=s.name;this.vehicleId=s.vehicleId;this.wanted=true;this.open('resume',s.code)}}catch{}}
+ private store(){try{if(this.session)sessionStorage.setItem('ride-room-v2',JSON.stringify(this.session));else sessionStorage.removeItem('ride-room-v2')}catch{}}
+ restore(){try{const s=JSON.parse(sessionStorage.getItem('ride-room-v2')||'null');if(s?.token&&s?.code){this.session=s;this.name=s.name;this.vehicleId=s.vehicleId;this.wanted=true;this.open('resume',s.code)}}catch{}}
  connect(type:'create'|'join',name:string,vehicleId:VehicleId,code=''){
   this.leave();if(!this.url){this.events.status('Online não configurado neste site. Consulte as instruções de publicação.');return}
   this.name=name.trim();this.vehicleId=vehicleId;this.wanted=true;this.attempt=0;this.open(type,code.trim().toUpperCase());
@@ -39,7 +39,7 @@ export class RideNetwork {
   };
  }
  private fail(message:string){this.wanted=false;this.connecting=false;this.session=undefined;this.store();this.socket?.close();this.events.players([]);this.events.status(message);this.events.ended()}
- horn(){if(this.connected)this.socket!.send(JSON.stringify({type:'horn'}))}
+ horn(active:boolean){if(this.connected)this.socket!.send(JSON.stringify({type:'horn',active}))}
  send(state:Omit<RiderState,'sequence'>,now:number,force=false){if(!this.connected||(!force&&now-this.lastSent<100)||this.socket!.bufferedAmount>16384)return;this.lastSent=now;const {braking,...rest}=state,update:{sequence:number;braking?:boolean}={sequence:this.sequence++};if(braking!==undefined&&braking!==this.lastBraking){update.braking=braking;this.lastBraking=braking}this.socket!.send(JSON.stringify({type:'state',state:{...rest,...update}}));}
  leave(){this.wanted=false;this.generation++;clearTimeout(this.timer);if(this.socket?.readyState===WebSocket.OPEN)this.socket.send(JSON.stringify({type:'leave'}));this.socket?.close();this.socket=undefined;this.session=undefined;this.connecting=false;this.lastBraking=undefined;this.store();this.events.players([]);this.events.ended()}
 }

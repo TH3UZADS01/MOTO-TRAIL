@@ -21,6 +21,7 @@ export class RemoteRiders {
    if(!peer){const bike=createBike(p.state.vehicleId),label=this.label(p.name);enableShadows(bike.root);this.scene.add(bike.root,label);peer={blipTime:0,blipSequence:p.state.revMatchSequence??0,smoke:new TireParticles(this.scene),bike,label,frames:[],name:p.name,connected:p.connected,vehicleId:p.state.vehicleId};this.peers.set(p.id,peer)}
    if(peer.name!==p.name||peer.connected!==p.connected){this.scene.remove(peer.label);peer.label.material.map?.dispose();peer.label.material.dispose();peer.label=this.label(p.name+(p.connected?'':' · reconectando'));this.scene.add(peer.label);peer.name=p.name;peer.connected=p.connected;}
    const sequence=p.state.revMatchSequence??0;if(sequence>peer.blipSequence&&p.connected)peer.blipTime=ENGINE_TUNING.revMatchDuration;peer.blipSequence=sequence;
+   peer.bike.cargo.visible=p.state.cargo===true;
    peer.bike.dirt.value=p.state.dirt??0;
    applyBikeColor(peer.bike,p.state.color||DEFAULT_COLORS[p.state.vehicleId]);
    peer.bike.riderRig.setFullFace(p.state.fullFace===true);
@@ -40,10 +41,11 @@ export class RemoteRiders {
    const speed=p.connected?T.MathUtils.lerp(s.speed,e.speed,u):0,steer=T.MathUtils.lerp(s.steer,e.steer,u),lift=T.MathUtils.lerp(s.wheelie??0,e.wheelie??0,u);
    p.bike.setSteering(steeringAngle(speed,steer,lift));
    const bank=T.MathUtils.lerp(s.lean,e.lean,u);
-   p.bike.riderRig.update(speed,steer,dt,false,T.MathUtils.lerp(s.bodyLean??0,e.bodyLean??0,u),blip,!!e.fallen,lift,bank);applyBikePose(p.bike,T.MathUtils.lerp(s.pitch,e.pitch,u),bank,lift,p.bike.riderRig.stopPose);
-   p.bike.pet.update(T.MathUtils.lerp(s.bodyLean??0,e.bodyLean??0,u), Number(e.braking??false), dt);
-   p.bike.roll((p.connected?e.speed:0)*dt,!!e.drifting);
-   p.smoke.update('asfalto',p.connected?e.speed:0,p.bike.wheels[0],e.heading,dt,!!e.drifting&&p.connected&&!e.fallen);
+   const burnout=p.connected&&!e.fallen?(e.burnoutSpeed??0):0;
+   p.bike.riderRig.update(speed,steer,dt,false,T.MathUtils.lerp(s.bodyLean??0,e.bodyLean??0,u),blip,!!e.fallen,lift,bank,burnout>0);applyBikePose(p.bike,T.MathUtils.lerp(s.pitch,e.pitch,u),bank,lift,burnout?0:p.bike.riderRig.stopPose);
+   if(e.petUnlocked&&!e.fallen)p.bike.pet.update(T.MathUtils.lerp(s.bodyLean??0,e.bodyLean??0,u), Number(e.braking??false), dt);
+   p.bike.roll((p.connected?e.speed:0)*dt,!!e.drifting,(p.connected?(burnout||e.speed):0)*dt);
+   p.smoke.update('asfalto',p.connected?(burnout||e.speed):0,p.bike.wheels[0],e.heading,dt,(!!e.drifting||burnout>0)&&p.connected&&!e.fallen);
    p.label.position.copy(p.bike.root.position);p.label.position.y+=2.1;
   }
  }

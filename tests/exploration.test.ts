@@ -24,12 +24,12 @@ test('all places start undiscovered and discovery is recorded only once',()=>{
  assert.equal(progress.discover('local inexistente'),false);
  assert.equal(progress.discoveredCount,1);
  assert.equal(progress.totalCount,2);
- assert.deepEqual(JSON.parse(storage.values.get('explored-places-v1')!),['Vila do Ipê']);
+ assert.deepEqual(JSON.parse(storage.values.get('explored-places-v2')!),['Vila do Ipê']);
 });
 
 test('discovered places persist and unknown stored names are ignored',()=>{
  const storage=makeStorage();
- storage.setItem('explored-places-v1',JSON.stringify(['Vila do Ipê','Vila removida','Vila do Ipê']));
+ storage.setItem('explored-places-v2',JSON.stringify(['Vila do Ipê','Vila removida','Vila do Ipê']));
  const progress=new ExplorationProgress(places,storage);
  assert.deepEqual(progress.list().map(item=>item.discovered),[true,false]);
  assert.equal(progress.discover('Mirante da Serra Azul'),true);

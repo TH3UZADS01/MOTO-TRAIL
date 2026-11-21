@@ -34,16 +34,35 @@ export function makeWorld(scene:T.Scene){
   for(const along of [-b.halfLength*.6,b.halfLength*.6]){const p=pos(along,0,-3);box(p.x,p.y,p.z,1.5,6,1.5,0x8d9187)}
  }
  function access(p:{x:number;z:number},radius:number){scene.add(terrainPatch(p.x,p.z,radius,0xb8a17b));const n=nearestRoute(p.x,p.z);if(n.distance<.5)return;scene.add(ribbon(Array.from({length:20},(_,i)=>new T.Vector3(T.MathUtils.lerp(n.x,p.x,i/19),0,T.MathUtils.lerp(n.z,p.z,i/19))),6,0xb8a17b,.07))}
+ const dealers:{x:number;z:number;name:string}[]=[];
  for(const [vIndex,v] of villages.entries()){access(v,60);for(let i=0;i<8;i++){const x=v.x+(i%2?26:-26),z=v.z-42+Math.floor(i/2)*28;if(nearRoute(x,z,15))continue;const corners=[height(x-5,z-5),height(x+5,z-5),height(x-5,z+5),height(x+5,z+5)],y=Math.max(...corners),bottom=Math.min(...corners)-.25;box(x,(y+bottom)/2,z,10,y-bottom+.1,10,0x928b77);box(x,y+2,z,10,4,10,[0xe6d6b6,0xd4b48c,0xb7ccc0,0xe6caab][(i+vIndex)%4]);const roof=new T.Mesh(new T.ConeGeometry(8,3,4),material(0xa56d52));roof.rotation.y=Math.PI/4;roof.position.set(x,y+5.5,z);scene.add(roof);box(x,y+1.3,z+5.05,1.5,2.6,.12,0x42635e);for(const dx of [-3,3])box(x+dx,y+2.4,z+5.08,1.5,1.2,.15,0xecd79a);block(x,z,7.2)}
+  // Keep the storefront inside the square and off the through road.
+  const lots=[-1,1].map(side=>({x:v.x,z:v.z+side*28,side}));
+  const lot=lots.sort((a,b)=>nearestRoute(b.x,b.z).distance-nearestRoute(a.x,a.z).distance)[0];
+  const h=height(lot.x,lot.z),front=lot.z-lot.side*3.1;
+  box(lot.x,h+1.6,lot.z,10,3.2,6,0xe6d9bb);
+  box(lot.x,h+3.35,lot.z,10.8,.4,7,0x255b58);
+  box(lot.x,h+1.5,front,8,2.5,.15,0x467574);
+  block(lot.x,lot.z,5.5);
+  sign('CONCESSIONÁRIA',lot.x+5.8,front,0);
+  dealers.push({x:lot.x,z:front-lot.side*5,name:v.name});
   // Village square, flower beds and a small roadside cafe.
   for(const side of [-1,1]){const x=v.x+side*9,z=v.z,y=height(x,z);if(nearRoute(x,z,12))continue;box(x,y+.5,z,3,1,1,0x826345);block(x,z,1.7);for(let i=0;i<5;i++)box(x-1+i*.5,y+1.1,z,.25,.3,.25,0xe8bd64)}
  }
+ const shops:{x:number;z:number;name:string}[]=[],depots:typeof shops=[];
  const washBays:{x:number;z:number;angle:number}[]=[];
  for(const s of stations){access(s,22);const y=height(s.x,s.z),n=nearestRoute(s.x,s.z),angle=Math.atan2(s.x-n.x,s.z-n.z),at=(x:number,z:number)=>({x:s.x+Math.cos(angle)*x+Math.sin(angle)*z,z:s.z-Math.sin(angle)*x+Math.cos(angle)*z});
   const part=(x:number,h:number,z:number,w:number,t:number,d:number,color:number)=>{const p=at(x,z),m=box(p.x,h,p.z,w,t,d,color);m.rotation.y=angle;return m};
   part(0,y+4.6,0,20,.45,14,0xe9d8b3);part(0,y+4.85,0,20,.2,14,0x426d62);
   for(const dx of [-8,8])for(const dz of [-5,5]){const p=at(dx,dz),h=height(p.x,p.z);part(dx,(h+y+4.4)/2,dz,.3,y+4.4-h,.3,0xc6bd9d);block(p.x,p.z,.35)}
   for(const dx of [-4,4]){const p=at(dx,0),h=height(p.x,p.z);part(dx,h+.8,0,.85,1.6,.7,0xe2dcc5);part(dx,h+1.1,.36,.6,.4,.025,0x1e3936);block(p.x,p.z,.65)}const signPos=at(10,-10);sign(s.name+' · gasolina',signPos.x,signPos.z,angle);
+  const shop=at(16,2),depot=at(0,16);
+  shops.push({...shop,name:'Oficina · '+s.name});depots.push({...depot,name:'Fretes · '+s.name});
+  for(const [point,label,color] of [[shop,'OFICINA',0x416b65],[depot,'FRETES',0xb78248]] as const){
+   const x=point.x+3.8*Math.cos(angle),z=point.z-3.8*Math.sin(angle),h=height(x,z);
+   const kiosk=box(x,h+1,z,2.4,2,2,color);kiosk.rotation.y=angle;block(x,z,1.7);
+   sign(label,x,z,angle);
+  }
   const bay=at(-16,0);washBays.push({...bay,angle});
   const along=[-4,-2,0,2,4].map(z=>{const p=at(-16,z);return new T.Vector3(p.x,0,p.z)});
   scene.add(ribbon(along,6,0x829d99,.115));
@@ -81,5 +100,5 @@ export function makeWorld(scene:T.Scene){
  enableShadows(scene);
  let cell='';const birds=new T.Group();for(let i=0;i<12;i++){const bird=new T.Mesh(new T.ConeGeometry(.5,2,3),material(0x55645c));bird.rotation.z=Math.PI/2;birds.add(bird)}scene.add(birds);
  const updatePlaceLights=makePlaceLights(scene,fixed);
- return {washBays,updatePlaceLights,update(x:number,z:number,time:number){sea.update(time);const gx=Math.round(x/256),gz=Math.round(z/256),key=gx+','+gz;if(key!==cell){cell=key;const wanted=new Set<string>();for(let a=gx-3;a<=gx+3;a++)for(let b=gz-3;b<=gz+3;b++){const k=a+','+b;wanted.add(k);if(!chunks.has(k))chunks.set(k,chunk(a,b))}for(const [k,c] of chunks)if(!wanted.has(k)){scene.remove(c.group);c.group.traverse(o=>{if(o instanceof T.InstancedMesh)o.dispose();else if(o instanceof T.Mesh){o.geometry.dispose();(o.material as T.Material).dispose()}});chunks.delete(k)}obstacles.length=0;obstacles.push(...fixed);for(const c of chunks.values())obstacles.push(...c.hits)}for(const c of chunks.values())c.details.visible=Math.hypot(c.cx-x,c.cz-z)<BIOME_TUNING.detailDistance;birds.position.set(x,height(x,z)+55,z);birds.children.forEach((b,i)=>b.position.set(Math.sin(time*.00012+i*.2)*100,Math.sin(time*.002+i)*2,Math.cos(time*.00012+i*.2)*100));}};
+ return {dealers,shops,depots,washBays,updatePlaceLights,update(x:number,z:number,time:number){sea.update(time);const gx=Math.round(x/256),gz=Math.round(z/256),key=gx+','+gz;if(key!==cell){cell=key;const wanted=new Set<string>();for(let a=gx-3;a<=gx+3;a++)for(let b=gz-3;b<=gz+3;b++){const k=a+','+b;wanted.add(k);if(!chunks.has(k))chunks.set(k,chunk(a,b))}for(const [k,c] of chunks)if(!wanted.has(k)){scene.remove(c.group);c.group.traverse(o=>{if(o instanceof T.InstancedMesh)o.dispose();else if(o instanceof T.Mesh){o.geometry.dispose();(o.material as T.Material).dispose()}});chunks.delete(k)}obstacles.length=0;obstacles.push(...fixed);for(const c of chunks.values())obstacles.push(...c.hits)}for(const c of chunks.values())c.details.visible=Math.hypot(c.cx-x,c.cz-z)<BIOME_TUNING.detailDistance;birds.position.set(x,height(x,z)+55,z);birds.children.forEach((b,i)=>b.position.set(Math.sin(time*.00012+i*.2)*100,Math.sin(time*.002+i)*2,Math.cos(time*.00012+i*.2)*100));}};
 }

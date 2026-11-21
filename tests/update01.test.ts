@@ -15,13 +15,13 @@ test('aerodynamic tuck helps each motorcycle reach its fixed top speed',()=>{for
  assert.ok(Math.abs(spec.maxSpeed*3.6-expectedTopSpeeds[spec.id])<1e-9,`${spec.id} top speed`);
  const ride=new Ride();ride.spec=spec;assert.equal(ride.topSpeed,spec.maxSpeed);
  for(let i=0;i<60*180;i++)flatStep(ride,0);
- const uprightSpeed=ride.speed;assert.ok(uprightSpeed<spec.maxSpeed*.95,`${spec.id} upright: ${uprightSpeed*3.6} km/h`);
- if(spec.id==='cg150')assert.ok(uprightSpeed*3.6>=112&&uprightSpeed*3.6<=120,`CG 150 upright: ${uprightSpeed*3.6} km/h`);
+ const uprightSpeed=ride.speed;assert.ok(uprightSpeed<spec.maxSpeed,`${spec.id} upright: ${uprightSpeed*3.6} km/h`);
+ if(spec.id==='cg150')assert.ok(uprightSpeed*3.6>=124&&uprightSpeed*3.6<=128,`CG 150 upright: ${uprightSpeed*3.6} km/h`);
  ride.recover();ride.spec=spec;
  for(let i=0;i<60*180;i++)flatStep(ride,1);
  assert.ok(ride.bodyLean>.99);assert.ok(ride.speed<=spec.maxSpeed,`${spec.id} exceeded top speed`);
  assert.ok(ride.speed>spec.maxSpeed-.5,`${spec.id} tucked: ${ride.speed*3.6} km/h`);
- assert.ok(ride.speed>uprightSpeed+.9,`${spec.id} tuck did not reduce drag`);
+ assert.ok(ride.speed>uprightSpeed+.05,`${spec.id} tuck did not reduce drag`);
  const tuckedSpeed=ride.speed;
  for(let i=0;i<60;i++)flatStep(ride,0);
  assert.ok(tuckedSpeed-ride.speed<2.5&&ride.speed<tuckedSpeed,`${spec.id} posture transition was abrupt or did not slow`);

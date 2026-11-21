@@ -70,7 +70,10 @@ test('large map positions, 100 km/h and horns reach only other riders in the sam
   await new Promise(r=>setTimeout(r,180));
   for(const c of [a,b,other])assert.equal(c.messages.filter(m=>m.type==='horn').length,0);
   await new Promise(r=>setTimeout(r,250));a.send({type:'horn'});await b.wait(m=>m.type==='horn');
+  a.send({type:'horn',active:true});
+  await b.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===wa.id&&p.state.hornHeld===true));
+  a.send({type:'horn',active:false});
   a.send({type:'state',state:state(-300,1)});
-  await b.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===wa.id&&p.state.sequence===1));
+  await b.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===wa.id&&p.state.sequence===1&&p.state.hornHeld===false));
  }finally{for(const ws of sockets)ws.terminate();await game.close();rmSync(dir,{recursive:true,force:true})}
 });

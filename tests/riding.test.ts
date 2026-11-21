@@ -1,6 +1,17 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {Ride,acceleration,steeringAngle,TOP_SPEED} from '../src/riding';
+test('wind starts at zero and grows progressively below the former drag curve',()=>{
+ let previous=0;
+ for(const speed of [0,5,10,20,30,40]){
+  const coefficient=.004;
+  const wind=acceleration(speed,0,0,0,1,0,40)-acceleration(speed,0,0,0,1,coefficient,40);
+  if(!speed){assert.equal(wind,0);continue}
+  assert.ok(wind>previous&&wind<coefficient*speed**2);
+  if(speed===5)assert.ok(wind<coefficient*speed**2*.25);
+  previous=wind;
+ }
+});
 import {getVehicle} from '../src/vehicles';
 import {road,height,ground,nearest,terrain,LOOKOUT,terrainPatch,roadLength,stations} from '../src/terrain';
 import * as T from 'three';

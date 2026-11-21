@@ -8,13 +8,13 @@ export function nextDirt(level:number,surface:keyof typeof metresToFull,metres:n
 export function loadDirt(){
  const levels=Object.fromEntries(vehicles.map(v=>[v.id,0])) as Record<VehicleId,number>;
  try{
-  const saved=JSON.parse(localStorage.getItem('bike-dirt-v1')||'{}');
+  const saved=JSON.parse(localStorage.getItem('bike-dirt-v2')||'{}');
   for(const {id} of vehicles)if(Number.isFinite(saved?.[id]))levels[id]=T.MathUtils.clamp(saved[id],0,1);
  }catch{}
  return levels;
 }
 export function saveDirt(levels:Record<VehicleId,number>){
- try{localStorage.setItem('bike-dirt-v1',JSON.stringify(levels))}catch{}
+ try{localStorage.setItem('bike-dirt-v2',JSON.stringify(levels))}catch{}
 }
 
 export function inWashBay(bay:{x:number;z:number;angle:number},x:number,z:number){

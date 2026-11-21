@@ -25,13 +25,27 @@ export function createBike(id:VehicleId='pop'){
  const mount=fixedFairing?bike.body:bike.steering;
  const lensName=fixedFairing?'Body_Headlamp':id==='cg150'?'Steering_HeadlampGlass':'Steering_Headlamp';
  const headlight=makeHeadlight(mount,lensName);
+ const cargo=new T.Group();cargo.visible=false;
+ // Seat and luggage rack heights differ across the six meshes. Rest the plate
+ // on the tail, behind the passenger, using the model in its neutral pose.
+ bike.root.updateMatrixWorld(true);
+ const tailZ=seatAnchor[2]-.32;
+ const ray=new T.Raycaster(new T.Vector3(0,2,tailZ),new T.Vector3(0,-1,0));
+ const tail=bike.body.children.filter(o=>o instanceof T.Mesh);
+ const support=ray.intersectObjects(tail,false)[0];
+ cargo.position.set(0,support? support.point.y+.028 : seatAnchor[1],tailZ);
+ const shell=new T.MeshStandardMaterial({color:0x293036,roughness:.72});
+ for(const [w,h,d,y] of [[.22,.055,.33,0],[.36,.24,.32,.146],[.38,.045,.34,.285]]){
+  const piece=new T.Mesh(new T.BoxGeometry(w,h,d),shell);piece.position.y=y;piece.castShadow=true;cargo.add(piece);
+ }
+ bike.body.add(cargo);
  const dirt=bindDirt(bike.body,[bike.rider,passengerPetAnchor,headlight.lens,brakeLight.lens]);
  // The front axle's local Y is negative under the Sahara's elevated steering pivot.
  const radii=id==='sahara'?[bike.wheels[0].position.y,bike.steering.position.y+bike.wheels[1].position.y]:bike.wheels.map(()=>id==='caloi'?.29:.27);
- function roll(distance:number,rearLocked:boolean){
-  bike.wheels.forEach((wheel,i)=>{if(i!==0||!rearLocked)wheel.rotation.x+=distance/radii[i]});
+ function roll(distance:number,rearLocked:boolean,rearDistance=distance){
+  bike.wheels.forEach((wheel,i)=>{if(i!==0||!rearLocked)wheel.rotation.x+=(i===0?rearDistance:distance)/radii[i]});
  }
- return {...bike,headlight,brakeLight,passengerPetAnchor,pet,dirt,roll,setSteering:bindSteering(bike.steering,id)};
+ return {...bike,headlight,brakeLight,passengerPetAnchor,pet,cargo,dirt,roll,setSteering:bindSteering(bike.steering,id)};
 }
 function createBrakeLight(body:T.Group,rearZ:number){
  const imported=body.getObjectByName('Body_TailLens') as T.Mesh<T.BufferGeometry,T.MeshStandardMaterial>|undefined;

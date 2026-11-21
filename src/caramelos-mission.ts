@@ -23,8 +23,7 @@ export const CARAMELOS_POSITIONS: CarameloSpot[] = [
   {id:'caramelo-5',label:'Caramelo da ponte',hint:'na cabeceira de uma ponte sobre o rio',x:bridgeSpot.x,z:bridgeSpot.z},
 ];
 
-const STORAGE_KEY = 'caramelos-mission-v2';
-const LEGACY_STORAGE_KEY = 'caramelos-mission-v1';
+const STORAGE_KEY = 'caramelos-mission-v3';
 
 export class CarameloMission {
   private readonly found = new Set<string>();
@@ -103,8 +102,7 @@ export class CarameloMission {
     if (!storage) return;
     try {
       const current = storage.getItem(STORAGE_KEY);
-      const legacy = current === null ? storage.getItem(LEGACY_STORAGE_KEY) : null;
-      const parsed: unknown = JSON.parse(current ?? legacy ?? '[]');
+      const parsed: unknown = JSON.parse(current ?? '[]');
       const values = Array.isArray(parsed)
         ? parsed
         : parsed && typeof parsed === 'object' && 'found' in parsed && Array.isArray(parsed.found)
@@ -125,7 +123,7 @@ export class CarameloMission {
         ? parsed.petUnlocked
         : undefined;
       const version=parsed&&typeof parsed==='object'&&'version' in parsed&&typeof parsed.version==='number'?parsed.version:0;
-      if (legacy !== null || savedUnlock !== this.petUnlocked || version<3) this.save();
+      if (savedUnlock !== this.petUnlocked || version<3) this.save();
     } catch (error) {
       console.warn('Não foi possível carregar a missão de caramelos.', error);
     }

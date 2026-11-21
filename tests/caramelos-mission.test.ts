@@ -17,14 +17,14 @@ function memoryStorage(initial:Record<string,string>={}):Storage {
  };
 }
 
-test('legacy partial progress is migrated and can never unlock a pet early',()=>{
+test('the new career starts without previous discoveries or pet unlock',()=>{
  const store=memoryStorage({'caramelos-mission-v1':JSON.stringify(['caramelo-1'])});
  const mission=new CarameloMission(CARAMELOS_POSITIONS,store);
- assert.equal(mission.foundCount,1);
+ assert.equal(mission.foundCount,0);
  assert.equal(mission.petUnlocked,false);
- const saved=JSON.parse(store.getItem('caramelos-mission-v2')!);
+ const saved=JSON.parse(store.getItem('caramelos-mission-v3')!);
  assert.equal(saved.petUnlocked,false);
- assert.deepEqual(saved.found,['caramelo-1']);
+ assert.deepEqual(saved.found,[]);
 });
 
 test('pet unlocks only after every fixed caramelo is found and progress persists',()=>{

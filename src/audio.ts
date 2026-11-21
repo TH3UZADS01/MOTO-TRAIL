@@ -22,7 +22,7 @@ export const AUDIO_ASSETS=[
 ] as const;
 type Layer={source:AudioBufferSourceNode;gain:GainNode;filter:BiquadFilterNode;bank:'engine'|'moped'|'wind'|'cg150'|'sahara';load:boolean};
 type Position={x:number;y:number;z:number};
-type RemoteVoice={gain:GainNode;pan:StereoPannerNode;horns:Set<AudioBufferSourceNode>};
+type RemoteVoice={gain:GainNode;pan:StereoPannerNode;horns:Set<AudioBufferSourceNode>;stopHorn?:()=>void};
 export class Sound {
  private output?:DynamicsCompressorNode;private effectsOutput?:GainNode;private effectVolume=.5;
  get effects(){return this.effectVolume}
@@ -30,9 +30,11 @@ export class Sound {
  private players:RemotePlayer[]=[];private voices=new Map<string,RemoteVoice>();private revMatchSequences=new Map<string,number>();
  setRemotePlayers(players:RemotePlayer[]){
   this.players=players;const live=new Set(players.filter(p=>p.connected).map(p=>p.id));
-  for(const [id,v] of this.voices)if(!live.has(id)){for(const h of v.horns)h.stop();v.gain.disconnect();v.pan.disconnect();this.voices.delete(id)}
+  for(const [id,v] of this.voices)if(!live.has(id)){v.stopHorn?.();for(const h of v.horns)h.stop();v.gain.disconnect();v.pan.disconnect();this.voices.delete(id)}
   for(const id of this.revMatchSequences.keys())if(!players.some(p=>p.id===id))this.revMatchSequences.delete(id);
-  for(const player of players){const sequence=player.state.revMatchSequence??0,previous=this.revMatchSequences.get(player.id);if(previous!==undefined&&sequence>previous)this.remoteRevMatch(player.id);this.revMatchSequences.set(player.id,sequence)}
+  for(const player of players){
+   if(player.connected&&this.ready){const v=this.voice(player.id);if(player.state.hornHeld&&!v.stopHorn)v.stopHorn=this.startHorn(v.gain,1);else if(!player.state.hornHeld&&v.stopHorn){v.stopHorn();v.stopHorn=undefined}}
+   const sequence=player.state.revMatchSequence??0,previous=this.revMatchSequences.get(player.id);if(previous!==undefined&&sequence>previous)this.remoteRevMatch(player.id);this.revMatchSequences.set(player.id,sequence)}
  }
  private voice(id:string){let v=this.voices.get(id);if(v)return v;const c=this.ctx!,gain=c.createGain(),pan=c.createStereoPanner();gain.gain.value=0;gain.connect(pan);pan.connect(this.effectsOutput!);v={gain,pan,horns:new Set()};
   this.voices.set(id,v);return v;
@@ -52,7 +54,7 @@ export class Sound {
   oscillator.connect(gain);gain.connect(voice.gain);oscillator.onended=()=>{oscillator.disconnect();gain.disconnect()};oscillator.start(at);oscillator.stop(at+.31);
  }
 
- ctx?:AudioContext;volume=.5;ambience=.35;vehicle:VehicleId='pop';layers:Layer[]=[];ready=false;private loading?:Promise<void>;private hornBuffer?:AudioBuffer;private lastHorn=-1;private queuedDiscoveries=0;private discoveryQueueUntil=0;private crashQueued=false;
+ ctx?:AudioContext;volume=.5;ambience=.35;vehicle:VehicleId='pop';layers:Layer[]=[];ready=false;private loading?:Promise<void>;private hornBuffer?:AudioBuffer;private hornHeld=false;private stopLocalHorn?:()=>void;private queuedDiscoveries=0;private discoveryQueueUntil=0;private crashQueued=false;
  async start(){
   if(!this.ctx)this.ctx=new AudioContext();await this.ctx.resume();
   if(this.ready)return;
@@ -63,7 +65,7 @@ export class Sound {
   const buffers=await Promise.all(names.map(async name=>{const response=await fetch(`/audio/${name}.wav`,name.startsWith('sahara-')?{cache:'reload'}:undefined);if(!response.ok)throw new Error(`Não foi possível carregar ${name}`);return c.decodeAudioData(await response.arrayBuffer())}));
   const limiter=c.createDynamicsCompressor();this.output=limiter;limiter.threshold.value=-10;limiter.knee.value=12;limiter.ratio.value=6;limiter.attack.value=.008;limiter.release.value=.2;limiter.connect(c.destination);this.effectsOutput=c.createGain();this.effectsOutput.gain.value=this.effects;this.effectsOutput.connect(limiter);
   buffers.slice(0,AUDIO_ASSETS.length).forEach((buffer,i)=>{const asset=AUDIO_ASSETS[i];const source=c.createBufferSource(),gain=c.createGain(),filter=c.createBiquadFilter();source.buffer=buffer;source.loop=true;gain.gain.value=0;filter.type='lowpass';filter.frequency.value=asset.bank==='wind'?700:asset.bank==='cg150'?CG_AUDIO_TUNING.filter:asset.bank==='sahara'?SAHARA_AUDIO_TUNING.filter:1800;if(asset.bank==='sahara')source.connect(gain);else{source.connect(filter);filter.connect(gain);}gain.connect(limiter);source.start();this.layers.push({source,gain,filter,bank:asset.bank,load:asset.load})});
-  this.hornBuffer=buffers[AUDIO_ASSETS.length];this.ready=true;
+  this.hornBuffer=buffers[AUDIO_ASSETS.length];this.ready=true;this.setHorn(this.hornHeld);this.setRemotePlayers(this.players);
   while(this.queuedDiscoveries>0){this.queuedDiscoveries--;this.scheduleDiscovery()}
   if(this.crashQueued){this.crashQueued=false;this.playCrash()}
  }
@@ -123,5 +125,20 @@ export class Sound {
    layer.gain.gain.setTargetAtTime(gain,t,layer.bank!=='wind'&&engine?.limiting ? .008 : layer.bank==='cg150'?CG_AUDIO_TUNING.response:.16);layer.source.playbackRate.setTargetAtTime(rate,t,.2);
   }
  }
- horn(){if(!this.ready||!this.ctx||!this.hornBuffer)return;const c=this.ctx;if(c.currentTime-this.lastHorn<.4)return;this.lastHorn=c.currentTime;const source=c.createBufferSource(),gain=c.createGain();source.buffer=this.hornBuffer;gain.gain.value=.7;source.connect(gain);gain.connect(this.effectsOutput!);source.start();source.onended=()=>{source.disconnect();gain.disconnect()};}
+ setHorn(held:boolean){
+  this.hornHeld=held;
+  if(!held){this.stopLocalHorn?.();this.stopLocalHorn=undefined}
+  else if(this.ready&&!this.stopLocalHorn)this.stopLocalHorn=this.startHorn(this.effectsOutput!,.7);
+ }
+ private startHorn(output:AudioNode,volume:number){
+  const c=this.ctx!,source=c.createBufferSource(),gain=c.createGain();
+  source.buffer=this.hornBuffer!;source.loop=true;
+  gain.gain.setValueAtTime(0,c.currentTime);gain.gain.linearRampToValueAtTime(volume,c.currentTime+.006);
+  source.connect(gain);gain.connect(output);source.onended=()=>{source.disconnect();gain.disconnect()};source.start();
+  return ()=>{
+   const now=c.currentTime;
+   gain.gain.cancelScheduledValues(now);gain.gain.setValueAtTime(gain.gain.value,now);gain.gain.linearRampToValueAtTime(0,now+.008);
+   source.stop(now+.008);
+  };
+ }
 }
