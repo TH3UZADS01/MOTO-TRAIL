@@ -1,1 +1,14 @@
-{"max":3,"minDistance":155,"spawnRange":430,"removeDistance":750,"interval":35,"lifetime":300,"extraLifetime":300,"clearance":55,"regionSize":180,"regionCooldown":720,"sightDistance":240}
+{
+  "max": 1,
+  "minDistance": 155,
+  "spawnRange": 430,
+  "removeDistance": 750,
+  "interval": 900,
+  "lifetime": 300,
+  "extraLifetime": 300,
+  "clearance": 55,
+  "regionSize": 180,
+  "regionCooldown": 3600,
+  "sightDistance": 240,
+  "intervalJitter": 900
+}

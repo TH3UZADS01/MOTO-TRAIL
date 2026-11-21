@@ -34,3 +34,17 @@ test('realistic wheelie responds to real first-gear pitch torque and stays unava
 });
 test('20 km route has reachable stations every few kilometers',()=>{assert.ok(roadLength>=20000&&roadLength<20200);const indices=stations.map(s=>nearest(s.x,s.z).index).sort((a,b)=>a-b);for(let i=0;i<indices.length;i++){const gap=((indices[(i+1)%indices.length]-indices[i]+5000)%5000)/5000*roadLength;assert.ok(gap<4500)}for(const p of stations)assert.ok(nearest(p.x,p.z).distance<30)});
 test('mirante patch follows ground triangles without floating',()=>{const m=terrainPatch(LOOKOUT.x,LOOKOUT.z,LOOKOUT.radius,0xffffff),p=m.geometry.attributes.position;for(let i=0;i<p.count;i++)assert.ok(Math.abs(p.getY(i)-height(p.getX(i),p.getZ(i))-.055)<.001);m.geometry.dispose()});
+
+test('solid impacts distinguish frontal crashes from light and glancing contact',()=>{
+ for(const [speed,offset,event,crash] of [[16,0,false,true],[16,0,true,true],[7,0,false,false],[16,.82,false,false]] as const){
+  const ride=new Ride();ride.heading=0;ride.speed=speed;
+  const obstacle={x:ride.x+offset,z:ride.z+1,r:.5};
+  if(event)ride.eventObstacles=[obstacle];
+  ride.step(.1,0,0,0,event?[]:[obstacle]);
+  assert.equal(ride.speed,0);assert.equal(ride.fallen,crash);
+  if(crash){
+   ride.step(.1,1,0,0,[]);assert.equal(ride.wheelie,0);assert.ok(ride.lean>0);
+   ride.recover();assert.equal(ride.fallen,false);assert.equal(ride.lean,0);
+  }
+ }
+});

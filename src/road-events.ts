@@ -1,6 +1,7 @@
 import * as T from 'three';
 import {adventure} from './adventure-tuning';
 import {bridgeAt,deepWater,ground,nearestRoute,pois} from './terrain';
+import {tracks} from './map-layout';
 import type {Obstacle} from './world';
 import type {Site} from './career';
 
@@ -10,13 +11,19 @@ type Kind='log'|'closure'|'rocks'|'slide'|'sand';
 const kinds:Kind[]=['log','closure','rocks','slide','sand'];
 export type RoadNotice={kind:Kind;x:number;z:number;angle:number;region:string};
 type Event={kind:Kind;group:T.Group;hits:Obstacle[];until:number;region:string};
+const nextInterval=()=>config.interval+Math.random()*config.intervalJitter;
+const circuit=tracks[0];
+const span=circuit.width+1;
+// Side roads have a sample at least every four metres.
+const junctionClearanceSq=(config.clearance+4)**2;
+const sideRoads=tracks.filter(track=>track!==circuit);
 const dist=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
 
 export class RoadEvents{
  readonly active:Event[]=[];
  readonly hits:Obstacle[]=[];
  private elapsed=0;
- private next=1;
+ private next=nextInterval();
  private sequence=0;
  private recent=new Map<string,number>();
  private pool=new Map<Kind,T.Group[]>();
@@ -35,13 +42,23 @@ export class RoadEvents{
    if(!this.materials.has(color))this.materials.set(color,new T.MeshStandardMaterial({color,roughness:.95}));
    const m=new T.Mesh(geo,this.materials.get(color));m.scale.set(w,h,d);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;group.add(m);return m;
   };
+  if(kind!=='log'){
+   for(const direction of [-1,1]){
+    const z=direction*1.8;
+    piece('box',0xef9c31,0,.76,z,span,.22,.14);
+    for(const side of [-1,0,1]){
+     const x=side*(span/2-.35);piece('box',0x554539,x,.4,z,.14,.8,.16);
+     piece('box',0xffead2,x,.76,z,.6,.23,.17);
+    }
+   }
+  }
   if(kind==='log'){
-   piece('log',0x65503c,0,.24,0,.48,2.35,.48).rotation.z=Math.PI/2;
+   piece('log',0x65503c,0,.24,0,.54,span,.54).rotation.z=Math.PI/2;
    piece('log',0x66543e,-.25,.38,.20,.17,.8,.17).rotation.x=.9;
   }else if(kind==='closure'){
    piece('box',0xe8ac54,0,.65,0,1.75,.22,.14);
    for(const x of [-.67,.67]){piece('box',0x785f48,x,.34,0,.12,.66,.18);piece('cone',0xe77a31,x,.24,1.1,.43,.48,.43)}
-  }else if(kind==='sand')piece('rock',0xe1c78d,0,.04,0,2.5,.15,6);
+  }else if(kind==='sand')piece('rock',0xe1c78d,0,.13,0,span,.38,3.3);
   else{
    if(kind==='slide')piece('rock',0xaa7953,0,.08,0,2.6,.58,3.6);
    for(const [x,z,r] of [[-.55,-.6,.63],[.45,.45,.74],[.1,1.15,.46]])piece('rock',0x786f60,x,r*.25,z,r,r*.82,r);
@@ -58,27 +75,29 @@ export class RoadEvents{
   this.elapsed+=dt;
   for(let i=this.active.length-1;i>=0;i--){
    const e=this.active[i];
-   if(e.until<=this.elapsed||dist(p,e.group.position)>config.removeDistance||protectedPoints.some(q=>dist(q,e.group.position)<config.clearance))this.remove(i);
+   if(e.until<=this.elapsed||protectedPoints.some(q=>dist(q,e.group.position)<config.clearance))this.remove(i);
   }
   if(this.elapsed<this.next)return;
-  this.next=this.elapsed+config.interval;
+  this.next=this.elapsed+nextInterval();
   for(const [key,end] of this.recent)if(end<=this.elapsed)this.recent.delete(key);
   if(this.active.length>=config.max)return;
   const riders=Array.from(peers,peer=>peer.bike.root.position);
   const n=nearestRoute(p.x,p.z),points=n.track.points;
+  if(n.track!==circuit||n.distance>circuit.width)return;
   const a=points[n.index],b=points[n.index+1];
   const forward=(b.x-a.x)*Math.sin(heading)+(b.z-a.z)*Math.cos(heading)>=0?1:-1;
   for(const offset of [58,82,100,-66,-88]){
    const i=n.index+offset*forward;
    if(i<2||i+2>=points.length)continue;
    const q=points[i],t=points[i+1],angle=Math.atan2(t.x-q.x,t.z-q.z);
-   const side=(i%2?1:-1)*n.track.width*.28;
-   const x=q.x+side*Math.cos(angle),z=q.z-side*Math.sin(angle),at={x,z},range=dist(p,at);
+   const x=q.x,z=q.z,at={x,z},range=dist(p,at);
    const region=Math.floor(x/config.regionSize)+','+Math.floor(z/config.regionSize);
    const ahead=((x-p.x)*Math.sin(heading)+(z-p.z)*Math.cos(heading))/range;
    if(range<config.sightDistance&&ahead>.95)continue;
    if(riders.some(r=>dist(r,at)<config.minDistance)||range<config.minDistance||range>config.spawnRange||this.recent.has(region)||n.track.width<5||bridgeAt(x,z)||deepWater(x,z))continue;
-   if(pois.some(v=>dist(v,at)<config.clearance)||protectedPoints.some(v=>dist(v,at)<config.clearance)||fixed.some(o=>dist(o,at)<o.r+4))continue;
+   if(pois.some(v=>dist(v,at)<config.clearance)||protectedPoints.some(v=>dist(v,at)<config.clearance)||fixed.some(o=>dist(o,at)<o.r+span/2+2))continue;
+   // The outer circuit remains reachable in the opposite direction. Keep its junctions open.
+   if(sideRoads.some(track=>track.points.some(p=>(p.x-x)**2+(p.z-z)**2<junctionClearanceSq)))continue;
    const kind=kinds[(this.sequence++ + Math.floor(Math.abs(q.x+q.z)/config.regionSize))%kinds.length];
    this.recent.set(region,this.elapsed+config.regionCooldown);
    const notice={kind,x,z,angle,region};
@@ -90,13 +109,16 @@ export class RoadEvents{
    const group=this.object(kind);group.position.set(x,ground(x,z),z);group.rotation.y=angle;this.scene.add(group);
    const hits:Obstacle[]=[];
    const hit=(lx:number,lz:number,r:number)=>hits.push({x:x+lx*Math.cos(angle)+lz*Math.sin(angle),z:z+lz*Math.cos(angle)-lx*Math.sin(angle),r});
-   if(kind==='log'||kind==='closure')for(const dx of [-.8,0,.8])hit(dx,0,.43);
-   if(kind==='closure'){hit(-.67,1.1,.23);hit(.67,1.1,.23)}
-   if(kind==='rocks'||kind==='slide'){hit(-.55,-.6,.38);hit(.45,.45,.4);hit(.1,1.15,.26);if(kind==='slide')hit(0,0,.9)}
+   const sections=Math.ceil(span/.7);
+   for(let i=0;i<=sections;i++){
+    const lateral=(i/sections-.5)*span;
+    if(kind==='log')hit(lateral,0,.4);
+    else {hit(lateral,-1.8,.4);hit(lateral,1.8,.4)}
+   }
    this.active.push({kind,group,hits,until:until,region});
    this.hits.push(...hits);
  }
- clear(){while(this.active.length)this.remove(0);this.recent.clear();this.next=this.elapsed+1}
+ clear(){while(this.active.length)this.remove(0);this.recent.clear();this.next=this.elapsed+nextInterval()}
  sync(notices:readonly RoadNotice[],player:Point,objective?:Point){
   const visible=notices.filter(e=>dist(e,player)<=config.removeDistance&&(!objective||dist(e,objective)>=config.clearance));
   for(let i=this.active.length-1;i>=0;i--)if(!visible.some(e=>e.region===this.active[i].region))this.remove(i);

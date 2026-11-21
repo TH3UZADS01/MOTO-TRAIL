@@ -81,14 +81,20 @@ test('itineraries use reachable map sites, advance in order, resume and pay once
 });
 test('events are bounded and pooled, avoid the rider and objective, collide and expire',()=>{
  const scene=new T.Scene(),events=new RoadEvents(scene);let count=0;
- for(let i=0;i<250;i++){
+ let clock=0,lastSpawn=0;
+ for(let i=0;i<1200;i++){
   const p=road[(i*12)%road.length],previous=new Set(events.active);
-  events.update(5,p,0,[],[]);
+  clock+=15;events.update(15,p,0,[],[]);
   assert.ok(events.active.length<=adventure.events.max);
   for(const e of events.active)if(!previous.has(e)){
-   count++;assert.ok(e.group.position.distanceTo(p)>=150);
+   count++;assert.ok(clock-lastSpawn>=adventure.events.interval);lastSpawn=clock;assert.ok(e.group.position.distanceTo(p)>=150);
    const n=nearestRoute(e.group.position.x,e.group.position.z);
-   assert.ok(n.distance>=n.track.width*.2);
+   assert.equal(n.track.id,'main');assert.ok(n.distance<.01);
+   for(let x=-n.track.width/2;x<=n.track.width/2;x+=.1){
+    const dx=Math.cos(e.group.rotation.y)*x,dz=-Math.sin(e.group.rotation.y)*x;
+    const row=e.kind==='log'?0:1.8;
+    assert.ok(e.hits.some(h=>Math.hypot(h.x-e.group.position.x-dx-row*Math.sin(e.group.rotation.y),h.z-e.group.position.z-dz-row*Math.cos(e.group.rotation.y))<=h.r));
+   }
    if(e.hits.length){
     const r=new Ride(),o=e.hits[0];r.x=o.x;r.z=o.z-o.r-.36;r.heading=0;r.speed=5;r.eventObstacles=events.hits;
     r.step(1/60,0,0,0,[]);assert.equal(r.speed,0);

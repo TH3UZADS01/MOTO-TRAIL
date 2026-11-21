@@ -343,7 +343,7 @@ function frame(now:number){
   missionInteraction.classList.toggle('hidden',!nearby);
   if(nearby)missionInteraction.textContent=`Encontrar ${nearby.label} · F`;
   const touchCollect=touchControls.querySelector<HTMLButtonElement>('[data-touch-action="collect"]');touchCollect?.classList.toggle('hidden',!nearby);
-  if(ride.fallen&&!fallEventHandled){fallEventHandled=true;sound.playCrash();notify('Você caiu para trás. Use R ou o botão de reset para voltar à moto.')}
+  if(ride.fallen&&!fallEventHandled){fallEventHandled=true;sound.playCrash();notify('Você caiu. Use R ou o botão de reset para voltar à moto.')}
   else if(!ride.fallen)fallEventHandled=false;
   camera.orbit-=pad.lookX*dt*2;camera.pitch=T.MathUtils.clamp(camera.pitch-pad.lookY*dt*1.4,camera.firstPerson?CAMERA_TUNING.minLookPitch:-.65,CAMERA_TUNING.maxLookPitch);
   if(!dragging&&!pad.lookX&&!pad.lookY){camera.orbit*=Math.exp(-dt*2);camera.pitch*=Math.exp(-dt*2)}
@@ -351,7 +351,7 @@ function frame(now:number){
  bike.root.position.set(ride.x,ride.y,ride.z);bike.root.rotation.y=ride.heading;bike.rider.visible=true;
  bike.pet.setUnlocked(career.state.pet&&caramelosMission.petUnlocked&&!ride.fallen);if(career.state.pet&&caramelosMission.petUnlocked&&!ride.fallen)bike.pet.update(ride.bodyLean, ride.brakeInput, dt);
  for(const [id,dog] of worldCaramelos){dog.pet.update(0,0,dt);dog.marker.visible=!caramelosMission.hasSpot(id)&&(settings.carameloMapMode==='easy'||caramelosMission.isDiscovered(id));dog.marker.position.y=1+Math.sin(now*.003+id.length)*.07}
- bike.setSteering(steeringAngle(ride.speed,ride.steer,ride.wheelie));bike.riderRig.update(ride.speed,ride.steer,dt,camera.firstPerson,ride.bodyLean,playing&&!refueling&&!ride.pushing&&ride.fuel.get(settings.vehicle)>0&&!ride.fallen?ride.engineThrottle:0,ride.fallen,ride.wheelie,ride.lean,ride.burnoutSpeed>0);bike.brakeLight.update(playing&&!refueling?ride.brakeInput:0,dt);applyBikePose(bike,ride.pitch,ride.lean,ride.wheelie,ride.burnoutSpeed?0:bike.riderRig.stopPose,ride.suspension.front.compression,ride.suspension.rear.compression,ride.spec.wheelbase);if(playing)bike.roll(ride.speed*dt,ride.drift.active,(ride.burnoutSpeed||ride.speed)*dt);
+ bike.setSteering(steeringAngle(ride.speed,ride.steer,ride.wheelie));bike.riderRig.update(ride.speed,ride.steer,dt,camera.firstPerson,ride.bodyLean,playing&&!refueling&&!ride.pushing&&ride.fuel.get(settings.vehicle)>0&&!ride.fallen?ride.engineThrottle:0,ride.fallen,ride.wheelie,ride.lean,ride.burnoutSpeed>0);bike.brakeLight.update(playing&&!refueling?ride.brakeInput:0,dt);applyBikePose(bike,ride.pitch,ride.lean,ride.wheelie,ride.burnoutSpeed?0:bike.riderRig.stopPose,ride.suspension.front.compression,ride.suspension.rear.compression,ride.spec.wheelbase,ride.fallen);if(playing)bike.roll(ride.speed*dt,ride.drift.active,(ride.burnoutSpeed||ride.speed)*dt);
  tireParticles.update(surface(ride.x,ride.z),playing?(ride.burnoutSpeed||ride.speed):0,bike.wheels[0],ride.heading,dt,playing&&(ride.drift.active||ride.burnoutSpeed>0));
  camera.update(ride,dt,ride.spec.eyeHeight,bike.body,bike.riderRig.eye);
 

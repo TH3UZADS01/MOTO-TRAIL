@@ -8,6 +8,7 @@ import {Fuel} from './fuel';
 import {getVehicle,type VehicleSpec} from './vehicles';
 import {ground,nearestRoute,surface,SIZE,deepWater} from './terrain';
 import type {Obstacle} from './world';
+const CRASH_SPEED=35/3.6; // Closing speed perpendicular to the obstacle, in m/s.
 export const TOP_SPEED=100/3.6;
 export const ACCELERATION_SCALE=.8; // 20% slower acceleration for every motorcycle.
 export interface WheelieDebugState {gear:number;rpm:number;wheelTorque:number;pitchTorque:number;stabilizingTorque:number;angle:number}
@@ -52,7 +53,7 @@ export class Ride {
       this.suspension.reset();
       this.burnoutSpeed=0;
       this.fallTimer+=dt;this.speed*=Math.exp(-4*dt);this.engine.update(dt,this.speed,this.spec,this.topSpeed,0,1,false,automatic,realistic);this.engine.cancelBlip();
-      this.wheelie=Math.max(this.wheelie,BODY_TUNING.loopOutAngle+Math.min(.3,this.fallTimer*.5));
+      if(this.wheelie>=BODY_TUNING.loopOutAngle)this.wheelie=Math.max(this.wheelie,BODY_TUNING.loopOutAngle+Math.min(.3,this.fallTimer*.5));
       this.lean+=(Math.sign(this.lean||1)*.8-this.lean)*(1-Math.exp(-dt*3));this.contact();return;
     }
     this.bodyLean+=(clamp(bodyInput,-1,1)-this.bodyLean)*(1-Math.exp(-BODY_TUNING.response*dt));
@@ -108,9 +109,31 @@ export class Ride {
       x+=footX*dc+footZ*ds;
       z+=footZ*dc-footX*ds;
     }
-    const blocks=(o:Obstacle)=>{const next=(x-o.x)**2+(z-o.z)**2,old=(this.x-o.x)**2+(this.z-o.z)**2;return next<(o.r+.35)**2&&next<=old+1e-10;};
-    const hit=deepWater(x,z)||Math.abs(x)>SIZE/2-30||Math.abs(z)>SIZE/2-30||obstacles.some(blocks)||this.eventObstacles.some(blocks);
-    if(hit){if(burnout)this.heading=previousHeading;this.drift.reset();this.wheelie=0;this.wheelieAngularVelocity=0;this.impact=Math.max(this.impact,Math.abs(this.speed));this.speed=0;}else {this.x=x;this.z=z;this.distance+=Math.abs(this.speed)*dt}
+    const dx=x-this.x,dz=z-this.z,travelSq=dx*dx+dz*dz;
+    let hitObject=false,closingSpeed=0;
+    const checkObstacle=(o:Obstacle)=>{
+      const ox=o.x-this.x,oz=o.z-this.z,radius=o.r+.35;
+      if(Math.abs(ox)>radius+Math.abs(dx)||Math.abs(oz)>radius+Math.abs(dz))return;
+      const toward=ox*dx+oz*dz;
+      if(travelSq===0||toward<=0)return;
+      const t=Math.min(1,toward/travelSq);
+      if((ox-t*dx)**2+(oz-t*dz)**2>=radius*radius)return;
+      hitObject=true;
+      // The perpendicular offset from the path determines how directly the bike hits.
+      const cross=ox*dz-oz*dx;
+      const normalFraction=Math.sqrt(Math.max(0,1-cross*cross/(travelSq*radius*radius)));
+      closingSpeed=Math.max(closingSpeed,Math.abs(this.speed)*normalFraction);
+    };
+    obstacles.forEach(checkObstacle);this.eventObstacles.forEach(checkObstacle);
+    const hit=hitObject||deepWater(x,z)||Math.abs(x)>SIZE/2-30||Math.abs(z)>SIZE/2-30;
+    if(hit){
+      if(burnout)this.heading=previousHeading;
+      this.drift.reset();this.wheelie=0;this.wheelieAngularVelocity=0;
+      this.impact=Math.max(this.impact,Math.abs(this.speed));this.speed=0;
+      if(closingSpeed>=CRASH_SPEED){
+        this.fallen=true;this.fallTimer=0;this.resetBody();return;
+      }
+    }else {this.x=x;this.z=z;this.distance+=Math.abs(this.speed)*dt}
     const wheeliePhysics=this.engine.wheeliePhysics(this.spec,this.speed,throttle,this.bodyLean);
     this.wheelieDebug={gear:this.engine.gear,rpm:this.engine.rpm,wheelTorque:wheeliePhysics.wheelTorque,pitchTorque:wheeliePhysics.pitchTorque*BODY_TUNING.wheeliePitchForceScale,stabilizingTorque:wheeliePhysics.stabilizingTorque,angle:this.wheelie};
     const physicalWheelieMargin=this.engine.allowWheelie(this.spec,this.speed,throttle,brake,this.bodyLean);

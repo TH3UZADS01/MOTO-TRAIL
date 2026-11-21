@@ -20,8 +20,7 @@ export function createGameServer({dataDir=resolve('server-data'),origins=['http:
  server.on('upgrade',(req,socket,head)=>{if(req.url!=='/ws'||!origins.includes(req.headers.origin)||wss.clients.size>=200){socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');socket.destroy();return}wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,req))});
  const send=(ws,data)=>{if(ws?.readyState===WebSocket.OPEN&&ws.bufferedAmount<65536)ws.send(JSON.stringify(data))};
  function roomRoads(room,now){
-  const riders=[...room.members.values()].filter(p=>p.socket);
-  room.roadEvents=(room.roadEvents??[]).filter(e=>e.until>now&&riders.some(p=>Math.hypot(e.x-p.state.x,e.z-p.state.z)<=roadConfig.removeDistance));
+  room.roadEvents=(room.roadEvents??[]).filter(e=>e.until>now);
   return room.roadEvents;
  }
  const broadcast=r=>{const message={type:'snapshot',world:WORLD,at:Date.now(),roadEvents:roomRoads(r,Date.now()),players:[...r.members.values()].map(publicMember)};for(const p of r.members.values())send(p.socket,message)};
@@ -67,7 +66,7 @@ export function createGameServer({dataDir=resolve('server-data'),origins=['http:
     if(events.length>=c.max||now<(room.nextRoad??0)||cooldowns.has(region)||Math.hypot(e.x-member.state.x,e.z-member.state.z)>c.spawnRange+10)return;
     if([...room.members.values()].some(p=>p.socket&&Math.hypot(e.x-p.state.x,e.z-p.state.z)<c.minDistance))return;
     events.push({kind:e.kind,x:e.x,z:e.z,angle:e.angle,region,until:now+1000*(c.lifetime+Math.random()*c.extraLifetime)});
-    cooldowns.set(region,now+c.regionCooldown*1000);room.nextRoad=now+c.interval*1000;broadcast(room);return;
+    cooldowns.set(region,now+c.regionCooldown*1000);room.nextRoad=now+(c.interval+Math.random()*c.intervalJitter)*1000;broadcast(room);return;
    }
    if(message.type==='horn'&&typeof message.active==='boolean'){
     if(member.state.hornHeld!==message.active){member.state.hornHeld=message.active;broadcast(room)}
