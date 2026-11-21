@@ -89,9 +89,24 @@ export function openCareer(){
  }};
 }
 export function equipment(s:Career,id:VehicleId){return s.garage[id]??=factory()}
+// Above the workshop warning, preserve the normal wear curve. Below it,
+// interpolate from the critical condition to each component's residual output.
+export const criticalCondition=20;
+const wearResponse={
+ motor:{floor:.12,normalLoss:.10},
+ freios:{floor:.06,normalLoss:.20},
+ pneus:{floor:.24,normalLoss:.14}
+};
+export function conditionFactor(part:Condition,condition:number){
+ const {floor,normalLoss}=wearResponse[part];
+ const health=Math.max(0,Math.min(100,condition));
+ if(health>=criticalCondition)return 1-normalLoss*(1-health/100);
+ const atWarning=1-normalLoss*(1-criticalCondition/100);
+ return floor+(atWarning-floor)*health/criticalCondition;
+}
 export function tyreResponse(gear:Equipment,road:boolean,speed:number,turn:number,throttle:number){
  const mismatch=gear.tyre==='trilha'?road:gear.tyre==='pista'&&!road;
  const grip=gear.tyre==='original'?1:mismatch?(road?.92:.80):(road?1.025:1.20);
  const slip=mismatch?Math.min(1,Math.abs(speed)/15)*turn*(.04+.08*throttle):0;
- return {grip:grip*(.86+.14*gear.pneus/100),slip};
+ return {grip:grip*conditionFactor('pneus',gear.pneus),slip};
 }

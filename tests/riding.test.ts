@@ -48,3 +48,21 @@ test('solid impacts distinguish frontal crashes from light and glancing contact'
   }
  }
 });
+
+test('critical wear weakens propulsion, braking and cornering in both riding modes',()=>{
+ for(const realistic of [false,true]){
+  function step(part:'motor'|'freios'|'pneus',condition:number,gas:number,brake:number){
+   const ride=new Ride();ride.speed=4;ride.equipment[part]=condition;
+   ride.contact=()=>{ride.pitch=0};
+   ride.step(1/60,gas,brake,1,[],false,0,false,realistic);
+   return ride;
+  }
+  const drive=(health:number)=>step('motor',health,1,0).speed-step('motor',health,0,0).speed;
+  const stopping=(health:number)=>step('freios',health,0,0).speed-step('freios',health,0,1).speed;
+  assert.ok(drive(0)>0&&drive(0)<drive(100)*.2&&drive(10)>drive(0));
+  assert.ok(stopping(0)>0&&stopping(0)<stopping(100)*.1&&stopping(10)>stopping(0));
+  const heading=new Ride().heading;
+  const turn=(health:number)=>Math.abs(step('pneus',health,0,0).heading-heading);
+  assert.ok(turn(0)>0&&turn(0)<turn(100)*.3&&turn(10)>turn(0));
+ }
+});

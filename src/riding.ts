@@ -1,6 +1,6 @@
 import {Suspension} from './suspension';
 import {adventure} from './adventure-tuning';
-import {factory,tyreResponse} from './career';
+import {conditionFactor,factory,tyreResponse} from './career';
 import {Powertrain} from './powertrain';
 import {Drift,DRIFT_TUNING} from './drift';
 import {BODY_TUNING,bodyDragMultiplier,clamp,counterweightBlend} from './body-control';
@@ -48,6 +48,8 @@ export class Ride {
     const loadRatio=this.cargoLoad/baseMass;
     const initialSpeed=this.speed;
     dt=clamp(dt,0,.1);this.brakeInput=brake;this.engineThrottle=0;
+    const motor=conditionFactor('motor',this.equipment.motor);
+    brake*=conditionFactor('freios',this.equipment.freios);
     this.drift.update(dt,brake,this.speed,this.steer,push||this.fallen||this.wheelie>.08);
     if(this.fallen){
       this.suspension.reset();
@@ -64,7 +66,7 @@ export class Ride {
     this.steer+=(turn-this.steer)*(1-Math.exp(-dt*response*(10-this.speed*.2)/(this.spec.stability??1)));
     this.contact();
     this.pushing=push;
-    const burnout=!push&&Math.abs(this.speed)<.20&&this.wheelie<.02&&throttle>=.18&&brake>=.25&&this.gear>0&&!this.engine.stalled;
+    const burnout=!push&&Math.abs(this.speed)<.20&&this.wheelie<.02&&throttle*motor>=.18&&brake>=.25&&this.gear>0&&!this.engine.stalled;
     if(burnout){
       const target=this.engine.speedAtRedline(this.spec,this.gear)*(.35+.45*throttle);
       this.burnoutSpeed+=(target-this.burnoutSpeed)*(1-Math.exp(-8*dt));
@@ -84,8 +86,8 @@ export class Ride {
     else if(this.speed<.15&&throttle===0){this.speed=0;}
     else {
       const stalled=realistic&&this.engine.stalled;
-      const gearThrottle=this.gear===0||stalled||this.drift.active||(!automatic&&this.speed>speedLimit)?0:this.engineThrottle*(.90+.001*this.equipment.motor);
-      const effectiveBrake=brake*(prep?.brakes==='improved'?adventure.brakeGain:1)/(1+adventure.cargo.braking*loadRatio)*(.80+.002*this.equipment.freios)*(1-(1-DRIFT_TUNING.brakingFactor)*this.drift.amount);
+      const gearThrottle=this.gear===0||stalled||this.drift.active||(!automatic&&this.speed>speedLimit)?0:this.engineThrottle*motor;
+      const effectiveBrake=brake*(prep?.brakes==='improved'?adventure.brakeGain:1)/(1+adventure.cargo.braking*loadRatio)*(1-(1-DRIFT_TUNING.brakingFactor)*this.drift.amount);
         const baseAcceleration=acceleration(this.speed,0,effectiveBrake*grip*(this.spec.braking??1),this.pitch,grip,this.spec.aerodynamicDrag*bodyDragMultiplier(this.bodyLean),this.topSpeed);
         const mass=baseMass+adventure.cargo.inertia*this.cargoLoad;
         const arcadeTorque=realistic?1:this.engine.torqueAtRpm(this.engine.torqueRpm,this.spec)/this.engine.torqueAtRpm(this.spec.peakPowerRpm,this.spec);
@@ -134,9 +136,9 @@ export class Ride {
         this.fallen=true;this.fallTimer=0;this.resetBody();return;
       }
     }else {this.x=x;this.z=z;this.distance+=Math.abs(this.speed)*dt}
-    const wheeliePhysics=this.engine.wheeliePhysics(this.spec,this.speed,throttle,this.bodyLean);
+    const wheeliePhysics=this.engine.wheeliePhysics(this.spec,this.speed,throttle*motor,this.bodyLean);
     this.wheelieDebug={gear:this.engine.gear,rpm:this.engine.rpm,wheelTorque:wheeliePhysics.wheelTorque,pitchTorque:wheeliePhysics.pitchTorque*BODY_TUNING.wheeliePitchForceScale,stabilizingTorque:wheeliePhysics.stabilizingTorque,angle:this.wheelie};
-    const physicalWheelieMargin=this.engine.allowWheelie(this.spec,this.speed,throttle,brake,this.bodyLean);
+    const physicalWheelieMargin=this.engine.allowWheelie(this.spec,this.speed,throttle*motor,brake,this.bodyLean);
      // Once airborne, transmit throttle torque without requiring a new body pull.
      const airborne=this.wheelie>BODY_TUNING.airborneThreshold;
      const activeWheelie=!hit&&!push&&!this.engine.stalled&&throttle>0&&(airborne||physicalWheelieMargin>0)&&this.speed>=BODY_TUNING.minWheelieSpeed;

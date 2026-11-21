@@ -1,6 +1,6 @@
 import {RoadEvents} from './road-events';
 import {destination} from './adventures';
-import {carriedKg} from './career';
+import {criticalCondition,carriedKg} from './career';
 import {makeDeliveryMarker} from './delivery-marker';
 import {openCareer,equipment,target,awardCub} from './career';
 import {careerUI} from './career-ui';
@@ -257,7 +257,7 @@ const pendingWear=new Map<VehicleId,WearDelta>();
 function saveWear(id:VehicleId,immediate=false){
  if(!pendingWear.has(id))return;
  const edit:Parameters<typeof career.change>[0]=s=>{const wear=pendingWear.get(id);if(!wear)return;const g=equipment(s,id);g.km=(g.km??0)+wear.km;for(const k of ['motor','pneus','freios'] as const){
-  const previous=g[k];g[k]=Math.max(0,g[k]-wear[k]);if(previous>20&&g[k]<=20)notify('Condição crítica · '+k);
+  const previous=g[k];g[k]=Math.max(0,g[k]-wear[k]);if(previous>criticalCondition&&g[k]<=criticalCondition)notify('Condição crítica · '+k);
  }};
  const done=()=>{pendingWear.delete(id);refreshCareer()};
  if(immediate)career.changeNow(edit,done);else void career.change(edit,done).catch(()=>notify('Falha ao salvar quilometragem e desgaste'));
