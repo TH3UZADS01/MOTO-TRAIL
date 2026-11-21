@@ -1,7 +1,7 @@
 """Optimize the decoded Titan and export a GLB plus the game's synchronous mesh asset.
 Source is produced by import_titan_edf.py. All dimensions/pivots below are game metres.
 """
-import bpy,bmesh,json,math,shutil
+import bpy,bmesh,json,math,shutil,subprocess,tempfile
 from pathlib import Path
 from mathutils import Vector,Matrix
 ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'assets/cg150';PUBLIC=ROOT/'public/models'
@@ -67,10 +67,13 @@ for o in objects:
  print('OPTIMIZED',o.name,len(o.data.polygons),flush=True)
 
 # Export real recovered texture pixels, capped at 512 for the web model.
-texdir=PUBLIC/'cg150-textures';texdir.mkdir(exist_ok=True)
+staging=tempfile.TemporaryDirectory()
+stage=Path(staging.name)
+texdir=stage/'cg150-textures';texdir.mkdir()
 for im in bpy.data.images:
  if im.size[0]>0 and im.name not in ['Render Result','Viewer Node']:
-  if max(im.size)>512:im.scale(512,512)
+  if max(im.size)>512:
+   factor=512/max(im.size);im.scale(*(max(1,round(dim*factor)) for dim in im.size))
   im.filepath_raw=str(texdir/(im.name+'.png'));im.file_format='PNG';im.save();im.pack()
 
 data={'source':'titan150luquine/model.edf + rodatitan15008luq wheels','materials':{},'textures':{},'parts':[]};records={n:{} for n in groups};total=0
@@ -95,8 +98,9 @@ for name,g in groups.items():
  for rec in meshes:del rec['unique']
  data['parts'].append({'name':name,'parent':parents[name],'position':game(g.location),'meshes':meshes})
 data['triangles']=total
-(ROOT/'src/assets/cg150-model.json').write_text(json.dumps(data,separators=(',',':')),encoding='utf-8')
-bpy.ops.object.select_all(action='SELECT');bpy.ops.export_scene.gltf(filepath=str(PUBLIC/'cg150.glb'),export_format='GLB',use_selection=True,export_yup=True)
+(stage/'cg150-model.json').write_text(json.dumps(data,separators=(',',':')),encoding='utf-8')
+bpy.ops.object.select_all(action='SELECT');bpy.ops.export_scene.gltf(filepath=str(stage/'cg150.glb'),export_format='GLB',use_selection=True,export_yup=True)
+subprocess.run(['python',str(ROOT/'tools/pack_titan_game.py'),str(stage)],check=True)
 bpy.ops.wm.save_as_mainfile(filepath=str(OUT/'cg150.blend'))
 print('TITAN_EXPORT',total,'triangles',sum(len(p['meshes']) for p in data['parts']),'draw calls',flush=True)
 scene=bpy.context.scene;bpy.ops.object.camera_add(location=(3,-4,2.0));cam=bpy.context.object;cam.rotation_euler=(Vector((0,0,.65))-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.type='ORTHO';cam.data.ortho_scale=2.5;scene.camera=cam

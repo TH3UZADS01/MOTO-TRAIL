@@ -20,9 +20,14 @@ test('CG Blender geometry retains steering and wheel pivots and separate suspens
  bike.root.updateMatrixWorld(true);
  bike.body.traverse(o=>{if(o instanceof T.Mesh&&o.name.startsWith(o.parent!.name+'_')){
   assert.ok(Array.from(o.geometry.getAttribute('position').array).every(Number.isFinite));
-  const uv=o.geometry.getAttribute('uv');assert.equal(uv.count,o.geometry.getAttribute('position').count);
-  assert.ok(Array.from(uv.array).every(Number.isFinite));
-  assert.ok(Array.from(o.geometry.index!.array).every(i=>i<uv.count));
+  const count=o.geometry.getAttribute('position').count,uv=o.geometry.getAttribute('uv');
+  if(o.material.name in model.textures){
+   assert.equal(uv.count,count);
+   assert.ok(Array.from(uv.array).every(Number.isFinite));
+  }else assert.equal(uv,undefined);
+  const normals=o.geometry.getAttribute('normal');
+  assert.equal(normals.count,count);assert.equal(normals.normalized,true);
+  assert.ok(Array.from(o.geometry.index!.array).every(i=>i<count));
   triangles+=o.geometry.index!.count/3;
   bounds.union(o.geometry.boundingBox!.clone().applyMatrix4(o.matrixWorld));
  }});
@@ -37,7 +42,16 @@ test('converted GLB contains animated groups and embedded recovered textures',()
  const bytes=readFileSync('public/models/cg150.glb');assert.equal(bytes.toString('ascii',0,4),'glTF');
  const gltf=JSON.parse(bytes.subarray(20,20+bytes.readUInt32LE(12)).toString());
  for(const name of ['Body','Steering','FrontWheel','RearWheel','FrontSuspension','RearSuspension'])assert.ok(gltf.nodes.some((n:{name:string})=>n.name===name));
- assert.ok(gltf.images.length>=4);assert.ok(gltf.images.every((im:{bufferView?:number})=>typeof im.bufferView==='number'));
+ const binaryStart=28+bytes.readUInt32LE(12);
+ assert.ok(gltf.images.length>=4);
+ for(const image of gltf.images){
+  assert.equal(image.mimeType,'image/png');
+  const view=gltf.bufferViews[image.bufferView],offset=binaryStart+(view.byteOffset??0);
+  assert.equal(bytes.toString('ascii',offset+12,offset+16),'IHDR');
+  const width=bytes.readUInt32BE(offset+16),height=bytes.readUInt32BE(offset+20);
+  assert.ok(width<=512&&height<=512);
+  if(image.name.startsWith('vidro'))assert.deepEqual([width,height],[1,1]);
+ }
  for(const path of Object.values(model.textures))assert.ok(existsSync('public'+path));
 });
 

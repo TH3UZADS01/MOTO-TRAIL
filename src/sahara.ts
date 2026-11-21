@@ -10,7 +10,7 @@ export function createSahara(){
  const materials=new Map(Object.entries(model.materials).map(([name,properties])=>{
   const material=new T.MeshStandardMaterial({...properties,side:T.DoubleSide});material.name=name;
   // Tinted screen stays readable from the rider's eye instead of hiding the road.
-  if(name==='Windshield'){material.transparent=true;material.opacity=.30;material.depthWrite=false;material.roughness=.6}
+  if(name==='Windshield'||name==='Headlamp'){material.transparent=true;material.opacity=.30;material.depthWrite=false;material.roughness=.6}
   return [name,material] as const;
  }));
  const parts=new Map<string,T.Group>();
@@ -25,7 +25,7 @@ export function createSahara(){
    geometry.computeBoundingSphere();geometry.computeBoundingBox();
    const object=new T.Mesh(geometry,materials.get(mesh.material)!);object.name=`${part.name}_${mesh.material}`;
    object.castShadow=object.receiveShadow=true;group.add(object);
-   if(mesh.material==='Windshield'){object.castShadow=false;object.receiveShadow=false}
+   if(mesh.material==='Windshield'||mesh.material==='Headlamp'){object.castShadow=false;object.receiveShadow=false}
   }
  }
  const body=parts.get('Body')!,steering=parts.get('Steering')!;

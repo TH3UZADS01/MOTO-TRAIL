@@ -10,7 +10,7 @@ test('throttle keeps rigid arms connected at elbow and rotating wrist on every m
  for(const spec of vehicles){
   const b=createBike(spec.id);
   for(const body of [-1,0,1])for(const steer of [-.45,0,.45]){
-   b.steering.rotation.y=steer;
+   b.setSteering(steer);
    for(let frame=0;frame<150;frame++){
     const throttle=frame<75?1:0;
     b.riderRig.update(12,steer,1/60,true,body,throttle,false,.5);
@@ -23,7 +23,7 @@ test('throttle keeps rigid arms connected at elbow and rotating wrist on every m
     }
    }
   }
-  b.steering.rotation.set(0,0,0);
+  b.setSteering(0);
   for(let i=0;i<120;i++)b.riderRig.update(12,0,1/60,false,0,1);
   assert.ok(Math.abs(b.riderRig.limbs.find(l=>l.side===-1)!.hand.rotation.x+RIDER_TUNING.throttleWrist)<1e-6,'full wrist intensity retained');
   disposeBike(b);

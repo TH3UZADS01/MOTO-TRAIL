@@ -8,8 +8,8 @@ O leitor implementa a estrutura binária observada nesses arquivos: materiais, b
 
 - `cg150.blend`: modelo otimizado editável, com texturas empacotadas e seis grupos de peças.
 - `../../public/models/cg150.glb`: modelo GLB com texturas incorporadas.
-- `../../src/assets/cg150-model.json`: mesma malha otimizada usada pela fábrica síncrona do jogo.
-- `../../public/models/cg150-textures/`: texturas recuperadas, limitadas a 512 pixels para o navegador.
+- `../../src/assets/cg150-model.json`: malha indexada da fábrica síncrona. Os buffers binários em Base64 são decodificados ao criar a moto. Posições usam 16 bits (1/16.384 m por unidade), normais usam inteiros normalizados de 16 bits e apenas os materiais texturizados recebem UVs.
+- `../../public/models/cg150-textures/`: texturas WebP sem perdas, até 512 pixels no maior lado. Vidros de cor uniforme usam um único pixel RGBA. O GLB incorpora os mesmos pixels em PNG.
 - `titan-conversion/titan-decoded.blend`: extração anterior à otimização.
 - `previous-model/`: cópia local do modelo anterior, preservada na primeira exportação.
 
@@ -19,13 +19,13 @@ As características de desempenho e os áudios da CG 150 não foram alterados. A
 
 ## Reproduzir
 
-Na raiz do projeto, com Blender instalado:
+Na raiz do projeto, com Blender e Python 3 com Pillow (suporte a WebP) no PATH:
 
 ```powershell
 & 'D:/BLENDER/blender.exe' --background --factory-startup --threads 4 --python tools/import_titan_edf.py -- --zip 'C:/Users/olive/OneDrive/Desktop/titan150luquine.zip' --wheels 'D:/mods/tyres/rodatitan15008luq'
 & 'D:/BLENDER/blender.exe' --background --factory-startup --threads 4 --python tools/export_titan_game.py
 ```
 
-O segundo script sobrescreve o Blender, GLB, JSON e texturas finais. Não execute `build_cg150_blender.py` para atualizar esta conversão: ele gera o modelo antigo.
+O segundo script chama `tools/pack_titan_game.py` com o comando `python` e sobrescreve o Blender, GLB, JSON e texturas finais. Não execute `build_cg150_blender.py` para atualizar esta conversão: ele gera o modelo antigo.
 
 Validação: testes em `tests/cg-blender.test.ts`, testes de pintura e animação dos braços, build TypeScript/Vite e inspeção visual no navegador. Para inspecionar localmente: `?inspect=model&vehicle=cg150&hour=12` ou `?inspect=firstdown&vehicle=cg150&hour=12`.

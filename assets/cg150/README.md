@@ -1,4 +1,8 @@
-# CG 150 — referência low-poly
+# CG 150
+
+A moto atual usa a conversão da Titan. A origem dos arquivos, o formato para o navegador e o comando de exportação estão em [TITAN-CONVERSION.md](TITAN-CONVERSION.md).
+
+## Referência histórica do modelo low-poly
 
 Modelo criado no Blender a partir da imagem do usuário, sem textos ou logotipos.
 

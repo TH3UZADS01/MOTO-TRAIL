@@ -1,6 +1,6 @@
 import {Powertrain} from './powertrain';
 import {Drift,DRIFT_TUNING} from './drift';
-import {BODY_TUNING,bodyDragMultiplier,clamp} from './body-control';
+import {BODY_TUNING,bodyDragMultiplier,clamp,counterweightBlend} from './body-control';
 import {Fuel} from './fuel';
 import {getVehicle,type VehicleSpec} from './vehicles';
 import {ground,nearestRoute,surface,SIZE,deepWater} from './terrain';
@@ -8,7 +8,7 @@ import type {Obstacle} from './world';
 export const TOP_SPEED=100/3.6;
 export const ACCELERATION_SCALE=.8; // 20% slower acceleration for every motorcycle.
 export interface WheelieDebugState {gear:number;rpm:number;wheelTorque:number;pitchTorque:number;stabilizingTorque:number;angle:number}
-export function steeringAngle(speed:number,input:number){return input*.56/(1+(speed/5.8)**2);}
+export function steeringAngle(speed:number,input:number,wheelie=0){return input*(.56+.14*counterweightBlend(speed,wheelie))/(1+(speed/5.8)**2);}
 export function automaticTuckInput(input:number,speed:number,topSpeed:number){return clamp(input+Math.min(1,Math.max(0,speed)/(topSpeed*.8)),-1,1);}
 export function acceleration(speed:number,throttle:number,brake:number,pitch:number,grip:number,aerodynamicDrag=.002){
   const drive=throttle*4.8*Math.max(0,1-speed/48);
@@ -70,7 +70,7 @@ export class Ride {
     }
     // Front-wheel steering has less authority while lifted; retain assisted balance.
     const steeringGrip=1-(1-BODY_TUNING.wheelieSteering)*clamp(this.wheelie/BODY_TUNING.balancePoint,0,1);
-    const yaw=this.speed*Math.tan(steeringAngle(this.speed,this.steer))/this.spec.wheelbase*grip*steeringGrip*(1+DRIFT_TUNING.steeringBoost*this.drift.amount);
+    const yaw=this.speed*Math.tan(steeringAngle(this.speed,this.steer,this.wheelie))/this.spec.wheelbase*grip*steeringGrip*(1+DRIFT_TUNING.steeringBoost*this.drift.amount);
     this.heading+=yaw*dt;
     const travelHeading=this.heading-this.drift.slip;
     const x=this.x+Math.sin(travelHeading)*this.speed*dt,z=this.z+Math.cos(travelHeading)*this.speed*dt;
@@ -108,7 +108,9 @@ export class Ride {
     this.wheelieDebug.angle=this.wheelie;
     if(this.wheelie>BODY_TUNING.loopOutAngle&&this.wheelieAngularVelocity>0){this.fallen=true;this.fallTimer=0}
     this.fuel.consume(this.spec.id,this.distance-before,dt,this.engineThrottle,this.speed,this.pitch,push);
-    this.contact();this.lean+=(Math.max(-.45,Math.min(.45,-yaw*this.speed*.045))-this.lean)*(1-Math.exp(-dt*7));
+    this.contact();
+    const bank=clamp(-yaw*this.speed*.062-.095*this.steer*counterweightBlend(this.speed,this.wheelie),-.64,.64);
+    this.lean+=(bank-this.lean)*(1-Math.exp(-dt*7));
 
   }
 }

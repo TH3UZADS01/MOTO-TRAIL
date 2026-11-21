@@ -1,3 +1,4 @@
+import {inWashBay,loadDirt,nextDirt,saveDirt} from './bike-dirt';
 import {DayCycle,DAY_TUNING} from './day-cycle';
 import {applyBikePose} from './bike-pose';
 import {coastalBlend} from './coast';
@@ -32,7 +33,7 @@ document.body.appendChild(touchControls);
 const clearTouchInputs=()=>{touchInputs.forward=false;touchInputs.back=false;touchInputs.throttle=false;touchInputs.brake=false;touchInputs.left=false;touchInputs.right=false;touchInputs.refuel=false;brakeHoldTime=0;brakePushActive=false;touchControls.querySelectorAll('.pressed').forEach(button=>button.classList.remove('pressed'))};
 const scene=new T.Scene();scene.background=new T.Color(0xd2ded3);scene.fog=new T.Fog(0xd2ded3,150,780);const renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;el('scene').appendChild(renderer.domElement);
 const ambientLight=new T.HemisphereLight(0xd5e7f2,0x73835c,.85);scene.add(ambientLight);const sun=new T.DirectionalLight(0xffe0b5,2.5);sun.position.set(-70,140,80);sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-45;sun.shadow.camera.right=45;sun.shadow.camera.top=45;sun.shadow.camera.bottom=-45;sun.shadow.camera.near=.1;sun.shadow.camera.far=300;sun.shadow.bias=-.001;scene.add(sun,sun.target);const world=makeWorld(scene),sky=makeSky(scene),dayCycle=new DayCycle(scene,sun,ambientLight,sky);
-const settings=load(),bikeColors=loadColors();let bike=createBike(settings.vehicle);bike.riderRig.setFullFace(settings.fullFace);assignLocalBikeLayer(bike.root);applyBikeColor(bike,bikeColors[settings.vehicle]);enableShadows(bike.root);scene.add(bike.root);const ride=new Ride(),camera=new FollowCamera(),sound=new Sound(),controller=new Controller(),brakePushAssist=new BrakePushAssist();enableLocalBikeLayer(camera.camera);ride.spec=getVehicle(settings.vehicle);sound.vehicle=settings.vehicle;let playing=false,started=false,last=performance.now(),accumulator=0,throttle=0;const keys=new Set<string>();let notifyUntil=0,wheelieDebugTimer=0,fallEventHandled=false;const wheelieDebugEnabled=import.meta.env.DEV&&new URLSearchParams(location.search).get('debug-wheelie')==='1';
+const settings=load(),bikeColors=loadColors(),dirtLevels=loadDirt();let bike=createBike(settings.vehicle);bike.dirt.value=dirtLevels[settings.vehicle];bike.riderRig.setFullFace(settings.fullFace);assignLocalBikeLayer(bike.root);applyBikeColor(bike,bikeColors[settings.vehicle]);enableShadows(bike.root);scene.add(bike.root);const ride=new Ride(),camera=new FollowCamera(),sound=new Sound(),controller=new Controller(),brakePushAssist=new BrakePushAssist();enableLocalBikeLayer(camera.camera);ride.spec=getVehicle(settings.vehicle);sound.vehicle=settings.vehicle;let playing=false,started=false,last=performance.now(),accumulator=0,throttle=0;const keys=new Set<string>();let notifyUntil=0,wheelieDebugTimer=0,fallEventHandled=false;const wheelieDebugEnabled=import.meta.env.DEV&&new URLSearchParams(location.search).get('debug-wheelie')==='1';
 const rearMirror=new RearViewMirror(renderer,el('rear-mirror'),{enabled:settings.rearMirror,fps:settings.rearMirrorFps,width:settings.rearMirrorWidth});
 const tireParticles=new TireParticles(scene);tireParticles.points.layers.set(1);
 let explorationWasPlaying=false;
@@ -58,7 +59,7 @@ function updateMissionHud(){
 updateMissionHud();
 if(import.meta.env.DEV){const q=new URLSearchParams(location.search).get('quality');if(q==='baixo'||q==='medio'||q==='alto')settings.quality=q;}
 ride.fuel.restore();
-window.addEventListener('pagehide',()=>ride.fuel.save());
+window.addEventListener('pagehide',()=>{ride.fuel.save();saveDirt(dirtLevels)});
 const remoteRiders=new RemoteRiders(scene);
 const network=new RideNetwork({
  horn:id=>{if(!document.hidden)sound.remoteHorn(id)},
@@ -90,6 +91,7 @@ el('copy-invite').onclick=()=>{const link=(el('invite-link') as HTMLInputElement
 // Local-only, reproducible visual QA viewpoints, eliminated from production builds.
 if(import.meta.env.DEV){
   const inspect=new URLSearchParams(location.search).get('inspect');
+  if(inspect==='lavagem'){const bay=world.washBays[0];ride.x=bay.x;ride.z=bay.z;ride.heading=bay.angle;ride.contact();}
   if(inspect==='posto'){ride.x=stations[0].x;ride.z=stations[0].z+8;ride.heading=Math.PI;ride.contact();}
   if(inspect==='mirante'){ride.x=LOOKOUT.x;ride.z=LOOKOUT.z+7;ride.heading=Math.PI;ride.contact();}
   if(inspect==='ponte'){const b=bridges[0];ride.x=b.x-b.dx*38;ride.z=b.z-b.dz*38;ride.heading=Math.atan2(b.dx,b.dz);ride.contact();}
@@ -125,7 +127,7 @@ if(import.meta.env.DEV){const q=new URLSearchParams(location.search),view=q.get(
  if(['coast','dry','model','first','firstdown','lean','wheelie','tuck'].includes(view||'')){el('intro').classList.add('hidden');el('hud').classList.remove('hidden')}
 }
 function chooseVehicle(id:VehicleId){
- scene.remove(bike.root);disposeBike(bike);settings.vehicle=id;bike=createBike(id);bike.pet.setUnlocked(caramelosMission.petUnlocked);bike.riderRig.setFullFace(settings.fullFace);assignLocalBikeLayer(bike.root);applyBikeColor(bike,bikeColors[settings.vehicle]);enableShadows(bike.root);scene.add(bike.root);ride.spec=getVehicle(id);ride.speed=0;ride.fallen=false;fallEventHandled=false;ride.engine.reset();ride.lean=0;ride.resetBody();ride.contact();sound.vehicle=id;camera.initialized=false;
+ scene.remove(bike.root);disposeBike(bike);settings.vehicle=id;bike=createBike(id);bike.dirt.value=dirtLevels[id];bike.pet.setUnlocked(caramelosMission.petUnlocked);bike.riderRig.setFullFace(settings.fullFace);assignLocalBikeLayer(bike.root);applyBikeColor(bike,bikeColors[settings.vehicle]);enableShadows(bike.root);scene.add(bike.root);ride.spec=getVehicle(id);ride.speed=0;ride.fallen=false;fallEventHandled=false;ride.engine.reset();ride.lean=0;ride.resetBody();ride.contact();sound.vehicle=id;camera.initialized=false;
  for(const name of ['vehicle-intro','vehicle-pause'])(el(name) as HTMLSelectElement).value=id;
  el('vehicle-note').textContent=ride.spec.note;syncPaint();save(settings);
 }
@@ -183,7 +185,7 @@ for(const button of Array.from(touchControls.querySelectorAll<HTMLButtonElement>
 function quality(){const q=settings.quality;renderer.setPixelRatio(Math.min(devicePixelRatio,q==='baixo'?.8:q==='medio'?1.25:1.7));configureShadows(renderer,sun,q);camera.camera.far=q==='baixo'?550:900;camera.camera.updateProjectionMatrix();(scene.fog as T.Fog).far=q==='baixo'?500:700;sound.volume=settings.motor;sound.effects=settings.effects;sound.ambience=settings.ambient;save(settings)}quality();
 (el('quality') as HTMLSelectElement).value=settings.quality;(el('motor') as HTMLInputElement).value=String(settings.motor);(el('ambient') as HTMLInputElement).value=String(settings.ambient);
 el('quality').onchange=e=>{settings.quality=(e.target as HTMLSelectElement).value as typeof settings.quality;quality()};(el('effects') as HTMLInputElement).value=String(settings.effects);for(const name of ['motor','ambient','effects'] as const)el(name).oninput=e=>{settings[name]=Number((e.target as HTMLInputElement).value);quality()};
-function pause(){if(!ride.fallen)ride.resetBody();ride.brakeInput=0;ride.fuel.save();playing=false;rearMirror.setActive(false);ride.speed=0;keys.clear();clearTouchInputs();brakePushAssist.reset();touchControls.classList.remove('active');network.send({fullFace:settings.fullFace,vehicleId:settings.vehicle,color:bikeColors[settings.vehicle],bodyLean:ride.bodyLean,wheelie:ride.wheelie,fallen:ride.fallen,braking:false,drifting:false,petUnlocked:caramelosMission.petUnlocked,revMatchSequence:ride.engine.revMatchSequence,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer},performance.now(),true);el('panel').classList.remove('hidden')}
+function pause(){if(!ride.fallen)ride.resetBody();ride.brakeInput=0;ride.fuel.save();saveDirt(dirtLevels);washing=false;playing=false;rearMirror.setActive(false);ride.speed=0;keys.clear();clearTouchInputs();brakePushAssist.reset();touchControls.classList.remove('active');network.send({dirt:bike.dirt.value,fullFace:settings.fullFace,vehicleId:settings.vehicle,color:bikeColors[settings.vehicle],bodyLean:ride.bodyLean,wheelie:ride.wheelie,fallen:ride.fallen,braking:false,drifting:false,petUnlocked:caramelosMission.petUnlocked,revMatchSequence:ride.engine.revMatchSequence,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer},performance.now(),true);el('panel').classList.remove('hidden')}
 function resume(){started=true;playing=true;rearMirror.setActive(true);el('intro').classList.add('hidden');el('panel').classList.add('hidden');el('hud').classList.remove('hidden');touchControls.classList.add('active');void sound.start().then(()=>{el('audio-status').textContent='Áudio pronto'}).catch(()=>{el('audio-status').textContent='Falha ao carregar áudio. Tente continuar novamente.';notify('Não foi possível carregar o áudio.')});last=performance.now();accumulator=0}
 function notify(text:string){el('notification').textContent=text;el('notification').classList.add('visible');notifyUntil=performance.now()+4500}
 el('fuel-rescue').onclick=()=>{if(ride.fuel.rescue(settings.vehicle)){ride.fuel.save();notify('Ajuda chegou: 0,7 L para alcançar um posto.')}else notify('O socorro fica disponível quando o tanque esvaziar.');};
@@ -192,7 +194,8 @@ window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','Arr
 let dragging=false,oldX=0,oldY=0;renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;oldX=e.clientX;oldY=e.clientY;renderer.domElement.setPointerCapture(e.pointerId)});renderer.domElement.addEventListener('pointermove',e=>{if(dragging){camera.orbit-=(e.clientX-oldX)*.006;camera.pitch=T.MathUtils.clamp(camera.pitch-(e.clientY-oldY)*.004,camera.firstPerson?CAMERA_TUNING.minLookPitch:-.65,CAMERA_TUNING.maxLookPitch);oldX=e.clientX;oldY=e.clientY}});renderer.domElement.addEventListener('pointerup',()=>{dragging=false});
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.camera.aspect=innerWidth/innerHeight;camera.camera.updateProjectionMatrix()});
 
-let hudTimer=.2,fuelSaveTimer=0,refueling=false;
+const serviceButton=touchControls.querySelector<HTMLButtonElement>('[data-touch=refuel]')!;
+let hudTimer=.2,fuelSaveTimer=0,refueling=false,washing=false;
 const routeCanvas=el('route-map') as HTMLCanvasElement,routeContext=routeCanvas.getContext('2d')!;
 function drawMap(){const c=routeContext,w=routeCanvas.width,h=routeCanvas.height;c.clearRect(0,0,w,h);const mapPoints=routes.flatMap(r=>r.points),xs=mapPoints.map(p=>p.x),zs=mapPoints.map(p=>p.z),minX=Math.min(...xs)-150,minZ=Math.min(...zs)-150,scale=Math.min((w-24)/(Math.max(...xs)-minX+150),(h-24)/(Math.max(...zs)-minZ+150)),point=(x:number,z:number)=>[12+(x-minX)*scale,12+(z-minZ)*scale];
  const line=(points:readonly {x:number;z:number}[],color:string,width:number,dashed=false)=>{c.strokeStyle=color;c.lineWidth=width;c.setLineDash(dashed?[3,2]:[]);c.beginPath();points.forEach((p,i)=>{if(i%5&&i!==points.length-1)return;const [x,z]=point(p.x,p.z);if(i===0)c.moveTo(x,z);else c.lineTo(x,z)});c.stroke()};
@@ -216,9 +219,23 @@ function frame(now:number){
   accumulator+=dt;throttle=Math.max(keys.has('KeyW')||keys.has('ArrowUp')?1:0,pad.throttle,touchInputs.throttle?1:0);
   const brakeRequest=Math.max(keys.has('KeyS')||keys.has('ArrowDown')?1:0,pad.brake,touchInputs.brake?1:0),keyboardTurn=(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)-(keys.has('KeyD')||keys.has('ArrowRight')?1:0),touchTurn=touchSteering(touchInputs.left,touchInputs.right),turn=keyboardTurn||pad.turn||touchTurn,brakePush=brakePushAssist.update(brakeRequest,ride.speed,dt),push=keys.has('KeyQ')||pad.push||brakePush,brake=push?0:brakeRequest,manualBodyInput=(keys.has('KeyI')||touchInputs.forward?1:0)-(keys.has('KeyK')||touchInputs.back?1:0)||pad.body,bodyInput=settings.autoTuck?automaticTuckInput(manualBodyInput,ride.speed,ride.topSpeed):manualBodyInput;
   const station=stations.find(s=>Math.hypot(ride.x-s.x,ride.z-s.z)<12);
-  const refuelButton=touchControls.querySelector<HTMLButtonElement>('[data-touch=refuel]')!;refuelButton.classList.toggle('hidden',!station);if(!station)touchInputs.refuel=false;
-  refueling=!!station&&Math.abs(ride.speed)<.5&&throttle===0&&!push&&(keys.has('KeyE')||pad.refuel||touchInputs.refuel);
-  while(accumulator>=1/60){if(refueling)ride.fuel.refill(settings.vehicle,1/60);ride.step(1/60,refueling?0:throttle,refueling?1:brake,turn,obstacles,push,refueling?0:bodyInput,settings.transmission==='automatic',settings.ridingMode==='realistic');accumulator-=1/60}
+  const atWash=world.washBays.some(b=>inWashBay(b,ride.x,ride.z));
+  serviceButton.classList.toggle('hidden',!station&&!atWash);
+  if(serviceButton.textContent!==(atWash?'Lavar':'⛽')){serviceButton.textContent=atWash?'Lavar':'⛽';serviceButton.setAttribute('aria-label',atWash?'Lavar moto':'Abastecer');}
+  if(!station&&!atWash)touchInputs.refuel=false;
+  const service=Math.abs(ride.speed)<.5&&!ride.fallen&&throttle===0&&!push&&(keys.has('KeyE')||pad.refuel||touchInputs.refuel);
+  refueling=!!station&&!atWash&&service;washing=atWash&&service&&bike.dirt.value>0;
+  const stopped=refueling||washing,before=ride.distance;
+  let washSeconds=0;
+  while(accumulator>=1/60){
+   if(refueling)ride.fuel.refill(settings.vehicle,1/60);
+   if(washing)washSeconds+=1/60;
+   ride.step(1/60,stopped?0:throttle,stopped?1:brake,turn,obstacles,push,stopped?0:bodyInput,settings.transmission==='automatic',settings.ridingMode==='realistic');accumulator-=1/60;
+  }
+  if(ride.distance>before||washSeconds){
+   bike.dirt.value=dirtLevels[settings.vehicle]=nextDirt(bike.dirt.value,surface(ride.x,ride.z),ride.distance-before,washSeconds);
+   if(washing&&bike.dirt.value===0)notify('Lavagem concluída · moto limpa!');
+  }
    wheelieDebugTimer+=dt;if(wheelieDebugEnabled&&wheelieDebugTimer>=.25){wheelieDebugTimer=0;console.debug('Wheelie diagnostics',ride.wheelieDebug)}
   for(const p of pois)if(Math.hypot(ride.x-p.x,ride.z-p.z)<24&&exploration.discover(p.name)){explorationPanel.update();notify(`Novo lugar descoberto · ${p.name}`);sound.playDiscovery()}
   for(const spot of caramelosMission.discoverNear(ride.x,ride.z,settings.carameloDiscoveryRadius)){notify(`Perto de ${spot.hint}. Aproxime-se para encontrar o caramelo.`);const marker=worldCaramelos.get(spot.id)?.marker;if(marker)marker.visible=true}
@@ -235,24 +252,26 @@ function frame(now:number){
  bike.root.position.set(ride.x,ride.y,ride.z);bike.root.rotation.y=ride.heading;bike.rider.visible=true;
  bike.pet.setUnlocked(caramelosMission.petUnlocked&&!ride.fallen);bike.pet.update(ride.bodyLean, ride.brakeInput, dt);
  for(const [id,dog] of worldCaramelos){dog.pet.update(0,0,dt);dog.marker.visible=!caramelosMission.hasSpot(id)&&(settings.carameloMapMode==='easy'||caramelosMission.isDiscovered(id));dog.marker.position.y=1+Math.sin(now*.003+id.length)*.07}
- bike.steering.rotation.y=steeringAngle(ride.speed,ride.steer);bike.riderRig.update(ride.speed,ride.steer,dt,camera.firstPerson,ride.bodyLean,playing&&!refueling&&!ride.pushing&&ride.fuel.get(settings.vehicle)>0&&!ride.fallen?ride.engineThrottle:0,ride.fallen,ride.wheelie);bike.brakeLight.update(playing&&!refueling?ride.brakeInput:0,dt);applyBikePose(bike,ride.pitch,ride.lean,ride.wheelie,bike.riderRig.stopPose);for(const wheel of bike.wheels)if(playing&&!(ride.drift.active&&wheel===bike.wheels[0]))wheel.rotation.x+=ride.speed*dt/(settings.vehicle==='sahara'?wheel.position.y:settings.vehicle==='caloi'?.29:.27);
+ bike.setSteering(steeringAngle(ride.speed,ride.steer,ride.wheelie));bike.riderRig.update(ride.speed,ride.steer,dt,camera.firstPerson,ride.bodyLean,playing&&!refueling&&!ride.pushing&&ride.fuel.get(settings.vehicle)>0&&!ride.fallen?ride.engineThrottle:0,ride.fallen,ride.wheelie,ride.lean);bike.brakeLight.update(playing&&!refueling?ride.brakeInput:0,dt);applyBikePose(bike,ride.pitch,ride.lean,ride.wheelie,bike.riderRig.stopPose);if(playing)bike.roll(ride.speed*dt,ride.drift.active);
  tireParticles.update(surface(ride.x,ride.z),playing?ride.speed:0,bike.wheels[0],ride.heading,dt,playing&&ride.drift.active);
  camera.update(ride,dt,ride.spec.eyeHeight,bike.body,bike.riderRig.eye);
 
  sound.update(ride.speed,ride.gear,ride.pushing||ride.fallen?0:ride.engineThrottle,!playing||refueling||ride.fuel.get(settings.vehicle)<=0,ride.brakeInput,ride.engine);
- network.send({fullFace:settings.fullFace,vehicleId:settings.vehicle,color:bikeColors[settings.vehicle],bodyLean:ride.bodyLean,wheelie:ride.wheelie,fallen:ride.fallen,braking:playing&&ride.brakeInput>.05,drifting:playing&&ride.drift.active,petUnlocked:caramelosMission.petUnlocked,revMatchSequence:ride.engine.revMatchSequence,gear:ride.gear,rpm:ride.engine.rpm,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:playing?ride.speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer},now);
+ network.send({dirt:bike.dirt.value,fullFace:settings.fullFace,vehicleId:settings.vehicle,color:bikeColors[settings.vehicle],bodyLean:ride.bodyLean,wheelie:ride.wheelie,fallen:ride.fallen,braking:playing&&ride.brakeInput>.05,drifting:playing&&ride.drift.active,petUnlocked:caramelosMission.petUnlocked,revMatchSequence:ride.engine.revMatchSequence,gear:ride.gear,rpm:ride.engine.rpm,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:playing?ride.speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer},now);
  remoteRiders.render(now,dt,day.night);
  camera.camera.updateMatrixWorld();
  sound.updateRemotes(camera.camera.position,camera.camera.matrixWorld.elements,network.connected&&!document.hidden,remoteRiders.peers);
  if(now>notifyUntil)el('notification').classList.remove('visible');hudTimer+=dt;
- fuelSaveTimer+=dt;if(fuelSaveTimer>5){fuelSaveTimer=0;ride.fuel.save()}
+ fuelSaveTimer+=dt;if(fuelSaveTimer>5){fuelSaveTimer=0;ride.fuel.save();saveDirt(dirtLevels)}
  if(hudTimer>.15){hudTimer=0;el('world-time').textContent=`${day.night>.5?'☾':'☀'} ${String(Math.floor(day.hour)).padStart(2,'0')}:${String(Math.floor(day.hour%1*60)).padStart(2,'0')}`;el('speed').textContent=String(Math.round(Math.abs(ride.speed)*3.6));el('gear').textContent=ride.speed<-.02?'EMPURRANDO':`${ride.spec.gears===1?'SEM CÂMBIO':`${ride.gear||'N'} · ${settings.transmission==='automatic'?'AUTO':'MANUAL'}`} · ${Math.round(ride.engine.rpm/100)*100} RPM${settings.ridingMode==='realistic'?' · REALISTA':''}${ride.engine.limiting?' · CORTE':''}${ride.engine.lugging?' · ENGASGANDO':''}${ride.drift.active?' · DRIFT':''}`;
  updateMissionHud();
  const near=pois.reduce((a,b)=>Math.hypot(a.x-ride.x,a.z-ride.z)<Math.hypot(b.x-ride.x,b.z-ride.z)?a:b);el('place').textContent=near.name;el('trip').textContent=`${(ride.distance/1000).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} km · ${surface(ride.x,ride.z)}`;  const ratio=ride.fuel.ratio(settings.vehicle),fuel=ride.fuel.get(settings.vehicle),station=stations.find(s=>Math.hypot(ride.x-s.x,ride.z-s.z)<12),n=nearest(ride.x,ride.z),progress=n.index/(road.length-1)*roadLength/1000;
   el('fuel-level').textContent=`${fuel.toFixed(1)} L · ${Math.round(ratio*100)}%${ratio<.2?' · RESERVA':''}`;
   (el('fuel-meter') as HTMLMeterElement).value=ratio;
   const next=stations.map(s=>({s,d:Math.hypot(s.x-ride.x,s.z-ride.z)})).sort((a,b)=>a.d-b.d)[0],route=nearestRoute(ride.x,ride.z);
-  el('fuel-hint').textContent=refueling?'Abastecendo… solte o botão para sair':station?'Pare e segure o botão de abastecimento ou E / X':fuel<=0?'Tanque vazio · solicite gasolina na pausa':`${next.s.name}: ${(next.d/1000).toFixed(1)} km em linha reta`;
+  const atWash=world.washBays.some(b=>inWashBay(b,ride.x,ride.z));
+  el('dirt-level').textContent=`Sujeira · ${Math.round(bike.dirt.value*100)}%`;
+  el('fuel-hint').textContent=atWash?(bike.dirt.value===0?'Moto limpa':washing?'Lavando… mantenha pressionado':'Pare e segure E / X ou Lavar'):refueling?'Abastecendo… solte o botão para sair':station?'Pare e segure o botão de abastecimento ou E / X':fuel<=0?'Tanque vazio · solicite gasolina na pausa':`${next.s.name}: ${(next.d/1000).toFixed(1)} km em linha reta`;
   el('route-progress').textContent=route.track.id==='main'?`Horizonte · km ${progress.toFixed(1)} / ${(roadLength/1000).toFixed(1)}`:`${route.track.name} · ${route.track.surface}`;drawMap();
   el('gamepad-status').textContent=pad.connected?'Controle conectado · mapeamento padrão':'Conecte um controle padrão e pressione um botão.';
  }

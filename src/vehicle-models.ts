@@ -1,3 +1,5 @@
+import {bindSteering} from './steering';
+import {bindDirt} from './bike-dirt';
 import {makeHeadlight} from './headlight';
 import {createSahara} from './sahara';
 import {createCG150} from './cg150';
@@ -19,22 +21,17 @@ export function createBike(id:VehicleId='pop'){
  passengerPetAnchor.rotation.set(CARAMELO_PET_TUNING.rotation.x,CARAMELO_PET_TUNING.rotation.y,CARAMELO_PET_TUNING.rotation.z);
  passengerPetAnchor.scale.setScalar(CARAMELO_PET_TUNING.scale);bike.body.add(passengerPetAnchor);
  const pet=createCarameloPet(passengerPetAnchor);
- const headlight=makeHeadlight(id==='sahara'||id==='pop'?bike.body:bike.steering,getVehicle(id).eyeHeight);
- // Match the Blender CG's round lens; coordinates are relative to the steering pivot.
- if(id==='cg150'){
-  const glass=bike.steering.getObjectByName('Steering_Headlamp') as T.Mesh|undefined;
-  if(glass?.geometry.boundingBox){const bounds=glass.geometry.boundingBox;bounds.getCenter(headlight.light.position);headlight.light.position.z=bounds.max.z+.008;headlight.lens.position.copy(headlight.light.position)}
+ const fixedFairing=id==='sahara'||id==='pop';
+ const mount=fixedFairing?bike.body:bike.steering;
+ const lensName=fixedFairing?'Body_Headlamp':id==='cg150'?'Steering_HeadlampGlass':'Steering_Headlamp';
+ const headlight=makeHeadlight(mount,lensName);
+ const dirt=bindDirt(bike.body,[bike.rider,passengerPetAnchor,headlight.lens,brakeLight.lens]);
+ // The front axle's local Y is negative under the Sahara's elevated steering pivot.
+ const radii=id==='sahara'?[bike.wheels[0].position.y,bike.steering.position.y+bike.wheels[1].position.y]:bike.wheels.map(()=>id==='caloi'?.29:.27);
+ function roll(distance:number,rearLocked:boolean){
+  bike.wheels.forEach((wheel,i)=>{if(i!==0||!rearLocked)wheel.rotation.x+=distance/radii[i]});
  }
- if(id==='cub'){
-  const glass=bike.steering.getObjectByName('Steering_Headlamp') as T.Mesh|undefined;
-  if(glass?.geometry.boundingBox){const bounds=glass.geometry.boundingBox;bounds.getCenter(headlight.light.position);headlight.light.position.z=bounds.max.z+.008;headlight.lens.position.copy(headlight.light.position)}
- }
- if(id==='sahara'){headlight.light.position.set(0,1.075,.627);headlight.lens.position.copy(headlight.light.position)}
- if(id==='pop'){
-  const glass=bike.body.getObjectByName('Body_Headlamp') as T.Mesh|undefined;
-  if(glass?.geometry.boundingBox){const bounds=glass.geometry.boundingBox;bounds.getCenter(headlight.light.position);headlight.light.position.z=bounds.max.z+.012;headlight.lens.position.copy(headlight.light.position)}
- }
- return {...bike,headlight,brakeLight,passengerPetAnchor,pet};
+ return {...bike,headlight,brakeLight,passengerPetAnchor,pet,dirt,roll,setSteering:bindSteering(bike.steering,id)};
 }
 function createBrakeLight(body:T.Group,rearZ:number){
  const imported=body.getObjectByName('Body_TailLens') as T.Mesh<T.BufferGeometry,T.MeshStandardMaterial>|undefined;
@@ -81,7 +78,7 @@ function buildBike(id:VehicleId){
   for(const side of [-1,1]){bar(body,silver,[side*.19,.32,-.08],[side*.19,.22,-.18],.014);box(body,black,side*.23,.22,-.18,.12,.025,.06)}
   const pulley=mesh(body,new T.TorusGeometry(.09,.012,6,24),black,-.13,.32,-.15);pulley.rotation.y=Math.PI/2;
   panel(steering,paint,[[-.12,.82],[-.12,1.08],[.045,1.06],[.065,.8]],.28);
-  box(steering,silver,0,.91,.068,.25,.14,.025);box(steering,lamp,0,.91,.085,.21,.105,.01);
+  box(steering,silver,0,.91,.068,.25,.14,.025);box(steering,lamp,0,.91,.085,.21,.105,.01).name='Steering_Headlamp';
   for(const side of [-1,1])bar(steering,silver,[side*.08,.92,-.12],[side*.32,handleY,-.12],.018);
  }else if(cub){
   // Short brown saddle, separate rear luggage rack, cream leg shield and round headlight.
@@ -93,14 +90,14 @@ function buildBike(id:VehicleId){
   ell(steering,paint,0,1,-.08,.16,.13,.14);
   const ring=mesh(steering,new T.CylinderGeometry(.105,.105,.05,24),silver,0,1,.055);ring.rotation.x=Math.PI/2;
   const light=mesh(steering,new T.CircleGeometry(.088,24),lamp,0,1,.084);
-  light.rotation.y=0;
+  light.name='Steering_Headlamp';
   for(const s of [-1,1])ell(steering,amber,s*.19,1,.015,.035,.04,.035);
  }else{
   // Full red leg fairing, longer two-place saddle, alloy wheels and wide angular lamp.
   panel(body,paint,[[-.02,.24],[.23,.28],[.48,.86],[.38,1.0],[.2,.85],[.04,.51],[-.13,.4]],.25);
   ell(body,paint,0,.58,-.35,.18,.17,.37);ell(body,seat,0,.78,-.27,.185,.06,.43);
   panel(body,white,[[.2,.65],[.32,.8],[.25,.7],[.15,.74]],.275);
-  ell(steering,paint,0,1.02,-.09,.255,.125,.14);ell(steering,lamp,0,1.04,.037,.18,.075,.025);
+  ell(steering,paint,0,1.02,-.09,.255,.125,.14);ell(steering,lamp,0,1.04,.037,.18,.075,.025).name='Steering_Headlamp';
   for(const s of [-1,1])ell(steering,amber,s*.2,1.01,.015,.047,.05,.028);
   for(const s of [-1,1])bar(body,silver,[s*.17,.77,-.56],[s*.17,.77,-.82],.013);
  }

@@ -38,11 +38,21 @@ export function makeWorld(scene:T.Scene){
   // Village square, flower beds and a small roadside cafe.
   for(const side of [-1,1]){const x=v.x+side*9,z=v.z,y=height(x,z);if(nearRoute(x,z,12))continue;box(x,y+.5,z,3,1,1,0x826345);block(x,z,1.7);for(let i=0;i<5;i++)box(x-1+i*.5,y+1.1,z,.25,.3,.25,0xe8bd64)}
  }
+ const washBays:{x:number;z:number;angle:number}[]=[];
  for(const s of stations){access(s,22);const y=height(s.x,s.z),n=nearestRoute(s.x,s.z),angle=Math.atan2(s.x-n.x,s.z-n.z),at=(x:number,z:number)=>({x:s.x+Math.cos(angle)*x+Math.sin(angle)*z,z:s.z-Math.sin(angle)*x+Math.cos(angle)*z});
   const part=(x:number,h:number,z:number,w:number,t:number,d:number,color:number)=>{const p=at(x,z),m=box(p.x,h,p.z,w,t,d,color);m.rotation.y=angle;return m};
   part(0,y+4.6,0,20,.45,14,0xe9d8b3);part(0,y+4.85,0,20,.2,14,0x426d62);
   for(const dx of [-8,8])for(const dz of [-5,5]){const p=at(dx,dz),h=height(p.x,p.z);part(dx,(h+y+4.4)/2,dz,.3,y+4.4-h,.3,0xc6bd9d);block(p.x,p.z,.35)}
   for(const dx of [-4,4]){const p=at(dx,0),h=height(p.x,p.z);part(dx,h+.8,0,.85,1.6,.7,0xe2dcc5);part(dx,h+1.1,.36,.6,.4,.025,0x1e3936);block(p.x,p.z,.65)}const signPos=at(10,-10);sign(s.name+' · gasolina',signPos.x,signPos.z,angle);
+  const bay=at(-16,0);washBays.push({...bay,angle});
+  const along=[-4,-2,0,2,4].map(z=>{const p=at(-16,z);return new T.Vector3(p.x,0,p.z)});
+  scene.add(ribbon(along,6,0x829d99,.115));
+  const pump=at(-19.6,0),py=height(pump.x,pump.z);
+  part(-19.6,py+.85,0,.7,1.7,.65,0x327e86);block(pump.x,pump.z,.5);
+  const hose=new T.Mesh(new T.TorusGeometry(.34,.035,6,24),material(0x243839));
+  hose.position.set(pump.x,py+.85,pump.z);hose.rotation.y=angle+Math.PI/2;hose.translateZ(.39);scene.add(hose);
+  const washSign=at(-16,4.7);sign('LAVA-JATO',washSign.x,washSign.z,angle);
+
  }
  for(const p of viewpoints){access(p,18);const y=height(p.x,p.z+10);box(p.x,y+.65,p.z+10,4,.2,.8,0x886442);for(const dx of [-1.5,1.5])box(p.x+dx,y+.3,p.z+10,.2,.6,.6,0x655744);block(p.x,p.z+10,2);for(let i=-3;i<=3;i++){const x=p.x+i*4,z=p.z+16;box(x,height(x,z)+.65,z,.2,1.3,.2,0x887255);block(x,z,.2)}}
  for(const p of pois){const n=nearestRoute(p.x,p.z),a=n.track.points[n.index],b=n.track.points[n.index+1],angle=Math.atan2(b.x-a.x,b.z-a.z);{const x=n.x+Math.cos(angle)*9-Math.sin(angle)*20,z=n.z-Math.sin(angle)*9-Math.cos(angle)*20;if(!nearRoute(x,z,6))sign(p.name,x,z,angle)}}
@@ -71,5 +81,5 @@ export function makeWorld(scene:T.Scene){
  enableShadows(scene);
  let cell='';const birds=new T.Group();for(let i=0;i<12;i++){const bird=new T.Mesh(new T.ConeGeometry(.5,2,3),material(0x55645c));bird.rotation.z=Math.PI/2;birds.add(bird)}scene.add(birds);
  const updatePlaceLights=makePlaceLights(scene,fixed);
- return {updatePlaceLights,update(x:number,z:number,time:number){sea.update(time);const gx=Math.round(x/256),gz=Math.round(z/256),key=gx+','+gz;if(key!==cell){cell=key;const wanted=new Set<string>();for(let a=gx-3;a<=gx+3;a++)for(let b=gz-3;b<=gz+3;b++){const k=a+','+b;wanted.add(k);if(!chunks.has(k))chunks.set(k,chunk(a,b))}for(const [k,c] of chunks)if(!wanted.has(k)){scene.remove(c.group);c.group.traverse(o=>{if(o instanceof T.InstancedMesh)o.dispose();else if(o instanceof T.Mesh){o.geometry.dispose();(o.material as T.Material).dispose()}});chunks.delete(k)}obstacles.length=0;obstacles.push(...fixed);for(const c of chunks.values())obstacles.push(...c.hits)}for(const c of chunks.values())c.details.visible=Math.hypot(c.cx-x,c.cz-z)<BIOME_TUNING.detailDistance;birds.position.set(x,height(x,z)+55,z);birds.children.forEach((b,i)=>b.position.set(Math.sin(time*.00012+i*.2)*100,Math.sin(time*.002+i)*2,Math.cos(time*.00012+i*.2)*100));}};
+ return {washBays,updatePlaceLights,update(x:number,z:number,time:number){sea.update(time);const gx=Math.round(x/256),gz=Math.round(z/256),key=gx+','+gz;if(key!==cell){cell=key;const wanted=new Set<string>();for(let a=gx-3;a<=gx+3;a++)for(let b=gz-3;b<=gz+3;b++){const k=a+','+b;wanted.add(k);if(!chunks.has(k))chunks.set(k,chunk(a,b))}for(const [k,c] of chunks)if(!wanted.has(k)){scene.remove(c.group);c.group.traverse(o=>{if(o instanceof T.InstancedMesh)o.dispose();else if(o instanceof T.Mesh){o.geometry.dispose();(o.material as T.Material).dispose()}});chunks.delete(k)}obstacles.length=0;obstacles.push(...fixed);for(const c of chunks.values())obstacles.push(...c.hits)}for(const c of chunks.values())c.details.visible=Math.hypot(c.cx-x,c.cz-z)<BIOME_TUNING.detailDistance;birds.position.set(x,height(x,z)+55,z);birds.children.forEach((b,i)=>b.position.set(Math.sin(time*.00012+i*.2)*100,Math.sin(time*.002+i)*2,Math.cos(time*.00012+i*.2)*100));}};
 }

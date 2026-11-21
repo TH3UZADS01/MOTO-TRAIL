@@ -120,5 +120,19 @@ test('day cycle wraps continuously, sunrise/sunset fade, night lights preserve v
  const noon=sampleDay(timeAt(12)),midnight=sampleDay(timeAt(0));assert.equal(noon.daylight,1);assert.equal(noon.night,0);assert.equal(midnight.daylight,0);assert.equal(midnight.night,1);assert.ok(noon.elevation>.99&&midnight.elevation<-.99);
  for(let t=0;t<DAY_TUNING.cycleSeconds*1000;t+=1000){const a=sampleDay(t),b=sampleDay(t+10);assert.ok(Math.abs(a.daylight-b.daylight)<.01);assert.ok(Math.abs(a.night-b.night)<.01);assert.ok(Math.abs(a.elevation-sampleDay(t+DAY_TUNING.cycleSeconds*1000).elevation)<1e-12)}
  const scene=new T.Scene();scene.background=new T.Color();scene.fog=new T.Fog(0,150,700);const sun=new T.DirectionalLight(),ambient=new T.HemisphereLight(),cycle=new DayCycle(scene,sun,ambient,makeSky(scene));cycle.update(timeAt(0),0,20,0,0,700);assert.ok(sun.intensity>0&&ambient.intensity>0);assert.ok((scene.fog as T.Fog).far>400);
- for(const v of vehicles){const b=createBike(v.id);b.headlight.update(1);assert.ok(b.headlight.light.intensity>0);assert.equal(b.headlight.light.castShadow,false);assert.ok(b.headlight.light.parent===((v.id==='sahara'||v.id==='pop')?b.body:b.steering));b.headlight.update(0);assert.equal(b.headlight.light.intensity,0);assert.equal(b.headlight.lens.visible,false);disposeBike(b)}
+ for(const v of vehicles){
+  const bike=createBike(v.id),{light,lens,update}=bike.headlight;
+  const fixed=v.id==='sahara'||v.id==='pop',mount=fixed?bike.body:bike.steering;
+  assert.equal(lens,mount.getObjectByName(fixed?'Body_Headlamp':v.id==='cg150'?'Steering_HeadlampGlass':'Steering_Headlamp'));
+  assert.equal(light.parent,mount);assert.equal(light.castShadow,false);
+  for(const level of [1,.5,0]){
+   update(level);assert.equal(light.intensity,70*level);
+   assert.equal(lens.material.emissiveIntensity,2*level);assert.equal(lens.visible,true);
+  }
+  if(v.id==='sahara'||v.id==='cg150'){
+   const other=mount.getObjectByName(v.id==='sahara'?'Body_Windshield':'Steering_Steering_Material13') as T.Mesh;
+   assert.notEqual(other.material,lens.material);
+  }
+  disposeBike(bike);
+ }
 });

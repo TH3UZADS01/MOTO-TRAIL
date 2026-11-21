@@ -33,3 +33,42 @@ test('separate Sahara instances do not share disposable resources',()=>{
  let disposed=false;mb.geometry.addEventListener('dispose',()=>disposed=true);
  disposeBike(a);assert.equal(disposed,false);disposeBike(b);assert.equal(disposed,true);
 });
+
+test('original Sahara front tyre stays concentric with the steering axle as it rolls',()=>{
+ const bike=createBike('sahara'),wheel=bike.wheels[1];
+ const tyre=wheel.getObjectByName('FrontWheel_FrontWheel_Material1') as T.Mesh;
+ assert.ok(tyre);
+ const axle=new T.Vector3(),box=new T.Box3();
+ for(const turn of [-.4,0,.4]){
+  bike.steering.rotation.y=turn;
+  for(const spin of [0,Math.PI/4,Math.PI/2]){
+   wheel.rotation.x=spin;bike.root.updateMatrixWorld(true);
+   wheel.getWorldPosition(axle);box.setFromObject(tyre,true);
+   assert.ok(Math.abs(box.min.y)<.003);
+   assert.ok(Math.abs((box.max.y+box.min.y)/2-axle.y)<.002);
+  }
+ }
+ disposeBike(bike);
+});
+
+test('Sahara rear wheel keeps the front spoke layout with a wider, taller tyre on a smaller rim',()=>{
+ const bike=createBike('sahara');
+ const dimensions=bike.wheels.map((wheel,i)=>{
+  const part=i===0?'RearWheel':'FrontWheel';
+  const get=(material:number)=>(wheel.getObjectByName(`${part}_${part}_Material${material}`) as T.Mesh).geometry;
+  const positions=get(1).getAttribute('position');
+  const rim=get(2).boundingBox!;
+  let minX=Infinity,maxX=-Infinity,outerRadius=0;
+  for(let j=0;j<positions.count;j++){
+   const r=Math.hypot(positions.getY(j),positions.getZ(j));
+   if(r<rim.max.y)continue;
+   minX=Math.min(minX,positions.getX(j));maxX=Math.max(maxX,positions.getX(j));outerRadius=Math.max(outerRadius,r);
+  }
+  return {width:maxX-minX,rim:rim.max.y,profile:outerRadius-rim.max.y,radius:outerRadius,spokes:get(0).index!.count};
+ });
+ const [rear,front]=dimensions;
+ assert.equal(rear.spokes,front.spokes);assert.ok(rear.width>front.width*1.2);
+ assert.ok(rear.rim<front.rim*.85);assert.ok(rear.profile>front.profile*1.15);
+ assert.ok(Math.abs(rear.radius-bike.wheels[0].position.y)<.003);
+ disposeBike(bike);
+});

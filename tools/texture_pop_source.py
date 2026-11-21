@@ -55,9 +55,10 @@ def mat(name,color,rough,metal=0,family=None):
   maps[name]={'map':f'/models/pop110-textures/{family}-color.png','roughnessMap':f'/models/pop110-textures/{family}-roughness.png'}
  materials[name]=m;props[name]={'color':'#'+color,'roughness':rough,'metalness':metal}
  return m
-mat('Paint','234c91',.32,.12,'paint');mat('Seat','24262a',.86,0,'seat');mat('Rubber','16191c',.94,0,'rubber')
-mat('BlackPlastic','24282d',.72,0,'plastic');mat('WheelAlloy','3e464d',.38,.55,'metal')
+mat('Paint','d92b20',.32,.12,'paint');mat('Seat','24262a',.86,0,'seat');mat('Rubber','16191c',.94,0,'rubber')
+mat('BlackPlastic','24282d',.72,0,'plastic');mat('WheelAlloy','222428',.38,.55,'metal')
 mat('Steel','a7b1b8',.38,.72,'metal');mat('Engine','8c9499',.38,.6,'metal');mat('DarkMetal','41494d',.38,.65,'metal')
+mat('MirrorGlass','99a9b3',.18,.6);mat('Lettering','e9e8df',.55)
 mat('Headlamp','d9e6ef',.18,.18);mat('Indicators','f89b16',.25);mat('TailLens','c72530',.25)
 
 origins={'Body':Vector((0,0,0)),'Steering':steerPos,'FrontSuspension':steerPos,'RearSuspension':Vector((0,0,0)),'RearWheel':centres['RearWheel'],'FrontWheel':centres['FrontWheel']}
@@ -67,6 +68,99 @@ objects=[bpy.data.objects[name] for name in sources]
 source_world={o.name:o.matrix_world.copy() for o in objects}
 for o in list(bpy.data.objects):
  if o not in objects:bpy.data.objects.remove(o,do_unlink=True)
+# Reference details in the supplied bike's assembled coordinates, before rig fitting.
+overrides={}
+def detail(obj,name,part,finish):
+ obj.name=name
+ objects.append(obj);sources[obj.name]=part;overrides[obj.name]=finish
+ bpy.context.view_layer.update()
+ source_world[obj.name]=obj.matrix_world.copy()
+
+def stalk(a,b,name):
+ a,b=Vector(a),Vector(b)
+ bpy.ops.mesh.primitive_cylinder_add(vertices=12,radius=.0055,depth=(b-a).length,location=(a+b)/2)
+ obj=bpy.context.object;obj.rotation_euler=(b-a).to_track_quat('Z','Y').to_euler()
+ detail(obj,name,'Steering','DarkMetal')
+
+for side in [-1,1]:
+ base=(side*.208,-.411,1.027);bend=(side*.22,-.423,1.17)
+ stalk(base,bend,'Mirror base');stalk(bend,(side*.303,-.431,1.266),'Mirror arm')
+ for inset in [False,True]:
+  bpy.ops.mesh.primitive_uv_sphere_add(segments=24,ring_count=12,location=(side*.319,-.427+(.016 if inset else 0),1.297))
+  obj=bpy.context.object;obj.scale=(.060 if inset else .067,.004 if inset else .02,.041 if inset else .048)
+  obj.rotation_euler.y=-side*.47
+  detail(obj,'Mirror glass' if inset else 'Mirror shell','Steering','MirrorGlass' if inset else 'BlackPlastic')
+
+# Thin printed markings conform to the saddle and front shrouds on each side.
+chassis=bpy.data.objects['chassis'];world=source_world['chassis'];inverse=world.inverted()
+def project_decal(obj,side,y,z):
+ for v in obj.data.vertices:
+  py=y+side*v.co.x;pz=z+v.co.y
+  hit,point,_,_=chassis.ray_cast(inverse@Vector((side,py,pz)),inverse.to_3x3()@Vector((-side,0,0)))
+  if not hit:
+   bpy.data.objects.remove(obj,do_unlink=True);return
+  surface=world@point
+  if y<0:surface.x*=1+.085*math.exp(-((surface.z-.70)/.11)**2)
+  v.co=surface+Vector((side*.0025,0,0))
+ detail(obj,'Honda marking','Body','Lettering')
+for side in [-1,1]:
+ for y,z,size in [(-.508,.680,.022)]:
+  bpy.ops.object.text_add()
+  obj=bpy.context.object;obj.data.body='HONDA';obj.data.size=size;obj.data.align_x='CENTER';obj.data.shear=.10
+  bpy.ops.object.convert(target='MESH');project_decal(obj,side,y,z)
+ verts=[];faces=[]
+ for row in range(4):
+  x=-.040+row*.006;h=.049-row*.010
+  i=len(verts);verts.extend([(x,h,0),(.042-row*.004,.006-row*.003,0),(.029-row*.004,-row*.003,0),(x+.007,h-.010,0)])
+  faces.append((i,i+1,i+2,i+3))
+ mesh=bpy.data.meshes.new('Wing feathers');mesh.from_pydata(verts,[],faces);mesh.update()
+ obj=bpy.data.objects.new('Wing',mesh);bpy.context.collection.objects.link(obj);project_decal(obj,side,-.508,.710)
+
+# A folded heat shield follows the top/outboard quarter of the original silencer.
+# Sample its outer skin so the stamped cover and fasteners sit flush along the taper.
+verts=[];faces=[]
+for row,(y,width) in enumerate([(.17,.16),(.21,.65),(.31,1),(.46,1),(.61,.92),(.67,.52),(.68,.15)]):
+ hits=[]
+ for z in np.arange(.09,.36,.002):
+  hit,point,_,_=chassis.ray_cast(inverse@Vector((-1,y,z)),inverse.to_3x3()@Vector((1,0,0)))
+  if hit:
+   p=world@point
+   if p.x<-.175:hits.append(p)
+ if not hits:raise ValueError('Missing silencer surface')
+ centre=min(hits,key=lambda p:p.x)
+ for fraction in [-.65,0,.68]:
+  target=centre.z+.019+fraction*.031*width
+  point=min(hits,key=lambda p:abs(p.z-target))
+  verts.append((point.x-.006,y,point.z))
+ if row:
+  for j in [0,1]:
+   i=row*3+j;faces.append((i-3,i,i+1,i-2))
+mesh=bpy.data.meshes.new('Pressed exhaust shield');mesh.from_pydata(verts,[],faces);mesh.update()
+obj=bpy.data.objects.new('Exhaust shield',mesh);bpy.context.collection.objects.link(obj)
+detail(obj,'Exhaust shield','Body','Steel')
+for index in [7,13]:
+ x,y,z=verts[index]
+ bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=2,radius=1,location=(x-.002,y,z))
+ obj=bpy.context.object;obj.scale=(.0028,.0055,.0055);detail(obj,'Shield fastener','Body','DarkMetal')
+
+# Cast split spokes: each narrow branch sweeps from the original spoke to the rim.
+for part in ['FrontWheel','RearWheel']:
+ verts=[];faces=[]
+ for spoke in range(5):
+  angle=spoke*math.tau/5
+  for radial,tangent,half_width in [(.078,-.048,.010),(.15,.003,.008),(.212,.065,.006)]:
+   if part=='RearWheel':radial*=.915;tangent*=.915
+   for x,edge in [(-.013,-1),(.013,-1),(.013,1),(-.013,1)]:
+    y=tangent+edge*half_width
+    verts.append((x,y*math.cos(angle)-radial*math.sin(angle),y*math.sin(angle)+radial*math.cos(angle)))
+  base=spoke*12
+  for row in (base,base+4):
+   for k in range(4):faces.append((row+k,row+(k+1)%4,row+4+(k+1)%4,row+4+k))
+ mesh=bpy.data.meshes.new('Cast spoke branches');mesh.from_pydata(verts,[],faces);mesh.update()
+ obj=bpy.data.objects.new(part+'Branches',mesh);bpy.context.collection.objects.link(obj)
+ obj.location=source_world[part+'_WheelAlloy'].translation
+ detail(obj,part+'Branches',part,'WheelAlloy')
+
 groups={}
 for name,pos in origins.items():
  g=bpy.data.objects.new(name,None);bpy.context.collection.objects.link(g);g.location=blender(pos);groups[name]=g
@@ -74,6 +168,7 @@ for name,pos in origins.items():
 
 def classify(source,lo,hi,count):
  cx,cy,cz=(lo+hi)/2;dx,dy,dz=hi-lo
+ if source in overrides:return overrides[source]
  if source.endswith('Rubber'):return 'Rubber'
  if source.endswith('WheelAlloy'):return 'WheelAlloy'
  if source=='rsusp':
@@ -81,17 +176,22 @@ def classify(source,lo,hi,count):
   return 'DarkMetal' if dy>.25 else 'Steel'
  if source=='fsusp':return 'Steel' if dz>.18 and abs(cx)>.045 else 'DarkMetal'
  if source=='steer':
-  if hi.y<-.85 and lo.z>.45:return 'Paint' # front fender
+  if lo.y<-.95 and hi.z<.72 and lo.z>.45:return 'Paint' # front fender
   if abs(cx)>.24 and cz>.96 and dy<.13:return 'Rubber'
   return 'BlackPlastic' if (abs(cx)<.14 and cz>.74) else 'DarkMetal'
  # Chassis component classification uses source coordinates before fitting to the rig.
+ # Raised HONDA letters are already modelled along both sides of the saddle.
+ if abs(cx)>.12 and .47<lo.y<.71 and .71<lo.z<.77 and dx<.012 and dy<.06:return 'Lettering'
+ if abs(cx)<.025 and -.69<cy<-.65 and .75<cz<.8 and dy<.035:return 'Steel'
  if lo.z>.58 and hi.y>.80 and dy>.7:return 'Seat'
  if lo.y>.75 and cz>.61 and cz<.78 and dx>.1:return 'TailLens'
  if lo.y<-.63 and hi.y<-.62 and lo.z>.69 and hi.z<.88 and dx>.12:return 'Headlamp'
  if abs(cx)>.12 and .62<cz<.85 and (cy<-.60 or cy>.70) and max(dx,dy,dz)<.18:return 'Indicators'
- if lo.x<-.24 and dy>.3:return 'BlackPlastic' # exhaust heat shield
- if lo.z>.85 and cy<-.45:return 'BlackPlastic' # instruments / visor
+ if lo.x<-.24 and dy>.3:return 'DarkMetal' # exhaust heat shield
+ if lo.z>.83 and cy<-.45:return 'BlackPlastic' # instruments / visor
  if hi.y>.79 and cz<.62:return 'BlackPlastic' # tail mudguard
+ if lo.y>.45 and .58<lo.z<.60 and abs(cx)>.11 and dx>.19:return 'BlackPlastic'
+ if lo.y>.2 and hi.y>.86 and lo.z>.45:return 'BlackPlastic'
  if hi.z>.55 and (dx>.18 or dz>.18 or dy>.3):return 'Paint'
  if cz>.52:return 'BlackPlastic'
  if abs(cx)>.17 and cz<.38:return 'Rubber' if dy<.18 else 'DarkMetal'
@@ -113,6 +213,17 @@ for o in objects:
     if q not in seen:seen.add(q);todo.append(q)
   points=[world@v.co for v in component];lo=Vector([min(p[i] for p in points) for i in range(3)]);hi=Vector([max(p[i] for p in points) for i in range(3)])
   name=classify(source,lo,hi,len(component))
+  # Lengthen the painted beak and draw the shoulder of the front apron into a crease.
+  if (source=='steer' and name=='Paint') or (source=='chassis' and name in ('Paint','Seat')):
+   for v in component:
+    p=world@v.co
+    if source=='steer':
+     nose=max(0,min(1,(-p.y-.74)/.28));p.y-=.074*nose;p.z+=.015*nose
+    elif name=='Seat':
+     p.z-=.016*math.exp(-((p.y-.10)/.24)**2)
+    elif p.y<-.22:
+     p.x*=1+.085*math.exp(-((p.z-.70)/.11)**2)
+    v.co=world.inverted()@p
   for v in component:
    for face in v.link_faces:face.material_index=matnames.index(name)
  for v in bm.verts:
@@ -120,7 +231,11 @@ for o in objects:
   if 'Wheel' in source:
    c=world.translation;converted.z=origins[part].z-(p.y-c.y)*vertical
   v.co=blender(converted-origins[part])
- bm.normal_update();bm.to_mesh(o.data);bm.free()
+ bm.normal_update()
+ for face in bm.faces:face.smooth=True
+ for edge in bm.edges:
+  if len(edge.link_faces)==2:edge.smooth=edge.calc_face_angle()<math.radians(38)
+ bm.to_mesh(o.data);bm.free()
  o.parent=groups[part];o.matrix_parent_inverse=Matrix.Identity(4);o.matrix_basis=Matrix.Identity(4)
  assigned=[p.material_index for p in o.data.polygons]
  o.data.materials.clear()
@@ -164,7 +279,7 @@ bpy.ops.mesh.primitive_plane_add(size=200);o=bpy.context.object;o.data.materials
 scene.world=bpy.data.worlds.new('PopStudio');scene.world.use_nodes=True;scene.world.node_tree.nodes['Background'].inputs[0].default_value=(.4,.46,.5,1);scene.world.node_tree.nodes['Background'].inputs[1].default_value=.45
 for name,pos,power,size in [('Key',(3,-4,5),550,4),('Fill',(-3,-1,3),400,3),('Rim',(1,4,4),650,3)]:
  light=bpy.data.lights.new(name,'AREA');light.energy=power;light.size=size;o=bpy.data.objects.new(name,light);studio.objects.link(o);o.location=pos;o.rotation_euler=(Vector((0,0,.55))-o.location).to_track_quat('-Z','Y').to_euler()
-bpy.ops.object.camera_add(location=(2.8,-3.4,1.8));cam=bpy.context.object;studio_obj(cam);cam.rotation_euler=(Vector((0,0,.6))-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.type='ORTHO';cam.data.ortho_scale=2.6;scene.camera=cam
+bpy.ops.object.camera_add(location=(2.8,-3.4,1.8));cam=bpy.context.object;cam.location.x=-3.7;cam.location.y=-2.4;cam.location.z=1.48;studio_obj(cam);cam.rotation_euler=(Vector((0,0,.6))-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.type='ORTHO';cam.data.ortho_scale=2.6;scene.camera=cam
 scene.render.engine='CYCLES';scene.cycles.samples=48;scene.cycles.use_denoising=False;scene.render.threads_mode='FIXED';scene.render.threads=4
 scene.render.resolution_x=1200;scene.render.resolution_y=950;scene.render.resolution_percentage=100;scene.render.filepath=str(OUT/'pop110-textured-preview.png')
 scene['Source']='User edited Pop; originals in assets/pop110/source-user';scene['Triangles']=triangleCount
