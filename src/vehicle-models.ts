@@ -13,10 +13,11 @@ export function createBike(id:VehicleId='pop'){
  const bike=id==='sahara'?createSahara():id==='cub'?createCub():buildBike(id),brakeLight=createBrakeLight(bike.body,bike.wheels[0].position.z-(id==='pop'?.115:id==='cg150'?.135:id==='cub'?.14:id==='sahara'?.16:0));
  const passengerPetAnchor=new T.Group();passengerPetAnchor.name='passenger-pet-anchor';
  const seatAnchor=id==='cg150'?[0,.85,-.52]:id==='cub'?[0,.82,-.35]:id==='caloi'?[0,.83,-.5]:[0,.84,-.52];
+ const passengerZ=Math.min(seatAnchor[2],bike.riderRig.hips.position.z-.22);
  passengerPetAnchor.position.set(
   seatAnchor[0]+CARAMELO_PET_TUNING.positionOffset.x,
   seatAnchor[1]+CARAMELO_PET_TUNING.positionOffset.y,
-  seatAnchor[2]+CARAMELO_PET_TUNING.positionOffset.z
+  passengerZ+CARAMELO_PET_TUNING.positionOffset.z
  );
  passengerPetAnchor.rotation.set(CARAMELO_PET_TUNING.rotation.x,CARAMELO_PET_TUNING.rotation.y,CARAMELO_PET_TUNING.rotation.z);
  passengerPetAnchor.scale.setScalar(CARAMELO_PET_TUNING.scale);bike.body.add(passengerPetAnchor);
@@ -29,7 +30,7 @@ export function createBike(id:VehicleId='pop'){
  // Seat and luggage rack heights differ across the six meshes. Rest the plate
  // on the tail, behind the passenger, using the model in its neutral pose.
  bike.root.updateMatrixWorld(true);
- const tailZ=seatAnchor[2]-.32;
+ const tailZ=Math.min(seatAnchor[2]-.32,passengerZ-.28);
  const ray=new T.Raycaster(new T.Vector3(0,2,tailZ),new T.Vector3(0,-1,0));
  const tail=bike.body.children.filter(o=>o instanceof T.Mesh);
  const support=ray.intersectObjects(tail,false)[0];
@@ -106,7 +107,7 @@ function buildBike(id:VehicleId){
  for(let y=.31;y<.45;y+=.023)bar(body,black,[-.12,y,.12],[.12,y,.12],.007);
  bar(body,black,[.18,.26,.07],[.18,.25,rear-.16],moped?.025:.045);
  bar(body,silver,[.19,.27,-.16],[.19,.26,rear-.12],moped?.016:.031);
- const handleY=moped?1.12:1.02,gripZ=front-.12;
+ const handleY=moped?1.12:1.02,gripZ=.21-front;
  if(moped){
   // Open white pressed frame, exposed engine/belt, bicycle cranks and high handlebar.
   bar(body,white,[0,.69,-.32],[0,.38,.15],.065);bar(body,white,[0,.38,.15],[0,.88,.45],.055);
@@ -117,7 +118,7 @@ function buildBike(id:VehicleId){
   const pulley=mesh(body,new T.TorusGeometry(.09,.012,6,24),black,-.13,.32,-.15);pulley.rotation.y=Math.PI/2;
   panel(steering,paint,[[-.12,.82],[-.12,1.08],[.045,1.06],[.065,.8]],.28);
   box(steering,silver,0,.91,.068,.25,.14,.025);box(steering,lamp,0,.91,.085,.21,.105,.01).name='Steering_Headlamp';
-  for(const side of [-1,1])bar(steering,silver,[side*.08,.92,-.12],[side*.32,handleY,-.12],.018);
+  for(const side of [-1,1])bar(steering,silver,[side*.08,.92,-.12],[side*.32,handleY,gripZ],.018);
  }else if(cub){
   // Short brown saddle, separate rear luggage rack, cream leg shield and round headlight.
   ell(body,paint,0,.58,-.35,.17,.18,.3);ell(body,seat,0,.755,-.22,.185,.065,.245);
@@ -139,14 +140,14 @@ function buildBike(id:VehicleId){
   for(const s of [-1,1])ell(steering,amber,s*.2,1.01,.015,.047,.05,.028);
   for(const s of [-1,1])bar(body,silver,[s*.17,.77,-.56],[s*.17,.77,-.82],.013);
  }
- if(!moped)bar(steering,silver,[-.34,handleY,-.12],[.34,handleY,-.12],.018);
- for(const side of [-1,1]){bar(steering,black,[side*.26,handleY,-.12],[side*.36,handleY,-.12],.025);bar(steering,silver,[side*.28,handleY,-.12],[side*.34,handleY+.22,-.09],.009);ell(steering,black,side*.34,handleY+.24,-.09,moped?.08:.06,.04,.025);}
+ if(!moped)for(const side of [-1,1])bar(steering,silver,[side*.13,handleY,-.12],[side*.32,handleY,gripZ],.018);
+ for(const side of [-1,1]){bar(steering,black,[side*.26,handleY,gripZ],[side*.36,handleY,gripZ],.025);bar(steering,silver,[side*.28,handleY,gripZ],[side*.34,handleY+.22,gripZ+.03],.009);ell(steering,black,side*.34,handleY+.24,gripZ+.03,moped?.08:.06,.04,.025);}
  // Instrument cluster sits beneath the first-person eye line.
  const dashY=handleY+(moped?.04:.145);
  const dial=mesh(steering,new T.CircleGeometry(.065,24),black,0,dashY,-.14);dial.rotation.x=-Math.PI/2;
  for(let i=0;i<7;i++){const a=i/6*Math.PI;box(steering,white,Math.cos(a)*.047,dashY+.003,-.14-Math.sin(a)*.047,.007,.004,.012)}
  bar(steering,paint,[0,dashY+.008,-.14],[.03,dashY+.008,-.17],.004);
- const riderRig=createRider(steering,spec.eyeHeight,handleY,cub?0x49705a:moped?0x527f9a:0xb77d43),rider=riderRig.root;body.add(rider);
+ const riderRig=createRider(steering,spec.eyeHeight,handleY,cub?0x49705a:moped?0x527f9a:0xb77d43,.22,0,gripZ),rider=riderRig.root;body.add(rider);
  return {root,body,steering,wheels,rider,riderRig,paintMaterials:[paint]};
 }
 

@@ -49,3 +49,18 @@ test('smaller riders keep the neck embedded in torso and helmet, with the stoppe
   disposeBike(b);
  }
 });
+
+test('neutral seated riders sit back with bent elbows and connected shoulders on all six bikes',()=>{
+ for(const spec of vehicles){
+  const bike=createBike(spec.id),rig=bike.riderRig;
+  assert.ok(Math.abs(rig.hips.position.z+.36)<1e-8,spec.id);
+  for(const limb of rig.limbs){
+   const shoulder=new T.Vector3(limb.side*.16,.14,.05).multiplyScalar(RIDER_TUNING.bodyScale).applyQuaternion(rig.torso.quaternion).add(rig.torso.position);
+   assert.ok(end(limb.upperArm,-.5).distanceTo(shoulder)<1e-8,spec.id);
+   const joint=end(limb.upperArm,.5);
+   const angle=shoulder.sub(joint).angleTo(end(limb.forearm,.5).sub(joint));
+   assert.ok(angle>Math.PI*.46&&angle<Math.PI*.91,spec.id+' elbow angle '+angle);
+  }
+  disposeBike(bike);
+ }
+});
