@@ -6,8 +6,8 @@ import {vehicles} from '../src/vehicles';
 
 test('high RPM torque has no abrupt cliff before ignition cutoff',()=>{
  for(const spec of vehicles){const e=new Powertrain();
-  assert.ok(e.torqueAtRpm(spec.redlineRpm,spec)>=e.torqueAtRpm(8000,spec)*.94,spec.id);
-  assert.ok(e.torqueAtRpm(spec.redlineRpm,spec)<e.torqueAtRpm(6500,spec),spec.id);
+  assert.ok(e.torqueAtRpm(spec.redlineRpm,spec)>=e.torqueAtRpm(spec.redlineRpm-100,spec)*.94,spec.id);
+  assert.ok(e.torqueAtRpm(spec.redlineRpm,spec)<e.torqueAtRpm(spec.peakPowerRpm,spec),spec.id);
  }
 });
 test('limiter stays rhythmic across small wheel RPM dips, and releases under unloading',()=>{
@@ -34,7 +34,7 @@ test('realistic lower gears reach and repeatedly cut under actual acceleration a
 });
 test('a transient RPM blip below wheel redline cannot prematurely cut drive',()=>{
  for(const spec of vehicles){const e=new Powertrain();e.rpm=spec.redlineRpm;
-  e.update(1/60,e.speedAtRpm(7000,spec),spec,spec.maxSpeed,1,0,false,false,true);
+  e.update(1/60,e.speedAtRpm(spec.redlineRpm*.8,spec),spec,spec.maxSpeed,1,0,false,false,true);
   assert.equal(e.limiting,false);assert.equal(e.driveFactor,1);
  }
 });

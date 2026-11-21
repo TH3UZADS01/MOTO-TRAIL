@@ -1,28 +1,48 @@
+import {adventure,type Prep} from './adventure-tuning';
+import type {TripProgress,Market} from './adventures';
 import {vehicles,type VehicleId} from './vehicles';
 
 export type Tyre='original'|'pista'|'trilha';
 export type Condition='motor'|'freios'|'pneus';
-export type Equipment={box:boolean;tyre:Tyre;color?:string}&Record<Condition,number>;
+export type Equipment={km?:number;prep?:Prep;box:boolean;tyre:Tyre;color?:string}&Record<Condition,number>;
 export const factory=():Equipment=>({box:false,tyre:'original',motor:100,freios:100,pneus:100});
 export type Site={x:number;z:number;name:string};
-export type Job={id:string;name:string;from:Site;to:Site;returning:boolean;pickup:boolean;load:number;pay:number;vehicle:VehicleId};
+export type Job={id:string;name:string;from:Site;to:Site;returning:boolean;pickup:boolean;kg?:number;load:number;pay:number;vehicle:VehicleId};
 export type RegionCooldown={x:number;z:number;until:number};
-export type Career={money:number;owned:VehicleId[];garage:Partial<Record<VehicleId,Equipment>>;pet:boolean;job:Job|null;cooldowns:RegionCooldown[]};
+export type Career={market?:Market;expedition?:TripProgress;completedTrips?:string[];tanks?:Partial<Record<VehicleId,number>>;money:number;owned:VehicleId[];garage:Partial<Record<VehicleId,Equipment>>;pet:boolean;job:Job|null;cooldowns:RegionCooldown[]};
 const key='moto-trail-career-v2';
-export const bikePrices:Record<VehicleId,number>={pop:0,caloi:100,cub:220,urban:350,cg150:650,sahara:1250};
+export const bikePrices:Record<Exclude<VehicleId,'cub'>,number>={pop:0,caloi:100,urban:350,cg150:650,sahara:1250};
 export function buyVehicle(state:Career,id:VehicleId){
+ if(id==='cub')throw Error('Descubra todos os locais do mapa para ganhar a Honda Cub');
  if(state.owned.includes(id))throw Error('Esta moto já está na garagem');
  purchase(state,bikePrices[id],()=>{state.owned.push(id)});
 }
+export function awardCub(state:Career){
+ if(state.owned.includes('cub'))return false;
+ state.owned.push('cub');return true;
+}
 export const prices={box:180,paint:45,tyre:90};
 export const capacity=(gear:Equipment)=>gear.box?12:2;
+export const weightLimit=(gear:Equipment)=>gear.box?adventure.cargo.boxKg:adventure.cargo.baseKg;
+export const jobKg=(j:Job)=>j.kg??j.load*adventure.cargo.density;
+export const carriedKg=(j:Job|null,id:VehicleId)=>j?.vehicle===id&&!j.pickup?jobKg(j):0;
 export const target=(j:Job)=>j.returning&&!j.pickup?j.from:j.to;
 export const DELIVERY_RADIUS=8;
 export const distance=(a:{x:number;z:number},b:{x:number;z:number})=>Math.hypot(a.x-b.x,a.z-b.z);
 export const cash=(n:number)=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 export function offer(name:string,from:Site,to:Site,load:number,vehicle:VehicleId,returning=false,rural=false):Job{
  const km=distance(from,to)/1000*(returning?2:1);
- return {id:crypto.randomUUID(),name,from,to,load,vehicle,returning,pickup:returning,pay:Math.round(16+km*(9+load*.8)*(rural?1.15:1)+load*2)};
+ return {id:crypto.randomUUID(),name,from,to,load,vehicle,returning,pickup:returning,kg:load*adventure.cargo.density,pay:Math.round(16+km*(9+load*.8)*(rural?1.15:1)+load*2)};
+}
+export function acceptJob(state:Career,job:Job){
+ if(state.job||state.expedition&&!state.expedition.paused)throw Error('Pause a expedição ou conclua a viagem atual');
+ const gear=equipment(state,job.vehicle);
+ if(job.load>capacity(gear)||jobKg(job)>weightLimit(gear))throw Error('Instale um baú para esta carga');
+ state.job=job;
+}
+export function cancelJob(state:Career,id:string){
+ if(state.job?.id!==id)throw Error('Entrega indisponível');
+ state.job=null;
 }
 export function arrive(state:Career,id:string,at:Site){
  const j=state.job;
@@ -60,8 +80,11 @@ export function openCareer(){
  let current=loadCareer();
  if(!localStorage.getItem(key))localStorage.setItem(key,JSON.stringify(current));
  window.addEventListener('storage',e=>{if(e.key===key)current=loadCareer()});
- return {get state(){return current},async change(edit:(s:Career)=>void){
-  const commit=()=>{const next=loadCareer();edit(next);localStorage.setItem(key,JSON.stringify(next));current=next};
+ function changeNow(edit:(s:Career)=>void,done?:()=>void){
+  const next=loadCareer();edit(next);localStorage.setItem(key,JSON.stringify(next));current=next;done?.();
+ }
+ return {get state(){return current},changeNow,async change(edit:(s:Career)=>void,done?:()=>void){
+  const commit=()=>changeNow(edit,done);
   if(navigator.locks)await navigator.locks.request(key,commit);else commit();
  }};
 }

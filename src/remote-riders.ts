@@ -1,3 +1,4 @@
+import {getVehicle} from './vehicles';
 import {ENGINE_TUNING} from './powertrain';
 import {TireParticles} from './tire-particles';
 import {applyBikePose} from './bike-pose';
@@ -42,7 +43,7 @@ export class RemoteRiders {
    p.bike.setSteering(steeringAngle(speed,steer,lift));
    const bank=T.MathUtils.lerp(s.lean,e.lean,u);
    const burnout=p.connected&&!e.fallen?(e.burnoutSpeed??0):0;
-   p.bike.riderRig.update(speed,steer,dt,false,T.MathUtils.lerp(s.bodyLean??0,e.bodyLean??0,u),blip,!!e.fallen,lift,bank,burnout>0);applyBikePose(p.bike,T.MathUtils.lerp(s.pitch,e.pitch,u),bank,lift,burnout?0:p.bike.riderRig.stopPose);
+   p.bike.riderRig.update(speed,steer,dt,false,T.MathUtils.lerp(s.bodyLean??0,e.bodyLean??0,u),blip,!!e.fallen,lift,bank,burnout>0);applyBikePose(p.bike,T.MathUtils.lerp(s.pitch,e.pitch,u),bank,lift,burnout?0:p.bike.riderRig.stopPose,T.MathUtils.lerp(s.frontCompression??0,e.frontCompression??0,u),T.MathUtils.lerp(s.rearCompression??0,e.rearCompression??0,u),getVehicle(e.vehicleId).wheelbase);
    if(e.petUnlocked&&!e.fallen)p.bike.pet.update(T.MathUtils.lerp(s.bodyLean??0,e.bodyLean??0,u), Number(e.braking??false), dt);
    p.bike.roll((p.connected?e.speed:0)*dt,!!e.drifting,(p.connected?(burnout||e.speed):0)*dt);
    p.smoke.update('asfalto',p.connected?(burnout||e.speed):0,p.bike.wheels[0],e.heading,dt,(!!e.drifting||burnout>0)&&p.connected&&!e.fallen);

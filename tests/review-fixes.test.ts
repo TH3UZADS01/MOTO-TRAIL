@@ -64,14 +64,14 @@ test('body pull lifts the front promptly without requiring prolonged throttle bu
 test('clutch flare reaches high RPM without exceeding redline and settles after engagement',()=>{
  for(const spec of vehicles)for(const dt of [1/60,1/120]){const e=new Powertrain();let peak=0;
   for(let time=0;time<1.5;time+=dt){e.update(dt,3,spec,spec.maxSpeed,1,0,false,false,true);e.updateClutchKick(dt,spec,3,1,0,-1,true);peak=Math.max(peak,e.rpm);assert.ok(e.rpm<spec.redlineRpm)}
-  assert.ok(peak>7900,spec.id);assert.ok(e.rpm<6000,spec.id);assert.equal(e.clutchKickGain,1);
+  assert.ok(peak>spec.redlineRpm*.92,spec.id);assert.ok(e.rpm<spec.idleRpm+(spec.redlineRpm-spec.idleRpm)*.65,spec.id);assert.equal(e.clutchKickGain,1);
  }
 });
 
-test('clutch wheelie impulse also reaches about 7000 RPM with partial throttle',()=>{
+test('clutch wheelie impulse also reaches the upper RPM band with partial throttle',()=>{
  for(const spec of vehicles){const e=new Powertrain();let peak=0;
   for(let time=0;time<.6;time+=1/60){e.update(1/60,3,spec,spec.maxSpeed,.5,0,false,false,true);e.updateClutchKick(1/60,spec,3,.5,0,-1,true);peak=Math.max(peak,e.rpm);assert.ok(e.rpm<spec.redlineRpm)}
-  assert.ok(peak>6800,spec.id);
+  assert.ok(peak>spec.redlineRpm*.80,spec.id);
  }
 });
 test('muted effects do not queue discovery or crash sounds',()=>{

@@ -105,8 +105,8 @@ export class Sound {
   }
   this.discoveryQueueUntil=start+DISCOVERY_SOUND_DURATION;
  }
- update(speed:number,gear:number,throttle:number,paused:boolean,brake=0,engine?:Partial<Pick<Powertrain,'ratio'|'limiting'|'cutting'|'lugging'|'revMatchTime'|'revMatchPeak'|'revMatchEnvelope'>>){if(!this.ready||!this.ctx)return;const c=this.ctx,t=c.currentTime,spec=getVehicle(this.vehicle),v=Math.max(0,speed),ratio=v/spec.maxSpeed;
-  const rev=engine?.ratio??(spec.gears===1?ratio:Math.max(0,Math.min(1,(v-(gear-1)*5)/7)));
+ update(speed:number,gear:number,throttle:number,paused:boolean,brake=0,engine?:Partial<Pick<Powertrain,'rpm'|'ratio'|'limiting'|'cutting'|'lugging'|'revMatchTime'|'revMatchPeak'|'revMatchEnvelope'>>){if(!this.ready||!this.ctx)return;const c=this.ctx,t=c.currentTime,spec=getVehicle(this.vehicle),v=Math.max(0,speed),ratio=v/spec.maxSpeed;
+  const rev=engine?.rpm!==undefined?Math.max(0,Math.min(1,(engine.rpm-spec.idleRpm)/(spec.redlineRpm-spec.idleRpm))):engine?.ratio??(spec.gears===1?ratio:Math.max(0,Math.min(1,(v-(gear-1)*5)/7)));
   const revBlip=engine?.revMatchEnvelope??(engine&&engine.revMatchTime&&engine.revMatchTime>0?Math.sin(Math.PI*(1-engine.revMatchTime/ENGINE_TUNING.revMatchDuration)):0);
   for(const layer of this.layers){let gain=0,rate=1;
    if(layer.bank==='wind')gain=paused?0:this.ambience*(.06+ratio*.16);

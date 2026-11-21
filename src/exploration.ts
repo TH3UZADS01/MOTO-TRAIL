@@ -13,6 +13,9 @@ export class ExplorationProgress {
   this.discoveredNames=this.load();
  }
 
+ get allPlacesDiscovered(){
+  return this.totalCount>0&&this.discoveredCount===this.totalCount;
+ }
  get discoveredCount(){return this.discoveredNames.size}
  get totalCount(){return this.places.length}
 
@@ -97,7 +100,7 @@ export function mountExplorationPanel(places:readonly Place[],progress:Explorati
  const update=()=>{
   const count=document.getElementById('exploration-count')!;
   count.textContent=`${progress.discoveredCount}/${progress.totalCount}`;
-  summary.textContent=`${progress.discoveredCount} de ${progress.totalCount} locais descobertos`;
+  summary.textContent=`${progress.discoveredCount} de ${progress.totalCount} locais descobertos. Descubra todos os locais do mapa para ganhar a Honda Cub.`;
   for(const [index,{discovered}] of progress.list().entries()){
    const item=list.children.item(index) as HTMLLIElement;
    item.dataset.discovered=String(discovered);

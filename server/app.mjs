@@ -1,3 +1,4 @@
+import roadConfig from '../src/road-event-config.json' with {type:'json'};
 import http from 'node:http';
 import {WebSocketServer,WebSocket} from 'ws';
 import {randomBytes,createHash} from 'node:crypto';
@@ -7,7 +8,8 @@ export const WORLD='vale-horizonte-v9';
 const hash=token=>createHash('sha256').update(token).digest('hex');
 const validVehicle=id=>['pop','cub','urban','caloi','cg150','sahara'].includes(id);
 const finite=(v,min,max)=>typeof v==='number'&&Number.isFinite(v)&&v>=min&&v<=max;
-export function validState(s){return s&&(s.cargo===undefined||typeof s.cargo==='boolean')&&(s.dirt===undefined||finite(s.dirt,0,1))&&(s.fullFace===undefined||typeof s.fullFace==='boolean')&&validVehicle(s.vehicleId)&&(s.color===undefined||(typeof s.color==='string'&&/^#[0-9a-fA-F]{6}$/.test(s.color)))&&(s.bodyLean===undefined||finite(s.bodyLean,-1,1))&&(s.wheelie===undefined||finite(s.wheelie,0,100))&&(s.fallen===undefined||typeof s.fallen==='boolean')&&(s.burnoutSpeed===undefined||finite(s.burnoutSpeed,0,50))&&(s.drifting===undefined||typeof s.drifting==='boolean')&&(s.braking===undefined||typeof s.braking==='boolean')&&(s.petUnlocked===undefined||typeof s.petUnlocked==='boolean')&&(s.revMatchSequence===undefined||Number.isSafeInteger(s.revMatchSequence)&&s.revMatchSequence>=0)&&(s.brake===undefined||finite(s.brake,0,1))&&(s.gear===undefined||Number.isSafeInteger(s.gear)&&s.gear>=0&&s.gear<=6)&&(s.rpm===undefined||finite(s.rpm,0,9000))&&finite(s.x,-7970,7970)&&finite(s.z,-7970,7970)&&finite(s.y,-50,250)&&finite(s.heading,-1e6,1e6)&&finite(s.pitch,-1.6,1.6)&&finite(s.lean,-.8,.8)&&finite(s.steer,-1,1)&&finite(s.speed,-1.3,s.vehicleId==='sahara'?42:38)&&Number.isSafeInteger(s.sequence)&&s.sequence>=0;}
+const rpmLimit={sahara:8500,cg150:9500,pop:8500,cub:8500,urban:9000,caloi:6500};
+export function validState(s){return s&&(s.frontCompression===undefined||finite(s.frontCompression,-.16,.16))&&(s.rearCompression===undefined||finite(s.rearCompression,-.16,.16))&&(s.cargo===undefined||typeof s.cargo==='boolean')&&(s.dirt===undefined||finite(s.dirt,0,1))&&(s.fullFace===undefined||typeof s.fullFace==='boolean')&&validVehicle(s.vehicleId)&&(s.color===undefined||(typeof s.color==='string'&&/^#[0-9a-fA-F]{6}$/.test(s.color)))&&(s.bodyLean===undefined||finite(s.bodyLean,-1,1))&&(s.wheelie===undefined||finite(s.wheelie,0,100))&&(s.fallen===undefined||typeof s.fallen==='boolean')&&(s.burnoutSpeed===undefined||finite(s.burnoutSpeed,0,50))&&(s.drifting===undefined||typeof s.drifting==='boolean')&&(s.braking===undefined||typeof s.braking==='boolean')&&(s.petUnlocked===undefined||typeof s.petUnlocked==='boolean')&&(s.revMatchSequence===undefined||Number.isSafeInteger(s.revMatchSequence)&&s.revMatchSequence>=0)&&(s.brake===undefined||finite(s.brake,0,1))&&(s.gear===undefined||Number.isSafeInteger(s.gear)&&s.gear>=0&&s.gear<=6)&&(s.rpm===undefined||finite(s.rpm,0,rpmLimit[s.vehicleId]))&&finite(s.x,-7970,7970)&&finite(s.z,-7970,7970)&&finite(s.y,-50,250)&&finite(s.heading,-1e6,1e6)&&finite(s.pitch,-1.6,1.6)&&finite(s.lean,-.8,.8)&&finite(s.steer,-1,1)&&finite(s.speed,-1.3,(s.vehicleId==='sahara'?45:s.vehicleId==='cg150'?40:38))&&Number.isSafeInteger(s.sequence)&&s.sequence>=0;}
 const publicMember=p=>({id:p.id,name:p.name,connected:!!p.socket,state:{...p.state,braking:!!(p.state.braking??(p.state.brake??0)>.05)}});
 export function createGameServer({dataDir=resolve('server-data'),origins=['http://127.0.0.1:5173','http://127.0.0.1:5174','http://localhost:5173'],graceMs=120000,maxRooms=50}={}){
  mkdirSync(dataDir,{recursive:true});const file=resolve(dataDir,'rooms.json'),rooms=new Map();let dirty=false;
@@ -17,7 +19,12 @@ export function createGameServer({dataDir=resolve('server-data'),origins=['http:
  const wss=new WebSocketServer({noServer:true,maxPayload:4096,perMessageDeflate:false});
  server.on('upgrade',(req,socket,head)=>{if(req.url!=='/ws'||!origins.includes(req.headers.origin)||wss.clients.size>=200){socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');socket.destroy();return}wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,req))});
  const send=(ws,data)=>{if(ws?.readyState===WebSocket.OPEN&&ws.bufferedAmount<65536)ws.send(JSON.stringify(data))};
- const broadcast=r=>{const message={type:'snapshot',world:WORLD,at:Date.now(),players:[...r.members.values()].map(publicMember)};for(const p of r.members.values())send(p.socket,message)};
+ function roomRoads(room,now){
+  const riders=[...room.members.values()].filter(p=>p.socket);
+  room.roadEvents=(room.roadEvents??[]).filter(e=>e.until>now&&riders.some(p=>Math.hypot(e.x-p.state.x,e.z-p.state.z)<=roadConfig.removeDistance));
+  return room.roadEvents;
+ }
+ const broadcast=r=>{const message={type:'snapshot',world:WORLD,at:Date.now(),roadEvents:roomRoads(r,Date.now()),players:[...r.members.values()].map(publicMember)};for(const p of r.members.values())send(p.socket,message)};
  wss.on('connection',ws=>{
   let room,member,count=0,windowStart=Date.now(),joined=false,lastHorn=0;ws.alive=true;
   const fail=(message,fatal=false)=>{send(ws,{type:'error',message,fatal});if(fatal)ws.close(1008,'Invalid request')};
@@ -51,6 +58,17 @@ export function createGameServer({dataDir=resolve('server-data'),origins=['http:
     send(ws,{type:'welcome',code:room.code,id:member.id,token,world:WORLD,state:member.state});broadcast(room);return;
    }
    if(message.type==='leave'){room.members.delete(member.id);member.socket=null;if(!room.members.size)rooms.delete(room.code);dirty=true;broadcast(room);ws.close(1000,'Left room');return}
+   if(message.type==='roadEvent'){
+    const e=message.event,c=roadConfig;
+    if(!e||!['log','closure','rocks','slide','sand'].includes(e.kind)||!finite(e.x,-7970,7970)||!finite(e.z,-7970,7970)||!finite(e.angle,-Math.PI,Math.PI))return;
+    const region=Math.floor(e.x/c.regionSize)+','+Math.floor(e.z/c.regionSize);
+    const events=roomRoads(room,now),cooldowns=room.roadCooldowns??=new Map();
+    for(const [key,end] of cooldowns)if(end<=now)cooldowns.delete(key);
+    if(events.length>=c.max||now<(room.nextRoad??0)||cooldowns.has(region)||Math.hypot(e.x-member.state.x,e.z-member.state.z)>c.spawnRange+10)return;
+    if([...room.members.values()].some(p=>p.socket&&Math.hypot(e.x-p.state.x,e.z-p.state.z)<c.minDistance))return;
+    events.push({kind:e.kind,x:e.x,z:e.z,angle:e.angle,region,until:now+1000*(c.lifetime+Math.random()*c.extraLifetime)});
+    cooldowns.set(region,now+c.regionCooldown*1000);room.nextRoad=now+c.interval*1000;broadcast(room);return;
+   }
    if(message.type==='horn'&&typeof message.active==='boolean'){
     if(member.state.hornHeld!==message.active){member.state.hornHeld=message.active;broadcast(room)}
     return;
@@ -58,7 +76,7 @@ export function createGameServer({dataDir=resolve('server-data'),origins=['http:
    if(message.type==='horn'){if(now-lastHorn<400)return;lastHorn=now;for(const p of room.members.values())if(p.id!==member.id)send(p.socket,{type:'horn',id:member.id});return}
    if(message.type!=='state'||!validState(message.state))return fail('Estado inválido.',true);
    const state=message.state;if(state.sequence<=member.state.sequence)return;
-   member.state={hornHeld:member.state.hornHeld,cargo:state.cargo===true,dirt:state.dirt??0,fullFace:state.fullFace??member.state.fullFace??false,drifting:state.drifting??false,burnoutSpeed:state.burnoutSpeed??0,vehicleId:state.vehicleId,color:state.color,bodyLean:state.bodyLean??0,wheelie:state.wheelie??0,fallen:state.fallen??member.state.fallen??false,braking:state.braking??(state.brake===undefined?member.state.braking:state.brake>.05),petUnlocked:state.petUnlocked??member.state.petUnlocked??false,revMatchSequence:state.revMatchSequence??member.state.revMatchSequence??0,gear:state.gear??member.state.gear,rpm:state.rpm??member.state.rpm,x:state.x,y:state.y,z:state.z,heading:state.heading,speed:state.speed,pitch:state.pitch,lean:state.lean,steer:state.steer,sequence:state.sequence};room.updated=now;dirty=true;
+   member.state={frontCompression:state.frontCompression??0,rearCompression:state.rearCompression??0,hornHeld:member.state.hornHeld,cargo:state.cargo===true,dirt:state.dirt??0,fullFace:state.fullFace??member.state.fullFace??false,drifting:state.drifting??false,burnoutSpeed:state.burnoutSpeed??0,vehicleId:state.vehicleId,color:state.color,bodyLean:state.bodyLean??0,wheelie:state.wheelie??0,fallen:state.fallen??member.state.fallen??false,braking:state.braking??(state.brake===undefined?member.state.braking:state.brake>.05),petUnlocked:state.petUnlocked??member.state.petUnlocked??false,revMatchSequence:state.revMatchSequence??member.state.revMatchSequence??0,gear:state.gear??member.state.gear,rpm:state.rpm??member.state.rpm,x:state.x,y:state.y,z:state.z,heading:state.heading,speed:state.speed,pitch:state.pitch,lean:state.lean,steer:state.steer,sequence:state.sequence};room.updated=now;dirty=true;
   });
   ws.on('close',()=>{clearTimeout(handshake);if(member?.socket===ws){member.socket=null;member.offlineAt=Date.now();member.state.speed=0;member.state.bodyLean=0;member.state.wheelie=0;member.state.braking=false;member.state.hornHeld=false;member.state.drifting=false;member.state.burnoutSpeed=0;dirty=true;broadcast(room)}});
   ws.on('error',()=>{});

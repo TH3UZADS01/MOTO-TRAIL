@@ -7,6 +7,12 @@ import {join} from 'node:path';
 import {createGameServer,WORLD,validState} from '../server/app.mjs';
 const origin='http://127.0.0.1:5173';
 const state=(x,sequence=0)=>({vehicleId:'cub',x,y:12,z:0,heading:1,speed:9,pitch:.05,lean:.1,steer:.2,sequence});
+test('network accepts each engine at its own cutoff',()=>{
+ for(const [vehicleId,rpm] of Object.entries({sahara:8500,cg150:9500,pop:8500,cub:8500,urban:9000,caloi:6500})){
+  assert.ok(validState({...state(0),vehicleId,rpm}));
+  assert.equal(validState({...state(0),vehicleId,rpm:rpm+1}),false);
+ }
+});
 async function client(port){const ws=new WebSocket(`ws://127.0.0.1:${port}/ws`,{origin});const messages=[];ws.on('message',data=>messages.push(JSON.parse(data.toString())));await new Promise((resolve,reject)=>{ws.once('open',resolve);ws.once('error',reject)});return {ws,messages,send:m=>ws.send(JSON.stringify(m)),wait:async predicate=>{const deadline=Date.now()+5000;while(Date.now()<deadline){const index=messages.findIndex(predicate);if(index>=0)return messages.splice(index,1)[0];await new Promise(r=>setTimeout(r,10))}throw new Error('Timed out waiting for server message')}}}
 const hello=(type,name,extra={})=>({type,name,world:WORLD,vehicleId:'pop',...extra});
 test('real separate WebSocket sessions: rooms, movement, bikes, capacity, leave and restart resume',async()=>{
@@ -14,6 +20,11 @@ test('real separate WebSocket sessions: rooms, movement, bikes, capacity, leave 
  try{
   let address=await game.listen(0);const a=await client(address.port);sockets.push(a.ws);a.send(hello('create','Ana'));const welcome=await a.wait(m=>m.type==='welcome');
   const b=await client(address.port);sockets.push(b.ws);b.send(hello('join','Bruno',{code:welcome.code}));const wb=await b.wait(m=>m.type==='welcome');assert.notEqual(wb.id,welcome.id);
+  a.send({type:'roadEvent',event:{kind:'sand',x:-310,z:0,angle:0}});
+  a.send({type:'roadEvent',event:{kind:'log',x:-110,z:0,angle:.5}});
+  const roadSnapshot=m=>m.type==='snapshot'&&m.roadEvents?.length===1;
+  const first=(await a.wait(roadSnapshot)).roadEvents,second=(await b.wait(roadSnapshot)).roadEvents;
+  assert.deepEqual(first,second);assert.equal(first[0].kind,'log');
   a.send({type:'state',state:state(-300)});const received=await b.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===welcome.id&&p.state.x===-300));assert.equal(received.players.find(p=>p.id===welcome.id).state.vehicleId,'cub');assert.equal(received.players.find(p=>p.id===welcome.id).state.braking,false);
   b.send({type:'state',state:{...state(-290),vehicleId:'cg150',color:'#4167ab',bodyLean:-1,wheelie:Math.PI/2+.1,fallen:true,braking:true,speed:36.7}});await a.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===wb.id&&p.state.vehicleId==='cg150'&&p.state.color==='#4167ab'&&p.state.wheelie===Math.PI/2+.1&&p.state.fallen===true&&p.state.bodyLean===-1&&p.state.braking===true&&p.state.speed===36.7));
   b.send({type:'state',state:{...state(-288,1),vehicleId:'sahara',color:'#c91e2c',speed:40}});await a.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===wb.id&&p.state.vehicleId==='sahara'&&p.state.speed===40));

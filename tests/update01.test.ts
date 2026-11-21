@@ -7,7 +7,7 @@ import {Controller} from '../src/input';
 import {vehicles} from '../src/vehicles';
 import {createBike,disposeBike} from '../src/vehicle-models';
 import {applyBikePose} from '../src/bike-pose';
-import {Fuel} from '../src/fuel';
+import {Fuel,kmPerLiter} from '../src/fuel';
 function flatStep(r:Ride,body:number,gas=1,brake=0,automatic=true){r.x=-310;r.z=0;r.heading=0;r.contact=()=>{r.pitch=0};r.step(1/60,gas,brake,0,[],false,body,automatic)}
 test('left stick Y controls body independently of steering and resets on disconnect',()=>{const c=new Controller(),buttons=Array.from({length:16},()=>({pressed:false,value:0})),pad={id:'test',connected:true,mapping:'standard',axes:[.5,-1,0,0],buttons} as unknown as Gamepad;let s=c.poll(.14,1,[pad]);assert.equal(s.body,1);assert.ok(s.turn<0);buttons[12].pressed=true;assert.equal(c.poll(.14,1,[pad]).shiftUp,true);assert.equal(c.poll(.14,1,[pad]).shiftUp,false);buttons[12].pressed=false;buttons[13].pressed=true;assert.equal(c.poll(.14,1,[pad]).shiftDown,true);pad.axes[1]=1;assert.equal(c.poll(.14,1,[pad]).body,-1);assert.equal(c.poll(.14,1,[]).body,0)});
 test('aerodynamic tuck helps each motorcycle reach its fixed top speed',()=>{for(const spec of vehicles){
@@ -78,4 +78,10 @@ test('brake lights illuminate smoothly on every bike and fade when braking stops
 test('CG 150 rider head remains connected to a proportionate neck',()=>{const bike=createBike('cg150'),neck=bike.riderRig.neck,head=bike.riderRig.head,torso=bike.riderRig.torso,neckTop=neck.position.y+neck.scale.y/2,neckBottom=neck.position.y-neck.scale.y/2,torsoTop=torso.position.y+.27;assert.ok(neck.scale.y<.1);assert.ok(neckBottom<torsoTop, 'neck should overlap the torso');assert.ok(neckTop>head.position.y-.18,'neck should connect to the head');assert.ok(head.position.y<1.6,'CG 150 head should stay at a proportionate height');disposeBike(bike)});
 test('wheelie passes the old 45-degree cap, loop-out falls, braking lands, and reset recovers',()=>{const r=new Ride();for(let i=0;i<300;i++)flatStep(r,-1);assert.ok(r.wheelie>Math.PI/4);assert.equal(r.fallen,true);const fallenSpeed=r.speed;r.step(1/60,1,0,1,[],false,-1);assert.ok(r.speed<fallenSpeed);r.recover();assert.equal(r.fallen,false);assert.equal(r.wheelie,0);const landing=new Ride();landing.speed=10/3.6;landing.wheelie=Math.PI/3;for(let i=0;i<120;i++)flatStep(landing,0,0,1);assert.equal(landing.fallen,false);assert.ok(landing.wheelie<Math.PI/3);const slow=new Ride();slow.speed=1;for(let i=0;i<120;i++)flatStep(slow,-1,0);assert.equal(slow.wheelie,0);const grounded=new Ride(),liftedRide=new Ride();for(const moto of [grounded,liftedRide]){moto.speed=10;moto.steer=1;moto.heading=0}liftedRide.bodyLean=-1;liftedRide.wheelie=Math.PI/4;grounded.step(1/60,1,0,1,[]);liftedRide.step(1/60,1,0,1,[],false,-1);assert.ok(liftedRide.heading<grounded.heading*.6)});
 test('wheelie rotation keeps rear axle fixed for all models and follows terrain pitch',()=>{for(const v of vehicles){const b=createBike(v.id);applyBikePose(b,.12,.1,0);b.body.updateMatrixWorld(true);const axle=b.wheels[0].getWorldPosition(new T.Vector3());applyBikePose(b,.12,.1,Math.PI/4);b.body.updateMatrixWorld(true);assert.ok(axle.distanceTo(b.wheels[0].getWorldPosition(new T.Vector3()))<1e-6);assert.ok(b.wheels[1].getWorldPosition(new T.Vector3()).y>axle.y+.6);disposeBike(b)}});
-test('fuel increases exactly 10% for every bike without changing refill or capacity',()=>{for(const v of vehicles){const f=new Fuel(),before=f.get(v.id),meters=1000,dt=60,gas=.7,speed=20,pitch=.05;const old=(meters/1000*(.065+.04*(speed/28)**2+.015*gas+pitch*.08)*(v.id==='caloi'?.7:1)+dt*.000015);f.consume(v.id,meters,dt,gas,speed,pitch,false);assert.ok(Math.abs(before-f.get(v.id)-old*1.1)<1e-12, v.id);f.refill(v.id,100);assert.equal(f.get(v.id),before)}});
+test('reference cruise uses the specified economy and configurable map scale',()=>{
+ for(const spec of vehicles){
+  const fuel=new Fuel(1),compressed=new Fuel(3);
+  for(const f of [fuel,compressed])f.consume(spec.id,1000,60,.4,spec.maxSpeed*.55,0,false,spec.redlineRpm*.5);
+  assert.ok(Math.abs(fuel.get(spec.id)-compressed.get(spec.id)-2/kmPerLiter[spec.id])<1e-10);
+ }
+});

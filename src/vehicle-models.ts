@@ -1,4 +1,4 @@
-import {bindSteering} from './steering';
+import {bindSteering,rakeDegrees} from './steering';
 import {bindDirt} from './bike-dirt';
 import {makeHeadlight} from './headlight';
 import {createSahara} from './sahara';
@@ -45,7 +45,26 @@ export function createBike(id:VehicleId='pop'){
  function roll(distance:number,rearLocked:boolean,rearDistance=distance){
   bike.wheels.forEach((wheel,i)=>{if(i!==0||!rearLocked)wheel.rotation.x+=(i===0?rearDistance:distance)/radii[i]});
  }
- return {...bike,headlight,brakeLight,passengerPetAnchor,pet,cargo,dirt,roll,setSteering:bindSteering(bike.steering,id)};
+ const rearRest=bike.wheels[0].position.clone(),frontRest=bike.wheels[1].position.clone();
+ const frontAssembly=bike.steering.getObjectByName('FrontSuspension'),rearAssembly=bike.body.getObjectByName('RearSuspension');
+ // The Sahara exports its upper fork tubes separately; these stay at the crown.
+ if(frontAssembly)for(const part of [...frontAssembly.children]){
+  if(part.name.includes('ForkStanchion'))bike.steering.add(part);
+ }
+ const rake=Math.tan(T.MathUtils.degToRad(rakeDegrees[id])),armLength=getVehicle(id).wheelbase*.42;
+ const pivot=rearRest.clone().add(new T.Vector3(0,.04,armLength)),axis=new T.Vector3(1,0,0);
+ function setSuspension(front:number,rear:number){
+  const dz=-front*rake;
+  bike.wheels[1].position.copy(frontRest);bike.wheels[1].position.y+=front;bike.wheels[1].position.z+=dz;
+  frontAssembly?.position.set(0,front,dz);
+  const angle=Math.asin(rear/armLength);
+  bike.wheels[0].position.copy(rearRest).sub(pivot).applyAxisAngle(axis,angle).add(pivot);
+  if(rearAssembly){
+   rearAssembly.rotation.x=angle;
+   rearAssembly.position.copy(pivot).applyAxisAngle(axis,angle).negate().add(pivot);
+  }
+ }
+ return {...bike,setSuspension,headlight,brakeLight,passengerPetAnchor,pet,cargo,dirt,roll,setSteering:bindSteering(bike.steering,id)};
 }
 function createBrakeLight(body:T.Group,rearZ:number){
  const imported=body.getObjectByName('Body_TailLens') as T.Mesh<T.BufferGeometry,T.MeshStandardMaterial>|undefined;
@@ -75,9 +94,14 @@ function buildBike(id:VehicleId){
   bar(g,silver,[-.055,0,0],[.055,0,0],.058);for(let i=0;i<(cub||moped?24:5);i++){const a=i/(cub||moped?24:5)*Math.PI*2;bar(g,silver,[0,0,0],[0,Math.cos(a)*(r-.065),Math.sin(a)*(r-.065)],cub||moped?.004:.017)}wheels.push(g);}
  const rear=-spec.wheelbase/2,front=spec.wheelbase/2,radius=moped?.29:.28;
  wheel(body,rear,radius);wheel(steering,0,radius);
- for(const x of [-.07,.07]){bar(steering,silver,[x,radius,0],[x,.92,-.13],.022);bar(body,silver,[x,radius,rear],[x,.7,-.35],.022);bar(body,black,[x,radius,rear],[x,.32,0],.025)}
+ const frontAssembly=new T.Group(),rearAssembly=new T.Group();frontAssembly.name='FrontSuspension';rearAssembly.name='RearSuspension';
+ steering.add(frontAssembly);body.add(rearAssembly);
+ for(const x of [-.07,.07]){
+  bar(steering,silver,[x,.50,-.13*(.50-radius)/(.92-radius)],[x,.92,-.13],.020);
+  bar(frontAssembly,silver,[x,radius,0],[x,.62,-.13*(.62-radius)/(.92-radius)],.026);
+  bar(rearAssembly,silver,[x,radius,rear],[x,.7,-.35],.022);bar(rearAssembly,black,[x,radius,rear],[x,.32,0],.025)}
  // Fenders are curved arcs, not rectangular body blocks.
- for(const [parent,z] of [[body,rear],[steering,0]] as [T.Group,number][]){const f=mesh(parent,new T.TorusGeometry(radius+.04,.055,8,28,Math.PI*.85),moped?silver:paint,0,radius,z);f.rotation.y=Math.PI/2;f.rotation.z=.24;}
+ for(const [parent,z] of [[rearAssembly,rear],[frontAssembly,0]] as [T.Group,number][]){const f=mesh(parent,new T.TorusGeometry(radius+.04,.055,8,28,Math.PI*.85),moped?silver:paint,0,radius,z);f.rotation.y=Math.PI/2;f.rotation.z=.24;}
  ell(body,silver,0,.34,.02,moped?.105:.16,.12,.18);
  for(let y=.31;y<.45;y+=.023)bar(body,black,[-.12,y,.12],[.12,y,.12],.007);
  bar(body,black,[.18,.26,.07],[.18,.25,rear-.16],moped?.025:.045);

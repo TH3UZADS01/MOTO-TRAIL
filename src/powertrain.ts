@@ -1,7 +1,7 @@
 import type {VehicleSpec} from './vehicles';
 import {BODY_TUNING,clamp} from './body-control';
 // Gameplay RPM calibration, not manufacturer dyno data.
-export const ENGINE_TUNING={idleRpm:1400,redlineRpm:8500,shiftDelay:.22,downshiftRatio:.72,cutHz:8,cutDuty:.32,cutGain:.16,rpmResponse:12,clutchSlipRpm:700,revMatchDuration:.3,blipThrottle:.65,revMatchIntensity:.32,revMatchOvershootRpm:650,revMatchMinimumRpm:180,revMatchVolume:.45};
+export const ENGINE_TUNING={idleRpm:1400,shiftDelay:.22,downshiftRatio:.72,cutHz:8,cutDuty:.32,cutGain:.16,rpmResponse:12,clutchSlipRpm:700,revMatchDuration:.3,blipThrottle:.65,revMatchIntensity:.32,revMatchOvershootRpm:650,revMatchMinimumRpm:180,revMatchVolume:.45};
 // Keep the limiter latched through the small RPM dip caused by each ignition cut.
 export const LIMITER_TUNING={entryRpm:25,releaseRpm:100};
 const smoothstep=(value:number)=>{const t=clamp(value,0,1);return t*t*(3-2*t)};
@@ -26,7 +26,7 @@ export class Powertrain {
   if(this.kickTime<=0)return;
   this.kickTime=Math.max(0,this.kickTime-dt);
   // Keep a strong flare even with a partially pressed trigger; the redline clamp below still applies.
-  const flare=Math.max(t.clutchMinimumPeakRpm-this.kickBaseRpm,t.clutchRpm,(spec.idleRpm+(spec.redlineRpm-spec.idleRpm)*t.clutchPeakRatio*throttle)-this.kickBaseRpm);
+  const flare=Math.max(t.clutchMinimumPeakRatio*spec.redlineRpm-this.kickBaseRpm,t.clutchRpm,(spec.idleRpm+(spec.redlineRpm-spec.idleRpm)*t.clutchPeakRatio*throttle)-this.kickBaseRpm);
   if(this.kickTime>t.clutchRelease){
    const charge=1-(this.kickTime-t.clutchRelease)/t.clutchCharge;
    // An RPM target, not an additive boost every frame, keeps the flare consistent at any tick rate.
@@ -60,7 +60,8 @@ export class Powertrain {
   this.revMatchSequence++;
  }
  getGearRatio(spec:VehicleSpec,gear=this.gear){if(gear===0)return 0;return spec.gearRatios[Math.max(0,Math.min(gear-1,spec.gearRatios.length-1))]??1}
- getTotalRatio(spec:VehicleSpec,gear=this.gear){return this.getGearRatio(spec,gear)*spec.finalDrive}
+ finalRatioScale=1;
+ getTotalRatio(spec:VehicleSpec,gear=this.gear){return this.getGearRatio(spec,gear)*spec.finalDrive*this.finalRatioScale}
  wheelRpmFromSpeed(speed:number,spec:VehicleSpec,gear=this.gear){if(speed<=0)return 0;return speed*60*this.getTotalRatio(spec,gear)/(2*Math.PI*spec.wheelRadius)}
  speedAtRpm(rpm:number,spec:VehicleSpec,gear=this.gear){if(gear===0)return 0;return Math.max(0,rpm)*(2*Math.PI*spec.wheelRadius)/(60*this.getTotalRatio(spec,gear))}
  speedAtRedline(spec:VehicleSpec,gear=this.gear){return this.speedAtRpm(spec.redlineRpm,spec,gear)}
@@ -95,7 +96,7 @@ export class Powertrain {
   const {pitchTorque,stabilizingTorque}=this.wheeliePhysics(spec,speed,throttle,bodyLean);
   return pitchTorque*BODY_TUNING.wheeliePitchForceScale*(spec.wheelieAssist??1)>=stabilizingTorque*BODY_TUNING.wheelieForceMargin?1:0;
  }
- reset(){this.resetClutchKick();this.gear=1;this.rpm=ENGINE_TUNING.idleRpm;this.ratio=0;this.limiting=false;this.cutting=false;this.clutch=0;this.lugging=false;this.shiftTime=0;this.shiftCooldown=0;this.phase=0;this.revMatchTime=0;this.revMatchPeak=0;this.stalled=false}
+ reset(idleRpm=ENGINE_TUNING.idleRpm){this.resetClutchKick();this.gear=1;this.rpm=idleRpm;this.ratio=0;this.limiting=false;this.cutting=false;this.clutch=0;this.lugging=false;this.shiftTime=0;this.shiftCooldown=0;this.phase=0;this.revMatchTime=0;this.revMatchPeak=0;this.stalled=false}
  requestShift(direction:-1|1,speed:number,spec:VehicleSpec,_topSpeed:number,realistic=false){
   if(spec.gears===1||this.shiftCooldown>0)return false;
   const next=clamp(this.gear+direction,0,spec.gears);
@@ -151,7 +152,7 @@ export class Powertrain {
   }else this.shiftTime=0;
   if(!this.limiting){this.phase=0;this.cutting=false}this.ratio=clamp(wheelRpm/spec.redlineRpm,0,1);
   const target=clamp(wheelRpm,spec.idleRpm,spec.redlineRpm);if(downshiftSteps)this.startRevMatch(target,spec,downshiftSteps);
-  this.revMatchTime=Math.max(0,this.revMatchTime-dt);this.rpm=target+this.revMatchPeak*this.revMatchEnvelope;
+  this.revMatchTime=Math.max(0,this.revMatchTime-dt);this.rpm=Math.min(spec.redlineRpm,target+this.revMatchPeak*this.revMatchEnvelope);
   if(this.revMatchTime===0)this.revMatchPeak=0;
   this.clutch=1;this.lugging=false;
  }

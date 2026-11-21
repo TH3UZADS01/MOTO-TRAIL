@@ -1,9 +1,10 @@
+import type {RoadNotice} from './road-events';
 import type {VehicleId} from './vehicles';
 export const WORLD='vale-horizonte-v9';
-export interface RiderState {hornHeld?:boolean;cargo?:boolean;dirt?:number;fullFace?:boolean;vehicleId:VehicleId;color?:string;bodyLean?:number;wheelie?:number;fallen?:boolean;braking?:boolean;drifting?:boolean;burnoutSpeed?:number;petUnlocked?:boolean;revMatchSequence?:number;gear?:number;rpm?:number;x:number;y:number;z:number;heading:number;speed:number;pitch:number;lean:number;steer:number;sequence:number}
+export interface RiderState {frontCompression?:number;rearCompression?:number;hornHeld?:boolean;cargo?:boolean;dirt?:number;fullFace?:boolean;vehicleId:VehicleId;color?:string;bodyLean?:number;wheelie?:number;fallen?:boolean;braking?:boolean;drifting?:boolean;burnoutSpeed?:number;petUnlocked?:boolean;revMatchSequence?:number;gear?:number;rpm?:number;x:number;y:number;z:number;heading:number;speed:number;pitch:number;lean:number;steer:number;sequence:number}
 export interface RemotePlayer {id:string;name:string;connected:boolean;state:RiderState}
 interface Session {code:string;id:string;token:string;name:string;vehicleId:VehicleId}
-interface Events {horn:(id:string)=>void;status:(text:string)=>void;welcome:(state:RiderState,code:string,id:string)=>void;players:(players:RemotePlayer[])=>void;ended:()=>void}
+interface Events {roads?:(notices:RoadNotice[])=>void;horn:(id:string)=>void;status:(text:string)=>void;welcome:(state:RiderState,code:string,id:string)=>void;players:(players:RemotePlayer[])=>void;ended:()=>void}
 export class RideNetwork {
  socket?:WebSocket;session?:Session;connecting=false;private wanted=false;private timer?:ReturnType<typeof setTimeout>;private attempt=0;private sequence=0;private lastSent=0;private lastBraking?:boolean;private generation=0;private name='';private vehicleId:VehicleId='pop';
  private clockOffset=0;
@@ -30,7 +31,7 @@ export class RideNetwork {
     this.session={code:m.code,id:m.id,token:m.token,name:this.name,vehicleId:this.vehicleId};this.connecting=false;this.attempt=0;this.sequence=0;this.lastBraking=undefined;this.store();this.events.welcome(m.state,m.code,m.id);this.events.status(`Sala ${m.code} · conectado`);
    }
    if(m.type==='horn'&&typeof m.id==='string')this.events.horn(m.id);
-   if(m.type==='snapshot'&&Array.isArray(m.players)&&m.world===WORLD){if(Number.isFinite(m.at))this.clockOffset=m.at-Date.now();this.events.players(m.players.filter((p:RemotePlayer)=>p.id!==this.session?.id));}
+   if(m.type==='snapshot'&&Array.isArray(m.players)&&m.world===WORLD){if(Number.isFinite(m.at))this.clockOffset=m.at-Date.now();this.events.roads?.(m.roadEvents??[]);this.events.players(m.players.filter((p:RemotePlayer)=>p.id!==this.session?.id));}
   };
   ws.onerror=()=>{};
   ws.onclose=()=>{clearTimeout(timeout);if(generation!==this.generation)return;this.connecting=false;this.events.players([]);
@@ -39,6 +40,7 @@ export class RideNetwork {
   };
  }
  private fail(message:string){this.wanted=false;this.connecting=false;this.session=undefined;this.store();this.socket?.close();this.events.players([]);this.events.status(message);this.events.ended()}
+ proposeRoad(e:RoadNotice){if(this.connected)this.socket!.send(JSON.stringify({type:'roadEvent',event:e}))}
  horn(active:boolean){if(this.connected)this.socket!.send(JSON.stringify({type:'horn',active}))}
  send(state:Omit<RiderState,'sequence'>,now:number,force=false){if(!this.connected||(!force&&now-this.lastSent<100)||this.socket!.bufferedAmount>16384)return;this.lastSent=now;const {braking,...rest}=state,update:{sequence:number;braking?:boolean}={sequence:this.sequence++};if(braking!==undefined&&braking!==this.lastBraking){update.braking=braking;this.lastBraking=braking}this.socket!.send(JSON.stringify({type:'state',state:{...rest,...update}}));}
  leave(){this.wanted=false;this.generation++;clearTimeout(this.timer);if(this.socket?.readyState===WebSocket.OPEN)this.socket.send(JSON.stringify({type:'leave'}));this.socket?.close();this.socket=undefined;this.session=undefined;this.connecting=false;this.lastBraking=undefined;this.store();this.events.players([]);this.events.ended()}
