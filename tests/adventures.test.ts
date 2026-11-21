@@ -4,7 +4,7 @@ import * as T from 'three';
 import {acceptJob,cancelJob,arrive,buyVehicle,carriedKg,equipment,factory,offer,weightLimit,type Career} from '../src/career';
 import {installPart,buyUsed,renewMarket,usedPrice,startTrip,pauseTrip,visitStop,trips,destination} from '../src/adventures';
 import {Ride} from '../src/riding';
-import {getVehicle} from '../src/vehicles';
+import {getVehicle,vehicles} from '../src/vehicles';
 import {RoadEvents} from '../src/road-events';
 import {adventure} from '../src/adventure-tuning';
 import {deepWater,nearestRoute,road} from '../src/terrain';
@@ -114,4 +114,26 @@ test('events are bounded and pooled, avoid the rider and objective, collide and 
  }
  events.dispose();
  assert.equal(scene.children.length,0);assert.equal(events.hits.length,0);
+});
+
+test('Comando adds 17% wheel torque on every bike and survives refitting and reload',()=>{
+ for(const {id} of vehicles){
+  const s=fresh();s.owned=[id];
+  installPart(s,id,'gearing','original'); // Existing workshop save without an engine slot.
+  delete equipment(s,id).prep!.engine;
+  for(const realistic of [false,true]){
+   const run=(state:Career)=>{
+    const ride=new Ride();ride.spec=getVehicle(id);ride.equipment=equipment(state,id);
+    ride.speed=3;ride.step(1/60,1,0,0,[],false,0,false,realistic);return ride;
+   };
+   const stock=run(s);
+   installPart(s,id,'engine','cam');const paid=s.money;
+   const tuned=run(saved(s));
+   assert.ok(stock.wheelieDebug.wheelTorque>0);
+   assert.ok(Math.abs(tuned.wheelieDebug.wheelTorque/stock.wheelieDebug.wheelTorque-1.17)<1e-9);
+   assert.ok(tuned.speed>stock.speed);
+   installPart(s,id,'engine','original');installPart(s,id,'engine','cam');
+   assert.equal(s.money,paid);installPart(s,id,'engine','original');
+  }
+ }
 });

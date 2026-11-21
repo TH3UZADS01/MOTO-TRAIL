@@ -60,6 +60,7 @@ export class Powertrain {
   this.revMatchSequence++;
  }
  getGearRatio(spec:VehicleSpec,gear=this.gear){if(gear===0)return 0;return spec.gearRatios[Math.max(0,Math.min(gear-1,spec.gearRatios.length-1))]??1}
+ torqueScale=1;
  finalRatioScale=1;
  getTotalRatio(spec:VehicleSpec,gear=this.gear){return this.getGearRatio(spec,gear)*spec.finalDrive*this.finalRatioScale}
  wheelRpmFromSpeed(speed:number,spec:VehicleSpec,gear=this.gear){if(speed<=0)return 0;return speed*60*this.getTotalRatio(spec,gear)/(2*Math.PI*spec.wheelRadius)}
@@ -79,7 +80,7 @@ export class Powertrain {
  }
  wheelTorque(spec:VehicleSpec,speed:number,throttle=1,gear=this.gear){
   const delivered=clamp(throttle,0,1)*this.clutch*this.gearLugFactor(speed,spec,gear)*this.driveFactor;
-  return this.torqueAtRpm(this.torqueRpm,spec)*this.getTotalRatio(spec,gear)*delivered*this.clutchKickGain;
+  return this.torqueAtRpm(this.torqueRpm,spec)*this.torqueScale*this.getTotalRatio(spec,gear)*delivered*this.clutchKickGain;
  }
  wheelForce(spec:VehicleSpec,speed:number,throttle=1,gear=this.gear){return this.wheelTorque(spec,speed,throttle,gear)/spec.wheelRadius}
  estimatedRpm(spec:VehicleSpec,speed:number,gear=this.gear){return clamp(this.wheelRpmFromSpeed(speed,spec,gear),spec.idleRpm,spec.redlineRpm)}

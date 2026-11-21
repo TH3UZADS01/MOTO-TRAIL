@@ -22,13 +22,13 @@ export function adventureMenu(tab:string,store:ReturnType<typeof openCareer>,id:
   }
  }else if(tab==='prep'){
   const prep=g.prep??originalPrep();
-  for(const [slot,title] of [['gearing','Relação'],['suspension','Suspensão'],['brakes','Freios']] as const){
+  for(const [slot,title] of [['engine','Motor'],['gearing','Relação'],['suspension','Suspensão'],['brakes','Freios']] as const){
    line('h3',title);
    for(const part of ['original',...(Object.keys(parts) as Part[]).filter(p=>parts[p].slot===slot)] as const){
     const original=part==='original',label=original?'Original':parts[part].label;
     const price=original||prep.bought.includes(part)?0:partPrice(id,part);
     if(!original)line('p',parts[part].detail);
-    const installed=prep[slot]===part;
+    const installed=(prep[slot]??'original')===part;
     button(label+' · '+(installed?'Instalado':price?cash(price):'Instalar grátis'),()=>act(state=>installPart(state,id,slot,part),label+' instalado')).disabled=installed||s.money<price;
    }
   }
