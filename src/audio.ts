@@ -10,7 +10,7 @@ export const CG_AUDIO_TUNING={
   minRate:.50,
   maxRate:1.2,
   response:.16,
-  filter:7000
+  filter:9000
 };
 export const SAHARA_AUDIO_TUNING = {
   accelerationGain: .90,
@@ -19,7 +19,7 @@ export const SAHARA_AUDIO_TUNING = {
   minRate: .40,
   maxRate: 1.5,
   response: .16,
-  filter: 6500
+  filter: 15000
 };
 export const AUDIO_ASSETS=[
  {name:'engine-idle',bank:'engine',load:false},{name:'engine-load',bank:'engine',load:true},
