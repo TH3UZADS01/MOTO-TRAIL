@@ -79,7 +79,7 @@ export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,_jacket
   const balanced=-chassisLean+.08*steer;
   const target=T.MathUtils.lerp(inward,steer>=0?Math.max(outward,balanced):Math.min(outward,balanced),counterweight);
   lean=T.MathUtils.lerp(lean,target,1-Math.exp(-RIDER_TUNING.response*Math.max(0,dt)));
-  hips.position.z=-.21-RIDER_TUNING.seatSetback-foreAft*.035;hips.position.x=-lean*RIDER_TUNING.hipShift+wheelieSide*.06;hips.rotation.z=lean*.4;torso.position.x=hips.position.x-lean*.35+wheelieSide*.20;torso.rotation.z=lean-wheelieSide*RIDER_TUNING.wheelieSideLean;torso.rotation.x=.20+foreAft*.5;torso.position.z=-.17-RIDER_TUNING.seatSetback+foreAft*.12;torso.position.y=.86+(.27-Math.max(0,foreAft)*.06)*size+Math.max(0,eyeHeight-1.48)*.15;
+  hips.position.y=.86;hips.position.z=-.21-RIDER_TUNING.seatSetback-foreAft*.035;hips.position.x=-lean*RIDER_TUNING.hipShift+wheelieSide*.06;hips.rotation.z=lean*.4;torso.position.x=hips.position.x-lean*.35+wheelieSide*.20;torso.rotation.z=lean-wheelieSide*RIDER_TUNING.wheelieSideLean;torso.rotation.x=.20+foreAft*.5;torso.position.z=-.17-RIDER_TUNING.seatSetback+foreAft*.12;torso.position.y=.86+(.27-Math.max(0,foreAft)*.06)*size+Math.max(0,eyeHeight-1.48)*.15;
   // Attach head and neck to the oriented torso, including tuck, lean and wheelie poses.
   // The helmet remains upright in wheelies, but its attachment moves with the chest.
   neckBase.set(0,.19*size,0).applyQuaternion(torso.quaternion).add(torso.position);
@@ -108,5 +108,45 @@ export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,_jacket
   }
   root.position.set(0,seatLift-.2*fallBlend,-.8*fallBlend);root.rotation.set(-.95*fallBlend,0,.12*fallBlend);
  }
- update(0,0,0);return {root,head,setFullFace,neck,hips,torso,limbs,eye,update,get lean(){return lean},get foreAft(){return foreAft},get stopPose(){return stopPose}};
+ // Blend the existing articulated rider into a standing or walking gait.
+ const up=new T.Vector3(0,1,0),a=new T.Vector3(),targetJoint=new T.Vector3(),grip=new T.Vector3();
+ const bodyQ=new T.Quaternion(),standingQ=new T.Quaternion(),worldOffset=new T.Vector3(),rootStart=new T.Vector3();
+ function onFoot(x:number,y:number,z:number,heading:number,mix:number,side:number,phase:number,stride:number,holding:number){
+  if(!root.parent||mix<=0)return;
+  root.parent.updateWorldMatrix(true,false);root.parent.getWorldQuaternion(bodyQ).invert();
+  standingQ.setFromAxisAngle(up,heading).premultiply(bodyQ);
+  rootStart.copy(root.position);worldOffset.set(x,y,z);root.parent.worldToLocal(worldOffset);
+  root.position.copy(worldOffset);root.position.y+=seatLift*(1-mix);
+  root.quaternion.slerp(standingQ,mix);
+  const arc=Math.sin(Math.PI*mix),swing=Math.sin(phase)*stride;
+  const lift=arc*.12+Math.abs(swing)*.025*mix;
+  for(const part of [hips,torso,head,neck]){
+   part.position.z+=mix*(.17+RIDER_TUNING.seatSetback);
+   part.position.y+=lift;part.position.x+=side*arc*.07;
+  }
+  torso.rotation.z+=side*arc*.22;torso.rotation.x+=holding*.17;
+  for(const l of limbs){
+   const sign=l.side,step=swing*sign,raised=sign===-side?arc:0;
+   hip.copy(hips.position);hip.x+=sign*.095;hip.y-=.015;
+   a.set(sign*.12,.46+lift+.065*Math.max(0,step),.075+step*.13);
+   l.knee.lerp(a,mix);l.knee.y+=raised*.45;l.knee.z-=raised*.23;
+   ankle.copy(l.foot.position);ankle.y+=.035;
+   a.set(sign*.12,.07+.09*Math.max(0,step),step*.23);
+   ankle.lerp(a,mix);ankle.y+=raised*.78;ankle.z-=raised*.29;
+   segment(l.thigh,hip,l.knee,.064*size);segment(l.shin,l.knee,ankle,.052*size);
+   l.foot.position.copy(ankle);l.foot.position.y-=.035;
+   if(holding>0&&sign===-side)grip.set(side*gripHalfWidth,handleY,gripLocalZ).applyQuaternion(steering.quaternion).add(steering.position);
+   else grip.copy(l.hand.position).add(rootStart);
+   root.parent.localToWorld(grip);root.worldToLocal(grip);
+   const release=T.MathUtils.smoothstep(mix,sign===side?.28:0,sign===side?.90:.54);
+   shoulder.set(sign*.16*size,.14*size,.05*size).applyQuaternion(torso.quaternion).add(torso.position);
+   targetJoint.set(sign*.07,-1,-step*.29).normalize()
+    .multiplyScalar(RIDER_TUNING.upperArmLength+RIDER_TUNING.forearmLength-.001).add(shoulder);
+   targetJoint.z+=RIDER_TUNING.wristOffset;
+   l.hand.position.copy(grip).lerp(targetJoint,release*(1-(sign===-side?holding:0)));
+   wrist.copy(l.hand.position);wrist.z-=RIDER_TUNING.wristOffset;
+   solveArm(sign,0);segment(l.upperArm,shoulder,elbow,.051*size);segment(l.forearm,elbow,wrist,.043*size);
+  }
+ }
+ update(0,0,0);return {onFoot,root,head,setFullFace,neck,hips,torso,limbs,eye,update,get lean(){return lean},get foreAft(){return foreAft},get stopPose(){return stopPose}};
 }

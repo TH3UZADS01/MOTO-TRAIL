@@ -27,6 +27,8 @@ export class Roadside{
    this.kind=Math.floor(Math.random()*3);
   }
   this.site=site;this.bike=createBike('urban');const root=this.bike.root;
+  const variant=Math.abs(Math.round(site.x+site.z))%3;this.bike.riderRig.setFullFace(variant===1);
+  const jacket=this.bike.riderRig.torso.material as T.MeshStandardMaterial;jacket.color.setHex([0xffffff,0xb0ceec,0xe2ba9e][variant]);
   root.position.set(site.x,ground(site.x,site.z),site.z);const n=nearestRoute(site.x,site.z),a=n.track.points[n.index],b=n.track.points[n.index+1];root.rotation.y=Math.atan2(b.x-a.x,b.z-a.z);
   this.marker=new T.Mesh(new T.OctahedronGeometry(.18),new T.MeshBasicMaterial({color:0xffc767}));this.marker.position.y=2.25;root.add(this.marker);this.scene.add(root);
  }

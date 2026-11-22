@@ -1,9 +1,9 @@
 import {adventure} from './adventure-tuning';
 import {destination,renewMarket,tripById,visitStop} from './adventures';
 import {adventureMenu} from './adventure-menu';
-import {acceptJob,weightLimit,jobKg,carriedKg,buyVehicle,bikePrices,arrive,capacity,cash,DELIVERY_RADIUS,distance,equipment,offer,prices,purchase,target,type Job,type Site,type Career,type Condition,type openCareer} from './career';
+import {eligibleFreight,acceptJob,weightLimit,jobKg,carriedKg,buyVehicle,bikePrices,arrive,capacity,cash,DELIVERY_RADIUS,distance,equipment,offer,prices,purchase,target,type Job,type Site,type Career,type Condition,type openCareer} from './career';
 import {PALETTE} from './paint';
-import {villages,specials,stations} from './terrain';
+import {freightDistance,villages,specials,stations} from './terrain';
 import {getVehicle,type VehicleId} from './vehicles';
 import type {Roadside} from './roadside';
 
@@ -31,7 +31,7 @@ export function careerUI(store:ReturnType<typeof openCareer>,npc:Roadside,shops:
   void transaction(s=>acceptJob(s,j),'Siga o marcador dourado e pare dentro do círculo');
  }
  function showJob(j:Job){
-  line('h3',j.name);line('p',j.from.name+' → '+j.to.name+(j.returning?' → retorno':'')+' · '+(distance(j.from,j.to)*(j.returning?2:1)/1000).toFixed(1)+' km aprox.');
+  line('h3',j.name);line('p',j.from.name+' → '+j.to.name+(j.returning?' → retorno':'')+' · '+(freightDistance(j.from,j.to)*(j.returning?2:1)/1000).toFixed(1)+' km aprox.');
   const b=button('Aceitar · '+j.load+' L · '+jobKg(j)+' kg · '+cash(j.pay),()=>accept(j));b.disabled=j.load>capacity(gear())||jobKg(j)>weightLimit(gear())||!!store.state.expedition&&!store.state.expedition.paused;
  }
  function open(){
@@ -42,7 +42,7 @@ export function careerUI(store:ReturnType<typeof openCareer>,npc:Roadside,shops:
   mode='Viagens e carga';site=position();dialog.showModal();render('trips');
  }
  async function showUsed(){
-  try{if(!store.state.market||store.state.market.until<=Date.now())await store.change(s=>renewMarket(s));if(dialog.open&&mode==='Concessionária')render('used')}
+  try{if(store.state.market?.pricing!==2||store.state.market.until<=Date.now())await store.change(s=>renewMarket(s));if(dialog.open&&mode==='Concessionária')render('used')}
   catch{notify('Falha ao carregar anúncios')}
  }
  function render(tab=''){
@@ -82,12 +82,12 @@ export function careerUI(store:ReturnType<typeof openCareer>,npc:Roadside,shops:
    line('h3','Pneus');for(const tyre of ['pista','trilha'] as const)install('Instalar pneu de '+tyre,prices.tyre,g=>{if(g.tyre===tyre)throw Error('Pneu já instalado');g.tyre=tyre;g.pneus=100}).disabled=gear().tyre===tyre;
   }else if(mode==='Fretes'){
    line('p','Carga atual · '+carriedKg(store.state.job,id())+' / '+weightLimit(gear())+' kg · volume '+capacity(gear())+' L');
-   const destinations=[...villages,...specials].sort(()=>0.5-Math.random());
+   const destinations=[...villages,...specials].filter(p=>eligibleFreight(site!,p)).sort(()=>0.5-Math.random());
    for(const [i,load] of [1,2,8].entries())showJob(offer(['Documentos','Ferramentas','Caixa de mantimentos'][i],site,destinations[i],load,id(),false,destinations[i].kind==='farm'));
   }else{
    const kind=npc.kind;
    line('p',['Minha gasolina acabou. Pode buscar um galão no posto?','Minha moto parou. Pode buscar uma peça na oficina?','Pode levar esta encomenda à vila?'][kind]);
-   const choices=kind===0?stations:kind===1?shops:villages;
+   const choices=kind===0?stations:kind===1?shops:villages.filter(v=>eligibleFreight(site!,v));
    const dest=choices.reduce((a,b)=>distance(site!,a)<distance(site!,b)?a:b);
    showJob(offer(['Buscar gasolina','Buscar peça','Encomenda urgente'][kind],site,dest,2,id(),kind!==2));
   }

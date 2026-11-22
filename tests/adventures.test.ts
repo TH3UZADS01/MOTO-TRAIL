@@ -56,7 +56,7 @@ test('workshop changes final ratio, keeps motor curve, changes suspension respon
 test('used listings expire on schedule, survive reload and transfer exact condition for one payment',()=>{
  const s=fresh();renewMarket(s,100);const m=s.market!,l=m.list[0];renewMarket(s,120);
  assert.equal(s.market,m);assert.ok(!m.list.some(l=>l.vehicle==='pop'));
- const old=s.money;s.money=0;assert.throws(()=>buyUsed(s,l.id,101));s.money=old;
+ s.money=30000;const old=s.money;s.money=0;assert.throws(()=>buyUsed(s,l.id,101));s.money=old;
  buyUsed(s,l.id,101);const restored=saved(s),g=equipment(restored,l.vehicle);
  assert.equal(g.km,l.km);assert.equal(g.color,l.color);
  for(const k of ['motor','freios','pneus'] as const)assert.equal(g[k],l[k]);

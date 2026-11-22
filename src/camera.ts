@@ -9,6 +9,21 @@ export class FollowCamera {
  private firstFov=CAMERA_TUNING.baseFov;private thirdFov=52;
  // Saved vertical FOV; speed adds the existing 25-degree range, capped for comfort.
  setFov(first:number,third:number){this.firstFov=Number.isFinite(first)?T.MathUtils.clamp(first,55,90):70;this.thirdFov=Number.isFinite(third)?T.MathUtils.clamp(third,40,75):52;if(!this.firstPerson){this.camera.fov=this.thirdFov;this.camera.updateProjectionMatrix()}}
+ followWalker(x:number,y:number,z:number,heading:number,dt:number,head:T.Object3D){
+  const a=heading+this.orbit;
+  if(this.firstPerson){
+   head.localToWorld(this.target.set(0,0,.10));
+   this.camera.position.copy(this.target);
+   this.look.set(Math.sin(a)*Math.cos(this.pitch),Math.sin(this.pitch),Math.cos(a)*Math.cos(this.pitch)).add(this.target);
+   this.camera.lookAt(this.look);
+   if(this.camera.fov!==this.firstFov){this.camera.fov=this.firstFov;this.camera.updateProjectionMatrix()}
+   this.initialized=true;return;
+  }
+  this.target.set(x-Math.sin(a)*4.2,y+2.25+this.pitch*2,z-Math.cos(a)*4.2);
+  this.target.y=Math.max(this.target.y,height(this.target.x,this.target.z)+.65);
+  if(!this.initialized)this.camera.position.copy(this.target);
+  this.initialized=true;this.camera.position.lerp(this.target,1-Math.exp(-5*dt));this.look.set(x,y+1,z);this.camera.lookAt(this.look);
+ }
  toggle(){this.firstPerson=!this.firstPerson;this.initialized=false;this.orbit=0;this.pitch=0;this.camera.fov=this.firstPerson?this.firstFov:this.thirdFov;this.camera.updateProjectionMatrix()}
  update(r:Ride,dt:number,eyeHeight=1.48,body?:T.Object3D,eye?:T.Vector3){dt=Math.max(0,Math.min(dt,.1));this.time+=dt;const c=CAMERA_TUNING,a=r.heading+this.orbit,impact=r.takeImpact();if(impact>c.impactMinimum){this.shake=Math.min(1,impact/c.impactReference);this.shakeLeft=c.shakeDuration}
   const braking=r.brakeInput*T.MathUtils.clamp(Math.abs(r.speed)/8,0,1);this.braking=T.MathUtils.lerp(this.braking,braking,1-Math.exp(-dt*c.brakeResponse));this.shakeLeft=Math.max(0,this.shakeLeft-dt);const envelope=this.shakeLeft/Math.max(.001,c.shakeDuration),shock=this.shake*envelope*envelope;

@@ -11,7 +11,8 @@ export type Job={id:string;name:string;from:Site;to:Site;returning:boolean;picku
 export type RegionCooldown={x:number;z:number;until:number};
 export type Career={market?:Market;expedition?:TripProgress;completedTrips?:string[];tanks?:Partial<Record<VehicleId,number>>;money:number;owned:VehicleId[];garage:Partial<Record<VehicleId,Equipment>>;pet:boolean;job:Job|null;cooldowns:RegionCooldown[]};
 const key='moto-trail-career-v2';
-export const bikePrices:Record<Exclude<VehicleId,'cub'>,number>={pop:0,caloi:100,urban:350,cg150:650,sahara:1250};
+export const payment=(base:number)=>base*19.5;
+export const bikePrices:Record<Exclude<VehicleId,'cub'>,number>={pop:0,caloi:100*21,urban:350*21,cg150:650*21,sahara:1250*21};
 export function buyVehicle(state:Career,id:VehicleId){
  if(id==='cub')throw Error('Descubra todos os locais do mapa para ganhar a Honda Cub');
  if(state.owned.includes(id))throw Error('Esta moto já está na garagem');
@@ -29,10 +30,11 @@ export const carriedKg=(j:Job|null,id:VehicleId)=>j?.vehicle===id&&!j.pickup?job
 export const target=(j:Job)=>j.returning&&!j.pickup?j.from:j.to;
 export const DELIVERY_RADIUS=8;
 export const distance=(a:{x:number;z:number},b:{x:number;z:number})=>Math.hypot(a.x-b.x,a.z-b.z);
+export const eligibleFreight=(from:Site,to:Site)=>distance(from,to)>600;
 export const cash=(n:number)=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 export function offer(name:string,from:Site,to:Site,load:number,vehicle:VehicleId,returning=false,rural=false):Job{
  const km=distance(from,to)/1000*(returning?2:1);
- return {id:crypto.randomUUID(),name,from,to,load,vehicle,returning,pickup:returning,kg:load*adventure.cargo.density,pay:Math.round(16+km*(9+load*.8)*(rural?1.15:1)+load*2)};
+ return {id:crypto.randomUUID(),name,from,to,load,vehicle,returning,pickup:returning,kg:load*adventure.cargo.density,pay:payment(Math.round(16+km*(9+load*.8)*(rural?1.15:1)+load*2))};
 }
 export function acceptJob(state:Career,job:Job){
  if(state.job||state.expedition&&!state.expedition.paused)throw Error('Pause a expedição ou conclua a viagem atual');

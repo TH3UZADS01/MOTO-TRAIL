@@ -105,13 +105,18 @@
 .touch-body{display:none}
 @media (pointer:coarse){.touch-body{position:absolute;left:0;bottom:calc(var(--control-height) + 50px);display:flex;gap:6px}.touch-body button{width:38px;height:34px;font-size:20px;border-radius:10px}}
 
-.career-dialog{width:min(92vw,440px);max-height:82dvh;overflow:auto;color:#263e36;background:#fcf6e9;border:0;border-radius:16px;padding:22px;box-shadow:0 10px 45px #182e2870}
+.career-dialog{width:min(92vw,440px);max-height:82dvh;overflow:auto;color-scheme:dark;color:#fff8e6;background:#24453ff5;border:1px solid #fff2;border-radius:16px;padding:22px;box-shadow:0 10px 45px #182e2870}
 .career-dialog::backdrop{background:#122b25a8}
 .career-dialog h2,.career-dialog h3{margin:1em 0 .35em}
-.career-dialog button{display:block;width:100%;padding:10px;margin:4px 0;border:1px solid #c3cdbb;border-radius:8px;background:#f4eedf;color:#263e36;cursor:pointer}
-.career-dialog button:disabled{opacity:.55}
+.career-dialog button{display:block;width:100%;padding:10px;margin:4px 0;border:1px solid #fff3;border-radius:8px;background:#18392f;color:#fff3d8;cursor:pointer}
+.career-dialog p{color:#f0ecdb}
+.career-dialog input[type=number]{max-width:100%;padding:6px 10px;background:#173b34;color:#fff3dc;border:1px solid #fff4;border-radius:4px;font:inherit}
+.career-dialog input:focus-visible{outline:3px solid #e8bc65;outline-offset:2px}
+.career-dialog button:enabled:hover{border-color:#edce92}
+.career-dialog button:disabled{background:#304740;color:#b6c1b8;cursor:default}
 .career-dialog .paint-palette button{width:26px;height:26px}
-.career-dialog output{display:block;color:#9a3924}
+.career-dialog output{display:block;color:#ffb69e}
 .career-action{position:fixed;bottom:22%;left:50%;transform:translateX(-50%);pointer-events:auto;background:#23473b;color:#fff;padding:10px 18px;border:0;border-radius:20px}
+.travel-action{position:fixed;right:1rem;top:35%;pointer-events:auto;background:#23473b;color:#fff4d7;border:1px solid #b59d68;border-radius:8px;padding:.5rem .8rem}.travel-action+.travel-action{margin-top:3rem}.travel-action[hidden]{display:none}
 .career-action[hidden]{display:none}
 .delivery-guide{position:fixed;top:16%;left:50%;transform:translateX(-50%);width:max-content;max-width:80vw;padding:.65rem 1rem;border:2px solid #ffcb49;border-radius:.5rem;background:#203930;color:#fff5d6;text-align:center;pointer-events:none}

@@ -1,5 +1,5 @@
 import {adventure,originalPrep,partPrice,parts,type Part,type Slot} from './adventure-tuning';
-import {bikePrices,cash,distance,equipment,factory,purchase,target,type Career,type Site} from './career';
+import {payment,bikePrices,cash,distance,equipment,factory,purchase,target,type Career,type Site} from './career';
 import {villages,specials,stations,viewpoints} from './map-layout';
 import {PALETTE} from './paint';
 import type {VehicleId} from './vehicles';
@@ -13,13 +13,13 @@ export function installPart(s:Career,id:VehicleId,slot:Slot,part:Part|'original'
 
 type SaleId=Exclude<VehicleId,'cub'>;
 export type Listing={id:string;vehicle:SaleId;km:number;motor:number;freios:number;pneus:number;color:string;price:number};
-export type Market={until:number;list:Listing[]};
+export type Market={pricing?:number;until:number;list:Listing[]};
 const market=adventure.market;
 export function usedPrice(id:SaleId,km:number,condition:number){
  return Math.round(bikePrices[id]*(market.baseFraction+market.conditionPremium*condition/100-market.mileageDiscount*Math.min(1,km/market.maxKm)));
 }
 export function renewMarket(s:Career,now=Date.now(),random=Math.random){
- if(s.market&&s.market.until>now)return;
+ if(s.market&&s.market.until>now){if(s.market.pricing!==2){for(const l of s.market.list)l.price=usedPrice(l.vehicle,l.km,(l.motor+l.freios+l.pneus)/3);s.market.pricing=2}return}
  const available=(Object.keys(bikePrices) as SaleId[]).filter(id=>bikePrices[id]>0&&!s.owned.includes(id));
  const list:Listing[]=[];
  const between=(a:number,b:number)=>Math.floor(a+random()*(b-a+1));
@@ -30,7 +30,7 @@ export function renewMarket(s:Career,now=Date.now(),random=Math.random){
   const motor=wear(),freios=wear(),pneus=wear(),price=usedPrice(vehicle,km,(motor+freios+pneus)/3);
   list.push({id:crypto.randomUUID(),vehicle,km,motor,freios,pneus,price,color:PALETTE[between(0,PALETTE.length-1)]});
  }
- s.market={until:now+market.interval,list};
+ s.market={pricing:2,until:now+market.interval,list};
 }
 export function buyUsed(s:Career,id:string,now=Date.now()){
  const market=s.market,listing=market?.list.find(l=>l.id===id);
@@ -44,7 +44,7 @@ export function buyUsed(s:Career,id:string,now=Date.now()){
 
 function trip(id:string,name:string,description:string,difficulty:string,factor:number,stops:Site[]){
  const km=stops.slice(1).reduce((sum,p,i)=>sum+distance(stops[i],p)/1000,0);
- return {id,name,description,difficulty,stops,km,pay:Math.round((km*adventure.trips.perKm+stops.length*adventure.trips.perStop)*factor)};
+ return {id,name,description,difficulty,stops,km,pay:payment(Math.round((km*adventure.trips.perKm+stops.length*adventure.trips.perStop)*factor))};
 }
 export const trips=[
  trip('vila','Passeio da vila','Visite o posto e suba ao mirante.','Fácil',1,[villages[0],stations[0],viewpoints[0]]),

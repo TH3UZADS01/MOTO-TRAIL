@@ -1,3 +1,5 @@
+import {pavementRelief} from './pavement';
+import {wallImpact} from './obstacle';
 import {Suspension} from './suspension';
 import {adventure} from './adventure-tuning';
 import {conditionFactor,factory,tyreResponse} from './career';
@@ -117,6 +119,11 @@ export class Ride {
     const checkObstacle=(o:Obstacle)=>{
       const ox=o.x-this.x,oz=o.z-this.z,radius=o.r+.35;
       if(Math.abs(ox)>radius+Math.abs(dx)||Math.abs(oz)>radius+Math.abs(dz))return;
+      if(o.halfX!==undefined){
+       const normal=wallImpact(o,this.x,this.z,dx,dz,.35);
+       if(normal>0){hitObject=true;closingSpeed=Math.max(closingSpeed,Math.abs(this.speed)*normal)}
+       return;
+      }
       const toward=ox*dx+oz*dz;
       if(travelSq===0||toward<=0)return;
       const t=Math.min(1,toward/travelSq);
@@ -174,7 +181,7 @@ export class Ride {
      const half=this.spec.wheelbase/2,slope=Math.tan(this.pitch)*half;
      const relief=type==='terra'?.018:type==='grama'?.012:0;
      const dx=Math.sin(this.heading)*half,dz=Math.cos(this.heading)*half;
-     const bump=(x:number,z:number)=>relief*(.58*Math.sin(2.3*x+1.7*z)+.42*Math.sin(3.1*z-1.2*x));
+     const bump=(x:number,z:number)=>pavementRelief(x,z)+relief*(.58*Math.sin(2.3*x+1.7*z)+.42*Math.sin(3.1*z-1.2*x));
      this.suspension.step(dt,this.spec,this.y+slope+bump(this.x+dx,this.z+dz),this.y-slope+bump(this.x-dx,this.z-dz),(this.speed-initialSpeed)/dt,this.cargoLoad,this.wheelie,suspension.travel,suspension.frequency);
     }
     const bank=burnout?-.23*this.steer:clamp(-yaw*this.speed*.062-.095*this.steer*counterweightBlend(this.speed,this.wheelie),-.64,.64);
