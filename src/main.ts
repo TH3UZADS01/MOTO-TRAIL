@@ -21,7 +21,6 @@ import {vehicles,getVehicle,type VehicleId} from './vehicles';
 import {BrakePushAssist,Controller,touchSteering} from './input';
 import {Ride,automaticTuckInput,steeringAngle} from './riding';
 import {BODY_TUNING} from './body-control';
-import {PotholeRisk} from './pavement';
 import {FollowCamera,CAMERA_TUNING} from './camera';
 import {RearViewMirror,assignLocalBikeLayer,enableLocalBikeLayer} from './rear-view-mirror';
 import {TireParticles} from './tire-particles';
@@ -263,7 +262,6 @@ petToggle.onchange=()=>{if(caramelosMission.petUnlocked)void career.change(s=>{s
 el('journeys').onclick=()=>roadLife.manage();
 type WearDelta={motor:number;pneus:number;freios:number;km:number};
 const pendingWear=new Map<VehicleId,WearDelta>();
-const potholeRisk=new PotholeRisk();
 function saveWear(id:VehicleId,immediate=false){
  if(!pendingWear.has(id))return;
  const edit:Parameters<typeof career.change>[0]=s=>{const wear=pendingWear.get(id);if(!wear)return;const g=equipment(s,id);g.km=(g.km??0)+wear.km;for(const k of ['motor','pneus','freios'] as const){
@@ -376,19 +374,7 @@ function frame(now:number){
 
    if(washing)washSeconds+=1/60;
    if(!foot.riding)foot.step(1/60,ride,stopped?0:walkingForward,stopped?0:turn,footHits,camera.orbit,camera.firstPerson);
-   else {
-    const half=ride.spec.wheelbase/2,previousDistance=ride.distance;
-    const rearX=ride.x-half*Math.sin(ride.heading),rearZ=ride.z-half*Math.cos(ride.heading);
-    ride.step(1/60,stopped?0:throttle,stopped?1:brake,turn,obstacles,push,stopped?0:bodyInput,settings.transmission==='automatic',settings.ridingMode==='realistic',stopped);
-    if(ride.distance>previousDistance&&ride.equipment.pneus>0){
-     const axle=ride.wheelie>BODY_TUNING.airborneThreshold?-half:half;
-     if(potholeRisk.crosses(rearX,rearZ,ride.x+axle*Math.sin(ride.heading),ride.z+axle*Math.cos(ride.heading),ride.speed)){
-      const id=settings.vehicle;
-      career.changeNow(s=>{equipment(s,id).pneus=0},refreshCareer);
-      notify('O pneu estourou no buraco! Repare na oficina.');
-     }
-    }
-   }
+   else ride.step(1/60,stopped?0:throttle,stopped?1:brake,turn,obstacles,push,stopped?0:bodyInput,settings.transmission==='automatic',settings.ridingMode==='realistic',stopped);
    accumulator-=1/60;
   }
   const metres=ride.distance-before;
