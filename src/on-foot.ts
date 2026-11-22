@@ -15,9 +15,9 @@ export class OnFoot {
  private clear(x:number,z:number,r:number,obs:readonly Obstacle[]){
   return Math.max(Math.abs(x),Math.abs(z))<SIZE/2-30&&!deepWater(x,z)&&!obs.some(o=>blocked(o,x,z,r));
  }
- private beside(b:Ride,side=this.side,heading=b.heading,x=b.x,z=b.z){
-  const forward=b.spec.wheelbase*.09;
-  return {x:x+side*.72*Math.cos(heading)+forward*Math.sin(heading),z:z-side*.72*Math.sin(heading)+forward*Math.cos(heading)};
+ private beside(b:Ride,side=this.side,heading=b.heading,x=b.x,z=b.z,pushing=false){
+  const lateral=pushing?.47:.72,forward=pushing?-.06:b.spec.wheelbase*.09;
+  return {x:x+side*lateral*Math.cos(heading)+forward*Math.sin(heading),z:z-side*lateral*Math.sin(heading)+forward*Math.cos(heading)};
  }
  near(b:Ride){return Math.hypot(this.x-b.x,this.z-b.z)<1.55}
  private passage(b:Ride,end:Point,obs:readonly Obstacle[]){
@@ -41,7 +41,7 @@ export class OnFoot {
   if(this.mode==='PUSHING'){this.mode='WALKING';this.velocity=0;b.speed=0;b.steer=0;return true}
   if(this.mode!=='WALKING'||!this.near(b))return false;
   this.side=(this.x-b.x)*Math.cos(b.heading)-(this.z-b.z)*Math.sin(b.heading)>=0?1:-1;
-  const p=this.beside(b);if(!this.passage(b,p,obs)||Math.hypot(p.x-this.x,p.z-this.z)>1.1)return false;
+  const p=this.beside(b,this.side,b.heading,b.x,b.z,true);if(!this.passage(b,p,obs)||Math.hypot(p.x-this.x,p.z-this.z)>1.1)return false;
   for(let i=1;i<=5;i++)if(!this.clear(approach(this.x,p.x,i/5),approach(this.z,p.z,i/5),.23,obs))return false;
   this.anchor={x:this.x,z:this.z};this.clock=0;this.hold=0;this.mode='PUSHING';return true;
  }
@@ -56,7 +56,7 @@ export class OnFoot {
   if(this.mode==='PUSHING'){
 
    this.clock=Math.min(1,this.clock+dt/.45);this.hold=smooth(this.clock);this.heading=face(this.heading,b.heading,dt);
-   const p=this.beside(b);
+   const p=this.beside(b,this.side,b.heading,b.x,b.z,true);
    if(this.clock<1){this.x=approach(this.anchor.x,p.x,this.hold);this.z=approach(this.anchor.z,p.z,this.hold)}
    else{
     const mass=(b.spec.mass??100)+b.cargoLoad,grade=Math.sin(b.pitch)*Math.sign(forward);
@@ -64,7 +64,7 @@ export class OnFoot {
     this.velocity=approach(this.velocity,speed,1-Math.exp(-dt*(forward?3:7)));
     b.steer=approach(b.steer,turn,1-Math.exp(-6*dt));
     const ds=this.velocity*dt,h=b.heading+ds*Math.tan(.52*b.steer)/b.spec.wheelbase;
-    const x=b.x+Math.sin(h)*ds,z=b.z+Math.cos(h)*ds,walker=this.beside(b,this.side,h,x,z);
+    const x=b.x+Math.sin(h)*ds,z=b.z+Math.cos(h)*ds,walker=this.beside(b,this.side,h,x,z,true);
     const fits=[-.45,0,.45].every(t=>this.clear(x+Math.sin(h)*t*b.spec.wheelbase,z+Math.cos(h)*t*b.spec.wheelbase,.25,obs));
     if(fits&&this.clear(walker.x,walker.z,.23,obs)){b.x=x;b.z=z;b.heading=h;b.speed=this.velocity;b.contact();this.x=walker.x;this.z=walker.z;this.heading=h;travel=ds}
     else{b.speed=0;this.velocity=0}

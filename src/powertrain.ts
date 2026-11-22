@@ -177,10 +177,16 @@ export class Powertrain {
   const gearLowSpeed=gearMin>0&&speedKmh<gearMin*.45;
   const nearStall=gearLowSpeed&&this.gear>=3&&speedKmh<Math.max(2,gearMin*.1);
   const freeRpm=idle+(redline-idle)*(push?0:.025+clamp(throttle,0,1)*.58);
-  const clutchBlend=smoothstep((wheelRpm-spec.clutchEngagementRpm)/Math.max(spec.clutchEngagementRpm*2.2,1));
-  const fullyCoupled=clutchBlend>=.999;
+  // Slip is confined to launch. Once coupled, the selected ratio sets engine RPM.
+  // The single-speed moped uses a wider centrifugal engagement range for takeoff.
+  const singleSpeed=spec.gears===1;
+  const startRpm=singleSpeed?spec.clutchEngagementRpm:idle;
+  const lockRpm=singleSpeed?startRpm*3.2:spec.clutchEngagementRpm+t.clutchSlipRpm;
+  const clutchBlend=smoothstep((wheelRpm-startRpm)/Math.max(lockRpm-startRpm,1));
+  const fullyCoupled=wheelRpm>=lockRpm;
   const target=clamp(freeRpm+(wheelRpm-freeRpm)*clutchBlend,idle,redline);
-  const clutchSlipFactor=fullyCoupled?1:smoothstep((freeRpm-spec.clutchEngagementRpm)/t.clutchSlipRpm)*.9;
+  const launchClutch=smoothstep((freeRpm-spec.clutchEngagementRpm)/t.clutchSlipRpm)*.9;
+  const clutchSlipFactor=clutchBlend+(1-clutchBlend)*launchClutch;
   const minimumSlip=gearLowSpeed&&this.gear>1?.12:0;
   this.clutch=push?0:clamp(clutchSlipFactor,minimumSlip,1);
   this.lugging=!push&&this.gear>1&&(speedKmh<gearMin||gearLowSpeed||this.clutch<.18);

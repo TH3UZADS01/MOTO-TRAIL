@@ -111,5 +111,5 @@ export function tyreResponse(gear:Equipment,road:boolean,speed:number,turn:numbe
  const mismatch=gear.tyre==='trilha'?road:gear.tyre==='pista'&&!road;
  const grip=gear.tyre==='original'?1:mismatch?(road?.98:.80):(road?1.025:1.20);
  const slip=mismatch?Math.min(1,Math.abs(speed)/15)*turn*(.04+.08*throttle)*(road?.5:1):0;
- return {grip:grip*conditionFactor('pneus',gear.pneus),slip};
+ return {baseGrip:grip,grip:grip*conditionFactor('pneus',gear.pneus),slip};
 }

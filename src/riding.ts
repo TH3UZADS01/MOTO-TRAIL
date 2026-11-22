@@ -2,7 +2,7 @@ import {pavementRelief} from './pavement';
 import {wallImpact} from './obstacle';
 import {Suspension} from './suspension';
 import {adventure} from './adventure-tuning';
-import {conditionFactor,factory,tyreResponse} from './career';
+import {conditionFactor,criticalCondition,factory,tyreResponse} from './career';
 import {Powertrain} from './powertrain';
 import {Drift,DRIFT_TUNING} from './drift';
 import {BODY_TUNING,bodyDragMultiplier,clamp,counterweightBlend} from './body-control';
@@ -10,6 +10,7 @@ import {Fuel} from './fuel';
 import {getVehicle,type VehicleSpec} from './vehicles';
 import {ground,nearestRoute,surface,SIZE,deepWater} from './terrain';
 import type {Obstacle} from './world';
+const flatTyreKmh={caloi:30,urban:35,cub:38,pop:42,cg150:46,sahara:50};
 const CRASH_SPEED=35/3.6; // Closing speed perpendicular to the obstacle, in m/s.
 export const TOP_SPEED=100/3.6;
 export const ACCELERATION_SCALE=.8; // 20% slower acceleration for every motorcycle.
@@ -19,7 +20,7 @@ export function automaticTuckInput(input:number,speed:number,topSpeed:number){re
 export function acceleration(speed:number,throttle:number,brake:number,pitch:number,grip:number,aerodynamicDrag=.002,topSpeed=TOP_SPEED){
   const drive=throttle*4.8*Math.max(0,1-speed/48);
   const ratio=clamp(speed/(topSpeed*.85),0,1);
-  const windScale=.16+.54*ratio*ratio*(3-2*ratio);
+  const windScale=.7*(.16+.54*ratio*ratio*(3-2*ratio));
   const net=drive-brake*8-.22-speed*speed*(aerodynamicDrag*windScale+(1-grip)*.012)-9.81*Math.sin(pitch)-(1-grip)*1.7;
   // Scale positive acceleration under power, preserving terminal speed, coasting and braking.
   return throttle>0&&brake===0&&net>0?net*ACCELERATION_SCALE:net;
@@ -64,7 +65,13 @@ export class Ride {
     this.bodyLean+=(clamp(bodyInput,-1,1)-this.bodyLean)*(1-Math.exp(-BODY_TUNING.response*dt));
     throttle=Math.max(0,Math.min(1,throttle));if(this.fuel.get(this.spec.id)<=0)throttle=0;
     const before=this.distance;
-    const type=this.softGround?'terra':surface(this.x,this.z),tyre=tyreResponse(this.equipment,type==='asfalto',this.speed,this.steer,throttle),grip=(type==='asfalto'?1:type==='terra'?.7:.5)*tyre.grip;
+    const type=this.softGround?'terra':surface(this.x,this.z),tyre=tyreResponse(this.equipment,type==='asfalto',this.speed,this.steer,throttle),surfaceGrip=type==='asfalto'?1:type==='terra'?.7:.5;
+    const grip=surfaceGrip*tyre.grip;
+    // A flat tyre loses cornering grip much faster than it loses forward traction.
+    const damage=clamp(1-this.equipment.pneus/criticalCondition,0,1);
+    const rollingGrip=grip+.95*(surfaceGrip*tyre.baseGrip-grip);
+    const driveGrip=grip+.74*(surfaceGrip*tyre.baseGrip-grip);
+    const tyreLimit=this.topSpeed+(flatTyreKmh[this.spec.id]/3.6-this.topSpeed)*damage;
     const response=(type==='asfalto'?suspension.road:suspension.dirt)/(1+adventure.cargo.steering*loadRatio);
     this.steer+=(turn-this.steer)*(1-Math.exp(-dt*response*(10-this.speed*.2)/(this.spec.stability??1)));
     this.contact();
@@ -91,14 +98,18 @@ export class Ride {
       const stalled=realistic&&this.engine.stalled;
       const gearThrottle=this.gear===0||stalled||this.drift.active||(!automatic&&this.speed>speedLimit)?0:this.engineThrottle*motor;
       const effectiveBrake=brake*(prep?.brakes==='improved'?adventure.brakeGain:1)/(1+adventure.cargo.braking*loadRatio)*(1-(1-DRIFT_TUNING.brakingFactor)*this.drift.amount);
-        const baseAcceleration=acceleration(this.speed,0,effectiveBrake*grip*(this.spec.braking??1),this.pitch,grip,this.spec.aerodynamicDrag*bodyDragMultiplier(this.bodyLean),this.topSpeed);
+        const baseAcceleration=acceleration(this.speed,0,effectiveBrake*grip*(this.spec.braking??1),this.pitch,rollingGrip,this.spec.aerodynamicDrag*bodyDragMultiplier(this.bodyLean),this.topSpeed);
         const mass=baseMass+adventure.cargo.inertia*this.cargoLoad;
         const arcadeTorque=realistic?1:this.engine.torqueAtRpm(this.engine.torqueRpm,this.spec)/this.engine.torqueAtRpm(this.spec.peakPowerRpm,this.spec);
         const driveAcceleration=stalled?0:realistic
-          ?this.engine.wheelForce(this.spec,this.speed,gearThrottle)*grip/mass
-          :acceleration(this.speed,gearThrottle*this.engine.torqueScale*this.engine.finalRatioScale*baseMass/mass*(.85+.15*arcadeTorque)*this.engine.driveFactor*this.spec.power*100/(this.spec.mass??100),effectiveBrake*grip*(this.spec.braking??1),this.pitch,grip,this.spec.aerodynamicDrag*bodyDragMultiplier(this.bodyLean),this.topSpeed);
-         const nextSpeed=this.speed+(stalled?Math.min(0,baseAcceleration):realistic?baseAcceleration+driveAcceleration:driveAcceleration*this.engine.clutchKickGain)*dt;
-        this.speed=Math.max(0,Math.min(this.speed>speedLimit?this.speed:speedLimit,nextSpeed));
+          ?this.engine.wheelForce(this.spec,this.speed,gearThrottle)*driveGrip/mass
+          :acceleration(this.speed,gearThrottle*(1-.2*damage)*this.engine.torqueScale*this.engine.finalRatioScale*baseMass/mass*(.85+.15*arcadeTorque)*this.engine.driveFactor*this.spec.power*100/(this.spec.mass??100),effectiveBrake*grip*(this.spec.braking??1),this.pitch,rollingGrip,this.spec.aerodynamicDrag*bodyDragMultiplier(this.bodyLean),this.topSpeed);
+        const netAcceleration=stalled?Math.min(0,baseAcceleration):realistic?baseAcceleration+driveAcceleration:driveAcceleration*this.engine.clutchKickGain;
+        const scale=gearThrottle>0&&netAcceleration>0&&brake===0
+          ?this.spec.accelerationScale?.[realistic?'realistic':'arcade']??1:1;
+        const nextSpeed=this.speed+netAcceleration*scale*dt;
+        const tyreCeiling=damage>0?Math.max(tyreLimit,this.speed-2*dt):Infinity;
+        this.speed=Math.max(0,Math.min(tyreCeiling,Math.max(this.speed,speedLimit),nextSpeed));
     }
     // Front-wheel steering has less authority while lifted; retain assisted balance.
     const steeringGrip=1-(1-BODY_TUNING.wheelieSteering)*clamp(this.wheelie/BODY_TUNING.balancePoint,0,1);

@@ -116,7 +116,7 @@ test('events are bounded and pooled, avoid the rider and objective, collide and 
  assert.equal(scene.children.length,0);assert.equal(events.hits.length,0);
 });
 
-test('Comando adds 17% wheel torque on every bike and survives refitting and reload',()=>{
+test('Comando adds 20% wheel torque on every bike and survives refitting and reload',()=>{
  for(const {id} of vehicles){
   const s=fresh();s.owned=[id];
   installPart(s,id,'gearing','original'); // Existing workshop save without an engine slot.
@@ -130,8 +130,10 @@ test('Comando adds 17% wheel torque on every bike and survives refitting and rel
    installPart(s,id,'engine','cam');const paid=s.money;
    const tuned=run(saved(s));
    assert.ok(stock.wheelieDebug.wheelTorque>0);
-   assert.ok(Math.abs(tuned.wheelieDebug.wheelTorque/stock.wheelieDebug.wheelTorque-1.17)<1e-9);
+   assert.ok(Math.abs(tuned.wheelieDebug.wheelTorque/stock.wheelieDebug.wheelTorque-1.20)<1e-9);
    assert.ok(tuned.speed>stock.speed);
+   assert.equal(tuned.topSpeed,stock.topSpeed);
+   if(id==='pop')assert.equal(tuned.topSpeed,115/3.6);
    installPart(s,id,'engine','original');installPart(s,id,'engine','cam');
    assert.equal(s.money,paid);installPart(s,id,'engine','original');
   }

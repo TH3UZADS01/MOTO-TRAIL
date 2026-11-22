@@ -7,6 +7,19 @@ import {Fuel} from '../src/fuel';
 import {Powertrain} from '../src/powertrain';
 import {vehicles} from '../src/vehicles';
 
+test('Pop fourth-gear roll-on at 40 km/h stays coupled until road speed changes',()=>{
+ const pop=vehicles.find(v=>v.id==='pop')!,engine=new Powertrain();
+ engine.gear=4;
+ for(const [kmh,throttle] of [[40,0],[40,1],[40,.3],[42,1]]){
+  const speed=kmh/3.6;
+  for(let i=0;i<60;i++){
+   engine.update(1/60,speed,pop,pop.maxSpeed,throttle,0,false,false,true);
+   assert.equal(engine.clutch,1);
+   assert.ok(Math.abs(engine.rpm-engine.wheelRpmFromSpeed(speed,pop))<1e-6);
+  }
+ }
+});
+
 test('each calibrated power curve peaks at the requested RPM before its own cutoff',()=>{
  const expected={sahara:[7500,8500],cg150:[8000,9500],pop:[7250,8500],cub:[7500,8500],urban:[8000,9000],caloi:[5500,6500]};
  const engine=new Powertrain();

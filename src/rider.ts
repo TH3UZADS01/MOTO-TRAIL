@@ -124,7 +124,21 @@ export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,_jacket
    part.position.z+=mix*(.17+RIDER_TUNING.seatSetback);
    part.position.y+=lift;part.position.x+=side*arc*.07;
   }
-  torso.rotation.z+=side*arc*.22;torso.rotation.x+=holding*.17;
+  torso.rotation.z+=side*arc*.22;
+  if(holding>0){
+   // Keep the boots beside the bike and lean the rider across the bars.
+   hips.position.x-=side*.10*holding;
+   torso.rotation.z=T.MathUtils.lerp(torso.rotation.z,side*.14,holding);
+   torso.rotation.x=T.MathUtils.lerp(torso.rotation.x,.24,holding);
+   // Build the chest from the pelvis so bending keeps the waist together.
+   a.set(0,.25*size,.025).applyQuaternion(torso.quaternion).add(hips.position);
+   torso.position.lerp(a,holding);
+   head.position.set(0,.35*size,.015*size).applyQuaternion(torso.quaternion).add(torso.position);
+   head.rotation.z=torso.rotation.z*.55;
+   neckBase.set(0,.19*size,0).applyQuaternion(torso.quaternion).add(torso.position);
+   neckTop.set(0,-.12*size,0).applyQuaternion(head.quaternion).add(head.position);
+   segment(neck,neckBase,neckTop,.047*size);
+  }
   for(const l of limbs){
    const sign=l.side,step=swing*sign,raised=sign===-side?arc:0;
    hip.copy(hips.position);hip.x+=sign*.095;hip.y-=.015;
@@ -135,7 +149,7 @@ export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,_jacket
    ankle.lerp(a,mix);ankle.y+=raised*.78;ankle.z-=raised*.29;
    segment(l.thigh,hip,l.knee,.064*size);segment(l.shin,l.knee,ankle,.052*size);
    l.foot.position.copy(ankle);l.foot.position.y-=.035;
-   if(holding>0&&sign===-side)grip.set(side*gripHalfWidth,handleY,gripLocalZ).applyQuaternion(steering.quaternion).add(steering.position);
+   if(holding>0)grip.set(sign*gripHalfWidth,handleY,gripLocalZ).applyQuaternion(steering.quaternion).add(steering.position);
    else grip.copy(l.hand.position).add(rootStart);
    root.parent.localToWorld(grip);root.worldToLocal(grip);
    const release=T.MathUtils.smoothstep(mix,sign===side?.28:0,sign===side?.90:.54);
@@ -143,8 +157,11 @@ export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,_jacket
    targetJoint.set(sign*.07,-1,-step*.29).normalize()
     .multiplyScalar(RIDER_TUNING.upperArmLength+RIDER_TUNING.forearmLength-.001).add(shoulder);
    targetJoint.z+=RIDER_TUNING.wristOffset;
-   l.hand.position.copy(grip).lerp(targetJoint,release*(1-(sign===-side?holding:0)));
-   wrist.copy(l.hand.position);wrist.z-=RIDER_TUNING.wristOffset;
+   l.hand.position.copy(grip).lerp(targetJoint,release*(1-holding));
+   if(holding>0)l.hand.quaternion.copy(root.quaternion).invert().multiply(steering.quaternion);
+   wrist.set(0,0,-RIDER_TUNING.wristOffset);
+   if(holding>0)wrist.applyQuaternion(l.hand.quaternion);
+   wrist.add(l.hand.position);
    solveArm(sign,0);segment(l.upperArm,shoulder,elbow,.051*size);segment(l.forearm,elbow,wrist,.043*size);
   }
  }

@@ -8,16 +8,47 @@ test('wind starts at zero and grows progressively below the former drag curve',(
   const wind=acceleration(speed,0,0,0,1,0,40)-acceleration(speed,0,0,0,1,coefficient,40);
   if(!speed){assert.equal(wind,0);continue}
   assert.ok(wind>previous&&wind<coefficient*speed**2);
+  const ratio=Math.min(1,speed/34);
+  const previousWind=coefficient*speed**2*(.16+.54*ratio**2*(3-2*ratio));
+  assert.ok(Math.abs(wind-.7*previousWind)<1e-10);
   if(speed===5)assert.ok(wind<coefficient*speed**2*.25);
   previous=wind;
  }
 });
-import {getVehicle} from '../src/vehicles';
+import {getVehicle,vehicles} from '../src/vehicles';
+test('stock upright Pop reaches 100 km/h in 25–35 seconds on level asphalt',()=>{
+ for(const realistic of [false,true]){
+  const ride=new Ride();ride.spec=getVehicle('pop');
+  const {x,z}=ride;
+  ride.contact=()=>{ride.pitch=0};
+  let ticks=0;
+  while(ride.speed<100/3.6&&ticks<35*60){
+   ride.x=x;ride.z=z;
+   ride.step(1/60,1,0,0,[],false,0,true,realistic);
+   ticks++;
+  }
+  assert.ok(ride.speed>=100/3.6&&ticks>=25*60);
+  assert.equal(ride.topSpeed,115/3.6);
+ }
+});
+test('each flat tyre can get moving and sustain 30–50 km/h on level asphalt',()=>{
+ for(const spec of vehicles)for(const realistic of [false,true]){
+  const ride=new Ride();ride.spec=spec;ride.equipment.pneus=0;
+  const {x,z}=ride;
+  ride.contact=()=>{ride.pitch=0};
+  for(let i=0;i<3600;i++){
+   ride.x=x;ride.z=z;
+   ride.step(1/60,1,0,0,[],false,0,true,realistic);
+  }
+  const kmh=ride.speed*3.6;
+  assert.ok(kmh>=30-1e-8&&kmh<=50+1e-8,spec.id+' '+kmh);
+ }
+});
 import {road,height,ground,nearest,terrain,LOOKOUT,terrainPatch,roadLength,stations} from '../src/terrain';
 import * as T from 'three';
 test('closed continuous road has plausible gradients',()=>{assert.ok(road[0].distanceTo(road.at(-1)!)<.001);let max=0;for(let i=1;i<road.length;i++){const a=road[i-1],b=road[i];max=Math.max(max,Math.abs(b.y-a.y)/Math.hypot(b.x-a.x,b.z-a.z))}assert.ok(max<.3,`grade ${max}`)});
 test('rendered terrain and collision height agree',()=>{const mesh=terrain(0,0,1024);mesh.updateMatrixWorld();const ray=new T.Raycaster();for(let i=0;i<25;i++){const x=-300+i*23.13,z=100*Math.sin(i);ray.set(new T.Vector3(x,300,z),new T.Vector3(0,-1,0));const hit=ray.intersectObject(mesh);assert.ok(hit.length);assert.ok(Math.abs(hit[0].point.y-height(x,z))<.0001)}mesh.geometry.dispose()});
-test('brakes stop, obstacles block, recovery is on road',()=>{const r=new Ride();for(let i=0;i<180;i++)r.step(1/60,1,0,0,[]);assert.ok(r.speed>1);for(let i=0;i<180;i++)r.step(1/60,0,1,0,[]);assert.equal(r.speed,0);r.x=100;r.z=100;r.recover();assert.ok(nearest(r.x,r.z).distance<.01);assert.ok(Math.abs(r.y-ground(r.x,r.z))<.02);const x=r.x,z=r.z;r.step(1/60,1,0,0,[{x:x+Math.sin(r.heading)*.4,z:z+Math.cos(r.heading)*.4,r:2}]);assert.equal(r.x,x);assert.equal(r.z,z)});
+test('brakes stop, obstacles block, recovery is on road',()=>{const r=new Ride();for(let i=0;i<180;i++)r.step(1/60,1,0,0,[]);assert.ok(r.speed>1);r.speed=40/3.6;for(let i=0;i<180;i++)r.step(1/60,0,1,0,[]);assert.equal(r.speed,0);r.x=100;r.z=100;r.recover();assert.ok(nearest(r.x,r.z).distance<.01);assert.ok(Math.abs(r.y-ground(r.x,r.z))<.02);const x=r.x,z=r.z;r.step(1/60,1,0,0,[{x:x+Math.sin(r.heading)*.4,z:z+Math.cos(r.heading)*.4,r:2}]);assert.equal(r.x,x);assert.equal(r.z,z)});
 test('first two kilometers with feedback steering remains driveable',()=>{const r=new Ride();r.x=road[0].x;r.z=road[0].z;r.recover();let maxError=0;for(let i=0;i<18000&&r.distance<2200;i++){const n=nearest(r.x,r.z),p=road[(n.index+7)%(road.length-1)];const target=Math.atan2(p.x-r.x,p.z-r.z);const error=Math.atan2(Math.sin(target-r.heading),Math.cos(target-r.heading));r.step(1/60,r.speed<10?1:.1,r.speed>12?1:0,Math.max(-1,Math.min(1,error*3)),[]);maxError=Math.max(maxError,n.distance);assert.ok(Number.isFinite(r.y));}assert.ok(r.distance>2100);assert.ok(maxError<4,`road deviation ${maxError}`)});
 
 
