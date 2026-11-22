@@ -3,13 +3,21 @@ import {DISCOVERY_SOUND_DURATION} from './exploration';
 import type {RemotePlayer} from './network';
 import {getVehicle,type VehicleId} from './vehicles';
 // High-RPM recordings supplied by the user; gains, pitch range and crossfade are tunable.
-export const CG_AUDIO_TUNING={accelerationGain:.45,coastGain:.4,idleGain:.12,minRate:.65,maxRate:1.1,response:.16,filter:7000};
+export const CG_AUDIO_TUNING={
+  accelerationGain:.45,
+  coastGain:.4,
+  idleGain:.12,
+  minRate:.50,
+  maxRate:1.1,
+  response:.16,
+  filter:7000
+};
 export const SAHARA_AUDIO_TUNING = {
   accelerationGain: .90,
   coastGain: .40,
   idleGain: .20,
-  minRate: .84,
-  maxRate: 1.40,
+  minRate: .40,
+  maxRate: 1.75,
   response: .16,
   filter: 6500
 };
