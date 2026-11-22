@@ -2,11 +2,36 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
 import {makeWorld,obstacles} from '../src/world';
+import {blocked,wallImpact} from '../src/obstacle';
 import {Ride} from '../src/riding';
 import {road,nearest,stations} from '../src/terrain';
 // Canvas drawing is irrelevant to the geometry/collision test; no browser is emulated.
 const context={fillStyle:'',strokeStyle:'',lineWidth:0,font:'',textAlign:'',fillRect(){},strokeRect(){},fillText(){}};
 (globalThis as any).document={createElement:()=>({width:0,height:0,getContext:()=>context})};
+test('fixed and streamed rocks block walkers and crossing motorcycle paths at their visible ends',()=>{
+ const scene=new T.Scene(),world=makeWorld(scene);
+ world.update(road[0].x,road[0].z,0);
+ let fixed=0,streamed=0;
+ scene.traverse(mesh=>{
+  if(!(mesh instanceof T.Mesh)||!(mesh.geometry instanceof T.DodecahedronGeometry))return;
+  const bounds=mesh.geometry.boundingBox!;
+  const instanced=mesh instanceof T.InstancedMesh;
+  for(let i=0;i<(instanced?mesh.count:1);i++){
+   const matrix=new T.Matrix4();
+   if(instanced)mesh.getMatrixAt(i,matrix);else mesh.updateMatrix();
+   if(!instanced)matrix.copy(mesh.matrix);
+   const center=new T.Vector3().setFromMatrixPosition(matrix);
+   const hit=obstacles.find(o=>Math.hypot(o.x-center.x,o.z-center.z)<.001);
+   assert.ok(hit);
+   const end=new T.Vector3(bounds.max.x*.98,0,0).applyMatrix4(matrix);
+   assert.ok(blocked(hit,end.x,end.z,.23));
+   const start=new T.Vector3(bounds.max.x+1,0,0).applyMatrix4(matrix);
+   assert.ok(wallImpact(hit,start.x,start.z,center.x-start.x,center.z-start.z,.35)>0);
+   if(instanced)streamed++;else fixed++;
+  }
+ });
+ assert.ok(fixed>0&&streamed>0);
+});
 test('expanded circuit can be completed with actual world obstacles',()=>{
  const scene=new T.Scene();const world=makeWorld(scene);const r=new Ride();r.x=road[0].x;r.z=road[0].z;r.recover();
  const length=road.slice(1).reduce((sum,p,i)=>sum+p.distanceTo(road[i]),0);

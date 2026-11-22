@@ -19,6 +19,13 @@ export function makeWorld(scene:T.Scene){
  const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:number)=>{const m=new T.Mesh(new T.BoxGeometry(w,h,d),material(color));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m};
  const block=(x:number,z:number,r:number)=>fixed.push({x,z,r});
  const wall=(x:number,z:number,w:number,d:number,angle=0)=>fixed.push({x,z,r:Math.hypot(w,d)/2,halfX:w/2,halfZ:d/2,angle});
+ const rock=new T.DodecahedronGeometry(1,0);
+ rock.computeBoundingBox();
+ const rockBounds=rock.boundingBox!.max;
+ function rockObstacle(model:T.Object3D):Obstacle{
+  const halfX=rockBounds.x*model.scale.x,halfZ=rockBounds.z*model.scale.z;
+  return {x:model.position.x,z:model.position.z,halfX,halfZ,angle:model.rotation.y,r:Math.hypot(halfX,halfZ)};
+ }
  function sign(text:string,x:number,z:number,angle:number){const c=document.createElement('canvas');c.width=768;c.height=192;const ctx=c.getContext('2d')!;ctx.fillStyle='#304d40';ctx.fillRect(0,0,768,192);ctx.strokeStyle='#e5d8b4';ctx.lineWidth=8;ctx.strokeRect(8,8,752,176);ctx.fillStyle='#fff1cc';ctx.font='bold 40px sans-serif';ctx.textAlign='center';ctx.fillText(text,384,113,735);const texture=new T.CanvasTexture(c);texture.colorSpace=T.SRGBColorSpace;const mat=new T.MeshBasicMaterial({map:texture});const y=height(x,z);for(const side of [-1,1]){const m=new T.Mesh(new T.PlaneGeometry(5,1.25),mat);m.rotation.y=angle+(side<0?Math.PI:0);m.position.set(x+Math.sin(angle)*.04*side,y+2.5,z+Math.cos(angle)*.04*side);scene.add(m)}box(x,y+1.2,z,.18,2.4,.18,0x655744);block(x,z,.25)}
  // Paved and dirt routes share the exact geometry used by physics.
  for(const route of routes){for(let i=0;i<route.points.length-1;i+=100){const section=route.points.slice(i,Math.min(i+101,route.points.length)),mesh=ribbon(section,route.width,route.surface==='terra'?0xb48a58:0x555d59,route.surface==='terra'?.065:.075);scene.add(mesh);
@@ -149,7 +156,7 @@ export function makeWorld(scene:T.Scene){
  const lakeWater=surfaceMaterial('water',0x75aaa5);
  for(const p of lakes){const g=new T.CircleGeometry(p.r+6,96);g.rotateX(-Math.PI/2);g.translate(p.x,12,p.z);worldUV(g,7);const water=new T.Mesh(g,lakeWater);scene.add(water);
   for(let i=0;i<28;i++){const a=i*2.39996,r=lakeRadius(p.r,a)+5+i%9,x=p.x+Math.cos(a)*r,z=p.z+Math.sin(a)*r;if(nearRoute(x,z,15)||deepWater(x,z))continue;
-   if(i%3===0){const stone=new T.Mesh(new T.DodecahedronGeometry(1),material(0x938c76));stone.position.set(x,height(x,z)+.18,z);stone.scale.set(1.1,.65,.8);scene.add(stone);block(x,z,.8)}
+   if(i%3===0){const stone=new T.Mesh(rock,material(0x938c76));stone.position.set(x,height(x,z)+.18,z);stone.scale.set(1.1,.65,.8);scene.add(stone);fixed.push(rockObstacle(stone))}
    else for(let j=0;j<3;j++)box(x+j*.18,height(x,z)+.5,z+.12*j,.08,1+j*.13,.08,0x818b58);
   }}
  // Small interior destinations make the branches worth exploring.
@@ -157,18 +164,18 @@ export function makeWorld(scene:T.Scene){
   if(p.kind==='farm'){const x=p.x-30,z=p.z-25,y=height(x,z);if(safe(x,z,10)){box(x,y+3,z,16,6,12,0xb97851);const roof=new T.Mesh(new T.ConeGeometry(12,4,4),material(0x8b5a45));roof.position.set(x,y+8,z);roof.rotation.y=Math.PI/4;scene.add(roof);wall(x,z,16,12)}
    for(let i=0;i<7;i++){const x=p.x-75+i*5,z=p.z+30;if(safe(x,z,3)){scene.add(terrainPatch(x,z,3,0x9b8c43));for(let j=0;j<6;j++){const zz=z+j*5;if(!safe(x,zz,2))continue;box(x,height(x,zz)+.65,zz,.5,1.3,.5,0x9eac54)}}}
   }else if(p.kind==='camp'){for(let i=0;i<4;i++){const x=p.x+(i%2?16:-16),z=p.z+Math.floor(i/2)*15,y=height(x,z);if(!safe(x,z,3))continue;const tent=new T.Mesh(new T.ConeGeometry(3,3.5,4),material(i%2?0xc6a667:0x87947d));tent.position.set(x,y+1.75,z);tent.rotation.y=Math.PI/4;scene.add(tent);block(x,z,2.6)}
-  }else{const x=p.x+28,z=p.z-20,y=height(x,z);if(safe(x,z,12)){for(let i=0;i<7;i++){const stone=new T.Mesh(new T.DodecahedronGeometry(1,0),material(i%2?0x8c9184:0x7e887c));stone.scale.set(4+i%3,4+(i%2)*2,4);stone.position.set(x+(i-3)*2.4,y+3.5+(i%2),z-1-(i%3));stone.rotation.y=i*.8;stone.castShadow=true;scene.add(stone)}
-    const fall=new T.Mesh(new T.PlaneGeometry(4.5,7),new T.MeshStandardMaterial({color:0x96cfc7,roughness:.25,transparent:true,opacity:.85,side:T.DoubleSide}));fall.position.set(x,y+4,z+3.4);scene.add(fall);box(x,y+.6,z+3.5,4.8,.2,.8,0xd6e7d9);block(x,z,11);scene.add(terrainPatch(x,z+10,7,0x7caaa0))}}
+  }else{const x=p.x+28,z=p.z-20,y=height(x,z);if(safe(x,z,12)){for(let i=0;i<7;i++){const stone=new T.Mesh(rock,material(i%2?0x8c9184:0x7e887c));stone.scale.set(4+i%3,4+(i%2)*2,4);stone.position.set(x+(i-3)*2.4,y+3.5+(i%2),z-1-(i%3));stone.rotation.y=i*.8;stone.castShadow=true;scene.add(stone);fixed.push(rockObstacle(stone))}
+    const fall=new T.Mesh(new T.PlaneGeometry(4.5,7),new T.MeshStandardMaterial({color:0x96cfc7,roughness:.25,transparent:true,opacity:.85,side:T.DoubleSide}));fall.position.set(x,y+4,z+3.4);scene.add(fall);box(x,y+.6,z+3.5,4.8,.2,.8,0xd6e7d9);scene.add(terrainPatch(x,z+10,7,0x7caaa0))}}
  }
  for(const route of routes.filter(t=>t.id!=='main')){for(const p of [route.points[8],route.points.at(-9)!]){const n=nearestRoute(p.x,p.z),a=n.track.points[n.index],b=n.track.points[n.index+1],angle=Math.atan2(b.x-a.x,b.z-a.z),x=p.x+Math.cos(angle)*9,z=p.z-Math.sin(angle)*9;if(!nearRoute(x,z,6))sign(route.name+(route.surface==='terra'?' · terra':' · asfalto'),x,z,angle)}}
  // Local chunks: terrain, groves and rocks have bounded cost even on a 20 km trip.
  const chunks=new Map<string,{group:T.Group;details:T.Group;hits:Obstacle[];cx:number;cz:number}>();const dummy=new T.Object3D();
- const rock=new T.DodecahedronGeometry(1,0);
+
  function chunk(gx:number,gz:number){const group=new T.Group(),hits:Obstacle[]=[],cx=gx*256,cz=gz*256;group.add(terrain(cx,cz));let seed=((gx*73856093)^(gz*19349663)^73129)>>>0;const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};const samples=[];
   const rocks=new T.InstancedMesh(rock,material(0x929788),15);let rc=0;
   for(let i=0;i<150;i++){const x=cx+(rand()-.5)*256,z=cz+(rand()-.5)*256;if(nearRoute(x,z,15)||deepWater(x,z)||(z>=riverStart&&z<=riverEnd&&Math.abs(x-riverX(z))<48)||pois.some(p=>Math.hypot(x-p.x,z-p.z)<(p.kind==='village'?85:45))||lakes.some(p=>Math.hypot(x-p.x,z-p.z)<p.r+20))continue;const y=height(x,z),s=.7+rand()*1.1;
    if(i<135)samples.push({x,y,z,s,r:rand(),rotation:rand()*Math.PI*2,tint:rand()});
-   else{dummy.position.set(x,y+.5*s,z);dummy.scale.set(s*1.5,s,s);dummy.rotation.set(0,rand()*6,0);dummy.updateMatrix();rocks.setMatrixAt(rc++,dummy.matrix);hits.push({x,z,r:s})}
+   else{dummy.position.set(x,y+.5*s,z);dummy.scale.set(s*1.5,s,s);dummy.rotation.set(0,rand()*6,0);dummy.updateMatrix();rocks.setMatrixAt(rc++,dummy.matrix);hits.push(rockObstacle(dummy))}
   }
   const plants=vegetation(samples);group.add(plants.group);hits.push(...plants.hits);rocks.count=rc;rocks.castShadow=true;rocks.computeBoundingSphere();group.add(rocks);enableShadows(group);scene.add(group);return {group,details:plants.details,hits,cx,cz};
  }
