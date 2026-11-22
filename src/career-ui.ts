@@ -1,7 +1,7 @@
 import {adventure} from './adventure-tuning';
 import {destination,renewMarket,tripById,visitStop} from './adventures';
 import {adventureMenu} from './adventure-menu';
-import {eligibleFreight,acceptJob,weightLimit,jobKg,carriedKg,buyVehicle,bikePrices,arrive,capacity,cash,DELIVERY_RADIUS,distance,equipment,offer,prices,purchase,target,type Job,type Site,type Career,type Condition,type openCareer} from './career';
+import {eligibleFreight,acceptJob,weightLimit,jobKg,carriedKg,buyVehicle,bikePrices,arrive,capacity,cash,DELIVERY_RADIUS,distance,equipment,offer,prices,repairPrice,purchase,target,type Job,type Site,type Career,type Condition,type openCareer} from './career';
 import {PALETTE} from './paint';
 import {freightDistance,villages,specials,stations} from './terrain';
 import {getVehicle,type VehicleId} from './vehicles';
@@ -70,7 +70,7 @@ export function careerUI(store:ReturnType<typeof openCareer>,npc:Roadside,shops:
    const install=(label:string,price:number,action:(g:ReturnType<typeof gear>)=>void)=>button(label+' · '+cash(price),()=>void transaction(s=>purchase(s,price,()=>action(equipment(s,id()))),'Serviço concluído'));
    line('h3','Manutenção');
    for(const part of ['motor','freios','pneus'] as Condition[]){
-    const value=gear()[part],cost=Math.max(1,Math.ceil((100-value)*.85));
+    const value=gear()[part],cost=repairPrice(value);
     install(part+' · '+value.toFixed(1)+'%',cost,g=>{if(g[part]>=100)throw Error('Componente em dia');g[part]=100}).disabled=value>=100;
    }
    line('h3','Personalização');

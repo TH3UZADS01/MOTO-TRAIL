@@ -28,4 +28,5 @@ export type Slot=typeof parts[Part]['slot'];
 export type Prep={engine?:'original'|'cam';gearing:'original'|'short'|'long';suspension:'original'|'trail'|'road';brakes:'original'|'improved';bought:Part[]};
 export const originalPrep=():Prep=>({engine:'original',gearing:'original',suspension:'original',brakes:'original',bought:[]});
 const priceFactor:Record<VehicleId,number>={pop:1,cub:1,urban:.85,caloi:.65,cg150:1.25,sahara:1.6};
-export const partPrice=(id:VehicleId,part:Part)=>Math.round(parts[part].price*priceFactor[id]);
+export const workshopMultiplier=3.5;
+export const partPrice=(id:VehicleId,part:Part)=>Math.round(parts[part].price*priceFactor[id])*workshopMultiplier;

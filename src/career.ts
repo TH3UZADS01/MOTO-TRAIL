@@ -1,4 +1,4 @@
-import {adventure,type Prep} from './adventure-tuning';
+import {adventure,workshopMultiplier,type Prep} from './adventure-tuning';
 import type {TripProgress,Market} from './adventures';
 import {vehicles,type VehicleId} from './vehicles';
 
@@ -22,7 +22,8 @@ export function awardCub(state:Career){
  if(state.owned.includes('cub'))return false;
  state.owned.push('cub');return true;
 }
-export const prices={box:180,paint:45,tyre:90};
+export const prices={box:180*workshopMultiplier,paint:45,tyre:90*workshopMultiplier};
+export const repairPrice=(condition:number)=>Math.max(1,Math.ceil((100-condition)*.85))*workshopMultiplier;
 export const capacity=(gear:Equipment)=>gear.box?12:2;
 export const weightLimit=(gear:Equipment)=>gear.box?adventure.cargo.boxKg:adventure.cargo.baseKg;
 export const jobKg=(j:Job)=>j.kg??j.load*adventure.cargo.density;
