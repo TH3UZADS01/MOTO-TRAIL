@@ -195,7 +195,7 @@ export class Ride {
      const bump=(x:number,z:number)=>pavementRelief(x,z)+relief*(.58*Math.sin(2.3*x+1.7*z)+.42*Math.sin(3.1*z-1.2*x));
      this.suspension.step(dt,this.spec,this.y+slope+bump(this.x+dx,this.z+dz),this.y-slope+bump(this.x-dx,this.z-dz),(this.speed-initialSpeed)/dt,this.cargoLoad,this.wheelie,suspension.travel,suspension.frequency);
     }
-    const bank=burnout?-.23*this.steer:clamp(-yaw*this.speed*.062-.095*this.steer*counterweightBlend(this.speed,this.wheelie),-.64,.64);
+    const bank=burnout?-.23*this.steer:clamp(-yaw*this.speed*.044-.068*this.steer*counterweightBlend(this.speed,this.wheelie),-.46,.46);
     this.lean+=(bank-this.lean)*(1-Math.exp(-dt*7));
 
   }

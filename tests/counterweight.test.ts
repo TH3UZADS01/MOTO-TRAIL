@@ -46,7 +46,7 @@ test('tight slow turns bank the chassis in and the torso out in both directions'
  disposeBike(bike);
 });
 
-test('rider transitions into the deeper bank between 25 and 30 km/h',()=>{
+test('rider transitions into the turn between 25 and 30 km/h with moderate chassis bank',()=>{
  const bike=createBike('sahara'),ride=new Ride();
  ride.spec=vehicles.find(v=>v.id==='sahara')!;
  const start={x:ride.x,z:ride.z};
@@ -61,7 +61,7 @@ test('rider transitions into the deeper bank between 25 and 30 km/h',()=>{
    assert.ok((kmh<=25?-1:1)*up.x*side>0,`torso at ${kmh} km/h`);
    if(kmh>=30){
     assert.ok(bike.riderRig.lean*side<0);
-    assert.ok(-ride.lean*side>.45);
+    assert.ok(-ride.lean*side>.30&&-ride.lean*side<=.46);
    }
   }
  }
