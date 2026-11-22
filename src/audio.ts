@@ -235,8 +235,17 @@ export class Sound {
         filter = c.createBiquadFilter();
       source.buffer = buffer;
       source.loop = true;
+
+      if (asset.bank === "sahara") {
+        source.loopStart = 0;
+        source.loopEnd = Math.max(0.05, buffer.duration - 0.05);
+      }
       gain.gain.value = 0;
-      filter.type = "lowpass";
+      filter.type = asset.bank === "sahara" ? "highshelf" : "lowpass";
+
+      if (asset.bank === "sahara") {
+        filter.gain.value = 5;
+      }
       filter.frequency.value =
         asset.bank === "wind"
           ? 700
