@@ -44,7 +44,7 @@ export class PotholeRisk {
      const t=lengthSq?Math.max(0,Math.min(1,-(x*dx+z*dz)/lengthSq)):0;
      if((x+t*dx)**2+(z+t*dz)**2>=1)continue;
      this.next.add(s);
-     if(!this.active.has(s)&&speed>=50/3.6&&this.roll()<.65)burst=true;
+     if(!this.active.has(s)&&speed>=75/3.6&&this.roll()<.20)burst=true;
     }
    }
   }
