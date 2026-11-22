@@ -8,7 +8,29 @@ import {getVehicle,type VehicleId} from './vehicles';
 
 // High-RPM recordings supplied by the user; gains, pitch range and crossfade are tunable.
 
-export const CG_AUDIO_TUNING={accelerationGain:.45,coastGain:.4,idleGain:.12,minRate:.65,maxRate:1.1,response:.16,filter:7000};
+// Marcha lenta compartilhada por motos com o mesmo ronco base.
+// Pop e Cub usam pop-idle.wav. O volume padrao de todos os WAVs idle e 0.85.
+// Arquivos opcionais: se ausentes, mantem-se o som anterior.
+export const GENERIC_IDLE_AUDIO_TUNING = {
+  idleGain: 0.85,
+  idlePlaybackRate: 1.0,
+  idleFadeStart: 0.02,
+  idleFadeEnd: 0.18,
+};
+
+export const CG_AUDIO_TUNING = {
+  accelerationGain: .45,
+  coastGain: .4,
+  coastIdleGain: .12, // volume do loop off-high, independente do WAV de marcha lenta
+  idleGain: .85,
+  minRate: .65,
+  maxRate: 1.1,
+  response: .16,
+  filter: 7000,
+  idlePlaybackRate: 1.0,
+  idleFadeStart: 0.02,
+  idleFadeEnd: 0.18,
+};
 
 export const SAHARA_AUDIO_TUNING = {
 
@@ -16,7 +38,8 @@ export const SAHARA_AUDIO_TUNING = {
 
   coastGain: .40,
 
-  idleGain: .80,
+  coastIdleGain: .20,
+  idleGain: .85,
 
   minRate: .85,
 
@@ -43,12 +66,30 @@ export const AUDIO_ASSETS=[
 
  {name:'cg150-off-high',bank:'cg150',load:false},
 
- {name:'sahara-on-high',bank:'sahara',load:true},{name:'sahara-off-high',bank:'sahara',load:false},
- {name:'sahara-idle',bank:'sahara',load:false}
+ {name:'sahara-on-high',bank:'sahara',load:true},{name:'sahara-off-high',bank:'sahara',load:false}
 
 ] as const;
 
-type Layer={source:AudioBufferSourceNode;gain:GainNode;filter:BiquadFilterNode;bank:'engine'|'moped'|'wind'|'cg150'|'sahara';load:boolean;idle:boolean};
+type AudioBank='engine'|'moped'|'wind'|'cg150'|'sahara';
+type IdleSoundName='pop-idle'|'cg150-idle'|'caloi-idle'|'sahara-idle';
+type Layer={source:AudioBufferSourceNode;gain:GainNode;filter:BiquadFilterNode;bank:AudioBank;load:boolean;idle:boolean;idleSound?:IdleSoundName};
+
+// Os bancos existentes continuam iguais: nenhuma moto ou arquivo de aceleracao e alterado.
+// Associacao por banco para aproveitar gravacoes compartilhadas.
+const IDLE_SOUND_BY_BANK:Partial<Record<AudioBank,IdleSoundName>>={
+ engine:'pop-idle',
+ moped:'caloi-idle',
+ cg150:'cg150-idle',
+ sahara:'sahara-idle',
+};
+
+function idleSoundForVehicle(vehicleId:VehicleId,bank:AudioBank):IdleSoundName|undefined{
+ // Garante Pop + Cub com um unico audio, independentemente do identificador de banco.
+ const id=String(vehicleId);
+ if(id==='pop'||id==='cub')return 'pop-idle';
+ if(id==='caloi')return 'caloi-idle';
+ return IDLE_SOUND_BY_BANK[bank];
+}
 
 type Position={x:number;y:number;z:number};
 
@@ -63,6 +104,8 @@ export class Sound {
  set effects(value:number){this.effectVolume=Math.max(0,Math.min(1,value));if(this.effectsOutput&&this.ctx)this.effectsOutput.gain.setTargetAtTime(this.effectVolume,this.ctx.currentTime,.025)}
 
  private players:RemotePlayer[]=[];private voices=new Map<string,RemoteVoice>();private revMatchSequences=new Map<string,number>();
+ // Uma carga por arquivo de audio, mesmo que duas motos usem o mesmo WAV.
+ private idleAudioRequests=new Map<IdleSoundName,Promise<void>>();
 
  setRemotePlayers(players:RemotePlayer[]){
 
@@ -149,7 +192,7 @@ export class Sound {
    filter.connect(gain);
    gain.connect(limiter);
    source.start();
-   this.layers.push({source,gain,filter,bank:asset.bank,load:asset.load,idle:asset.name==='sahara-idle'});
+   this.layers.push({source,gain,filter,bank:asset.bank,load:asset.load,idle:false});
   });
 
   this.hornBuffer=buffers[AUDIO_ASSETS.length];this.ready=true;this.setHorn(this.hornHeld);this.setRemotePlayers(this.players);
@@ -158,6 +201,37 @@ export class Sound {
 
   if(this.crashQueued){this.crashQueued=false;this.playCrash()}
 
+ }
+
+ // Carrega cada WAV de marcha lenta sob demanda, sem duplicar Pop/Cub.
+ // Se o WAV ainda nao existe, mantem os loops originais sem impedir o inicio do jogo.
+ private requestIdleAudio(soundName:IdleSoundName,bank:AudioBank){
+  if(this.idleAudioRequests.has(soundName)||!this.ctx||!this.output)return;
+  const ctx=this.ctx,output=this.output;
+  const url=`/audio/${soundName}.wav`;
+  const request=(async()=>{
+   const response=await fetch(url);
+   if(!response.ok){
+    if(response.status===404)console.info(`[Moto Trail] WAV opcional ainda ausente: public/audio/${soundName}.wav`);
+    else console.warn(`[Moto Trail] Falha no audio opcional ${url}: ${response.status}`);
+    return;
+   }
+   const buffer=await ctx.decodeAudioData(await response.arrayBuffer());
+   const source=ctx.createBufferSource(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();
+   source.buffer=buffer;
+   source.loop=true;
+   gain.gain.value=0;
+   filter.type='lowpass';
+   filter.frequency.value=bank==='sahara'?SAHARA_AUDIO_TUNING.filter:bank==='cg150'?CG_AUDIO_TUNING.filter:1800;
+   source.connect(filter);
+   filter.connect(gain);
+   gain.connect(output);
+   source.start();
+   this.layers.push({source,gain,filter,bank,load:false,idle:true,idleSound:soundName});
+  })().catch(error=>{
+   console.warn(`[Moto Trail] Nao foi possivel carregar o audio opcional ${url}:`,error);
+  });
+  this.idleAudioRequests.set(soundName,request);
  }
 
  playDiscovery(){
@@ -232,65 +306,64 @@ export class Sound {
 
  }
 
- update(speed:number,gear:number,throttle:number,paused:boolean,brake=0,engine?:Partial<Pick<Powertrain,'rpm'|'ratio'|'limiting'|'cutting'|'lugging'|'revMatchTime'|'revMatchPeak'|'revMatchEnvelope'>>){if(!this.ready||!this.ctx)return;const c=this.ctx,t=c.currentTime,spec=getVehicle(this.vehicle),v=Math.max(0,speed),ratio=v/spec.maxSpeed;
-
-  const rev=engine?.rpm!==undefined?Math.max(0,Math.min(1,(engine.rpm-spec.idleRpm)/(spec.redlineRpm-spec.idleRpm))):engine?.ratio??(spec.gears===1?ratio:Math.max(0,Math.min(1,(v-(gear-1)*5)/7)));
-
+ update(speed:number,gear:number,throttle:number,paused:boolean,brake=0,engine?:Partial<Pick<Powertrain,'rpm'|'ratio'|'limiting'|'cutting'|'lugging'|'revMatchTime'|'revMatchPeak'|'revMatchEnvelope'>>){
+  if(!this.ready||!this.ctx)return;
+  const c=this.ctx,t=c.currentTime,spec=getVehicle(this.vehicle),v=Math.max(0,speed),ratio=v/spec.maxSpeed;
+  const rev=engine?.rpm!==undefined
+   ? Math.max(0,Math.min(1,(engine.rpm-spec.idleRpm)/(spec.redlineRpm-spec.idleRpm)))
+   : engine?.ratio??(spec.gears===1?ratio:Math.max(0,Math.min(1,(v-(gear-1)*5)/7)));
   const revBlip=engine?.revMatchEnvelope??(engine&&engine.revMatchTime&&engine.revMatchTime>0?Math.sin(Math.PI*(1-engine.revMatchTime/ENGINE_TUNING.revMatchDuration)):0);
 
+  // Pop/Cub usam a mesma gravacao. A marcha lenta e identificada pelo WAV compartilhado.
+  const idleSound=idleSoundForVehicle(this.vehicle,spec.audio as AudioBank);
+  if(idleSound)this.requestIdleAudio(idleSound,spec.audio as AudioBank);
+  const idleLayer=this.layers.find(layer=>layer.idle&&layer.idleSound===idleSound);
+  const tuning=spec.audio==='sahara'?SAHARA_AUDIO_TUNING:spec.audio==='cg150'?CG_AUDIO_TUNING:GENERIC_IDLE_AUDIO_TUNING;
+  const gas=Math.max(0,Math.min(1,throttle))*(1-Math.max(0,Math.min(1,brake)));
+  const fadeStart=tuning.idleFadeStart;
+  const fadeEnd=Math.max(fadeStart+.001,tuning.idleFadeEnd);
+  const u=Math.max(0,Math.min(1,(rev-fadeStart)/(fadeEnd-fadeStart)));
+  const smooth=u*u*(3-2*u);
+  // Sem WAV exclusivo, mantem o ronco antigo ao inves de criar silencio.
+  const idleMix=idleLayer?(1-smooth)*(1-Math.min(1,gas*3)):0;
+  const idleFactor=Math.sin(idleMix*Math.PI/2);
+  const runningFactor=Math.cos(idleMix*Math.PI/2);
+
   for(const layer of this.layers){let gain=0,rate=1;
-
-   if(layer.bank==='wind')gain=paused?0:this.ambience*(.06+ratio*.16);
-
-   else if((layer.bank==='cg150'||layer.bank==='sahara')&&layer.bank===spec.audio&&!paused){
-
-    // Os tres loops sao iniciados uma unica vez. So os volumes mudam,
-    // evitando reinicios e pausas ao alternar marcha lenta/aceleracao/desaceleracao.
-    const gas=Math.max(0,Math.min(1,throttle))*(1-Math.max(0,Math.min(1,brake)));
+   if(layer.bank==='wind'){
+    gain=paused?0:this.ambience*(.06+ratio*.16);
+   }else if(layer.idle){
+    // O WAV compartilhado so toca quando a moto atual o utiliza.
+    if(layer.idleSound===idleSound&&!paused){
+     gain=this.volume*tuning.idleGain*idleFactor;
+     rate=tuning.idlePlaybackRate;
+     const cutoff=spec.audio==='sahara'?SAHARA_AUDIO_TUNING.filter:spec.audio==='cg150'?CG_AUDIO_TUNING.filter:spec.filter;
+     layer.filter.frequency.setTargetAtTime(cutoff,t,.25);
+    }
+   }else if((layer.bank==='cg150'||layer.bank==='sahara')&&layer.bank===spec.audio&&!paused){
+    const vehicleTuning=layer.bank==='sahara'?SAHARA_AUDIO_TUNING:CG_AUDIO_TUNING;
     const moving=Math.min(1,v/5);
-    const tuning=layer.bank==='sahara'?SAHARA_AUDIO_TUNING:CG_AUDIO_TUNING;
-
-    // Mistura da marcha lenta somente para a Sahara; CG permanece como antes.
-    let idleMix=0;
-    if(layer.bank==='sahara'){
-      const fadeStart=SAHARA_AUDIO_TUNING.idleFadeStart;
-      const fadeEnd=Math.max(fadeStart+0.001,SAHARA_AUDIO_TUNING.idleFadeEnd);
-      const u=Math.max(0,Math.min(1,(rev-fadeStart)/(fadeEnd-fadeStart)));
-      const smooth=u*u*(3-2*u);
-      idleMix=(1-smooth)*(1-Math.min(1,gas*3));
-    }
-    // Crossfade de potencia constante: mantem o som cheio no meio da transicao.
-    const idleFactor=Math.sin(idleMix*Math.PI/2);
-    const runningFactor=Math.cos(idleMix*Math.PI/2);
-
-    if(layer.idle){
-      gain=this.volume*SAHARA_AUDIO_TUNING.idleGain*idleFactor;
-      rate=SAHARA_AUDIO_TUNING.idlePlaybackRate;
-    }else{
-      gain=this.volume*(layer.load
-        ? tuning.accelerationGain*Math.sqrt(gas)
-        : (tuning.idleGain+(tuning.coastGain-tuning.idleGain)*moving)*Math.sqrt(1-gas)
-      )*runningFactor;
-      rate=tuning.minRate+(tuning.maxRate-tuning.minRate)*Math.max(rev,gas*.3);
-    }
-    layer.filter.frequency.setTargetAtTime(tuning.filter,t,.25);
-
+    gain=this.volume*(layer.load
+      ? vehicleTuning.accelerationGain*Math.sqrt(gas)
+      : (vehicleTuning.coastIdleGain+(vehicleTuning.coastGain-vehicleTuning.coastIdleGain)*moving)*Math.sqrt(1-gas)
+     )*runningFactor;
+    rate=vehicleTuning.minRate+(vehicleTuning.maxRate-vehicleTuning.minRate)*Math.max(rev,gas*.3);
+    layer.filter.frequency.setTargetAtTime(vehicleTuning.filter,t,.25);
+   }else if(layer.bank===spec.audio&&!paused){
+    const load=Math.min(1,throttle*.8+ratio*.2);
+    gain=this.volume*(layer.load?.55*load:.42*(1-load*.7))*runningFactor;
+    rate=spec.pitch*(layer.load?.92+rev*.35:.85+rev*.25);
+    layer.filter.frequency.setTargetAtTime(spec.filter,t,.25);
    }
 
-   else if(layer.bank===spec.audio&&!paused){const load=Math.min(1,throttle*.8+ratio*.2);gain=this.volume*(layer.load?.55*load:.42*(1-load*.7));rate=spec.pitch*(layer.load?.92+rev*.35:.85+rev*.25);layer.filter.frequency.setTargetAtTime(spec.filter,t,.25);}
-
-   if(engine?.lugging&&!layer.idle&&layer.bank===spec.audio&&!paused){gain*=1.08;rate*=.94}
-
+   if(engine?.lugging&&!layer.idle&&layer.bank===spec.audio&&!paused){gain*=1.08;rate*=.94;}
    if(revBlip>0&&!layer.idle&&layer.bank===spec.audio&&!paused){gain*=1+revBlip*ENGINE_TUNING.revMatchVolume;rate*=1+revBlip*.18;}
-
    const cutting=!!engine?.limiting&&!!engine.cutting&&!paused&&throttle>.25&&brake<.05;
-
    if(layer.bank!=='wind'&&!layer.idle&&cutting)gain*=ENGINE_TUNING.cutGain;
-
-   layer.gain.gain.setTargetAtTime(gain,t,layer.bank!=='wind'&&engine?.limiting ? .008 : layer.bank==='cg150'?CG_AUDIO_TUNING.response:.16);layer.source.playbackRate.setTargetAtTime(rate,t,.2);
-
+   const response=layer.idle?.16:layer.bank==='cg150'?CG_AUDIO_TUNING.response:.16;
+   layer.gain.gain.setTargetAtTime(gain,t,layer.bank!=='wind'&&engine?.limiting&&!layer.idle ? .008 : response);
+   layer.source.playbackRate.setTargetAtTime(rate,t,layer.idle?.12:.2);
   }
-
  }
 
  setHorn(held:boolean){
