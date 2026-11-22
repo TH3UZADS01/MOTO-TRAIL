@@ -8,7 +8,7 @@ export const CG_AUDIO_TUNING={
   coastGain:.4,
   idleGain:.12,
   minRate:.50,
-  maxRate:1.1,
+  maxRate:1.2,
   response:.16,
   filter:7000
 };
@@ -17,7 +17,7 @@ export const SAHARA_AUDIO_TUNING = {
   coastGain: .40,
   idleGain: .20,
   minRate: .40,
-  maxRate: 1.75,
+  maxRate: 1.5,
   response: .16,
   filter: 6500
 };
