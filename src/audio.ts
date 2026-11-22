@@ -244,7 +244,7 @@ export class Sound {
             ? CG_AUDIO_TUNING.filter
             : asset.bank === "sahara"
               ? SAHARA_AUDIO_TUNING.filter
-              : 1800;
+              : 4000;
       source.connect(filter);
       filter.connect(gain);
       gain.connect(limiter);
