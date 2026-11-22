@@ -16,7 +16,7 @@ export const SAHARA_AUDIO_TUNING = {
 
   coastGain: .40,
 
-  idleGain: .20,
+  idleGain: .80,
 
   minRate: .85,
 
