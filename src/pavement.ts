@@ -22,3 +22,33 @@ export function pavementRelief(x:number,z:number){
  for(const s of cells.get(key(x,z))??[]){const d=((x-s.x)/s.rx)**2+((z-s.z)/s.rz)**2;if(d<1)return s.depth*(1-d)**2}
  return onCobbles(x,z)?.008*Math.sin(15*x+3*z)*Math.cos(19*z):0;
 }
+
+export class PotholeRisk {
+ private active=new Set<Scar>();
+ private next=new Set<Scar>();
+ constructor(private roll:()=>number=Math.random){}
+
+ // The segment spans the wheel tracks for this physics step. Keep contact
+ // latched until the rear wheel clears the hole, even after an unsuccessful roll.
+ crosses(ax:number,az:number,bx:number,bz:number,speed:number){
+  this.next.clear();
+  let burst=false;
+  for(let gx=Math.floor(Math.min(ax,bx)/32);gx<=Math.floor(Math.max(ax,bx)/32);gx++){
+   for(let gz=Math.floor(Math.min(az,bz)/32);gz<=Math.floor(Math.max(az,bz)/32);gz++){
+    const nearby=cells.get(gx+','+gz);
+    if(!nearby)continue;
+    for(const s of nearby){
+     if(s.depth>=0||this.next.has(s))continue;
+     const x=(ax-s.x)/s.rx,z=(az-s.z)/s.rz,dx=(bx-ax)/s.rx,dz=(bz-az)/s.rz;
+     const lengthSq=dx*dx+dz*dz;
+     const t=lengthSq?Math.max(0,Math.min(1,-(x*dx+z*dz)/lengthSq)):0;
+     if((x+t*dx)**2+(z+t*dz)**2>=1)continue;
+     this.next.add(s);
+     if(!this.active.has(s)&&speed>=50/3.6&&this.roll()<.65)burst=true;
+    }
+   }
+  }
+  const previous=this.active;this.active=this.next;this.next=previous;
+  return burst;
+ }
+}
