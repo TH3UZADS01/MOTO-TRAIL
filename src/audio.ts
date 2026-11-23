@@ -673,7 +673,7 @@ export class Sound {
           (layer.load ? 0.55 * load : 0.42 * (1 - load * 0.7)) *
           runningFactor;
         rate =
-          spec.pitch * (layer.load ? 0.92 + rev * 0.35 : 0.85 + rev * 0.25);
+          spec.pitch * (layer.load ? 0.95 + rev * 0.50 : 0.85 + rev * 0.25);
         layer.filter.frequency.setTargetAtTime(spec.filter, t, 0.25);
       }
 
