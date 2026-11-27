@@ -4,8 +4,35 @@ import * as T from 'three';
 import {createBike,disposeBike} from '../src/vehicle-models';
 import {vehicles} from '../src/vehicles';
 import {RIDER_TUNING} from '../src/rider';
+import {ergonomics} from '../src/rider-posture';
 
 const end=(mesh:T.Mesh,y:number)=>new T.Vector3(0,y,0).multiply(mesh.scale).applyQuaternion(mesh.quaternion).add(mesh.position);
+test('standing elbows stay outboard through turns and follow the moving grips',()=>{
+ for(const spec of vehicles){
+  const bike=createBike(spec.id),rig=bike.riderRig;
+  for(const speed of [3,14]){
+   let previous:T.Vector3[]=[];
+   for(let i=0;i<=180;i++){
+    const steer=Math.sin(i*Math.PI/90);
+    bike.setSteering(.5*steer);
+    rig.update(speed,steer,1/60,false,0,(1+steer)/2,false,0,-.35*steer,false,
+     {stand:1,rise:ergonomics[spec.id].rise,sideLean:.3*steer,brace:.35*steer,absorption:0});
+    const elbows=rig.limbs.map((limb,index)=>{
+     const elbow=end(limb.upperArm,.5),shoulder=end(limb.upperArm,-.5);
+     const outward=new T.Vector3(limb.side,0,0).applyQuaternion(rig.torso.quaternion);
+     assert.ok(elbow.clone().sub(shoulder).dot(outward)>.025,spec.id+' outboard elbow');
+     assert.ok(elbow.distanceTo(end(limb.forearm,-.5))<1e-8);
+     const wrist=new T.Vector3(0,0,-RIDER_TUNING.wristOffset).applyQuaternion(limb.hand.quaternion).add(limb.hand.position);
+     assert.ok(wrist.distanceTo(end(limb.forearm,.5))<1e-8);
+     if(previous.length)assert.ok(elbow.distanceTo(previous[index])<.025,spec.id+' continuous turn');
+     return elbow;
+    });
+    previous=elbows;
+   }
+  }
+  disposeBike(bike);
+ }
+});
 test('throttle keeps rigid arms connected at elbow and rotating wrist on every motorcycle',()=>{
  for(const spec of vehicles){
   const b=createBike(spec.id);

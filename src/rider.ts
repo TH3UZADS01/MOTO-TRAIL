@@ -44,7 +44,8 @@ export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,_jacket
  // Two rigid bones: throttle changes the elbow angle/plane, never the arm lengths.
  const wrist=new T.Vector3(),reach=new T.Vector3(),bend=new T.Vector3();
  const wristTurn=new T.Quaternion(),gripAxis=new T.Vector3(1,0,0);
- function solveArm(side:number,pose:number){
+ const openElbow=new T.Vector3();
+ function solveArm(side:number,pose:number,standing=0){
   const upper=RIDER_TUNING.upperArmLength,lower=RIDER_TUNING.forearmLength;
   reach.copy(wrist).sub(shoulder);let distance=reach.length();reach.normalize();
   // At extreme body/steering poses the shoulder follows the reach slightly instead
@@ -52,6 +53,11 @@ export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,_jacket
   const reachable=T.MathUtils.clamp(distance,Math.abs(upper-lower)+.001,upper+lower-.001);
   shoulder.addScaledVector(reach,distance-reachable);distance=reachable;
   bend.set(side*.16,-.24-RIDER_TUNING.throttleElbowDrop*pose,RIDER_TUNING.throttleElbowBack*pose);
+  if(standing>0){
+   // Aim outside the chest and slightly back; the turning grip defines the reach axis.
+   openElbow.set(side*.36,-.035-.04*pose,-.14+.035*pose).applyQuaternion(torso.quaternion);
+   bend.lerp(openElbow,standing);
+  }
   bend.addScaledVector(reach,-bend.dot(reach)).normalize();
   const along=(upper*upper-lower*lower+distance*distance)/(2*distance);
   const height=Math.sqrt(Math.max(0,upper*upper-along*along));
@@ -108,7 +114,7 @@ export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,_jacket
    // Follow the back of the rotating hand, not its grip centre, keeping the cuff attached.
    wrist.set(0,0,-RIDER_TUNING.wristOffset).applyQuaternion(l.hand.quaternion).add(hand);
    shoulder.set(side*.16*size,.14*size,.05*size).applyQuaternion(torso.quaternion).add(torso.position);
-   solveArm(side,twist);
+   solveArm(side,twist,stand);
    segment(l.upperArm,shoulder,elbow,.051*size);segment(l.forearm,elbow,wrist,.043*size);
   }
   root.position.set(0,seatLift-.2*fallBlend,-.8*fallBlend);root.rotation.set(-.95*fallBlend,0,.12*fallBlend);
