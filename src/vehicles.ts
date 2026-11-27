@@ -29,7 +29,6 @@ export interface VehicleSpec {
   accelerationScale?: { realistic: number; arcade: number };
   torqueCurve: TorquePoint[];
   gearMinSpeedKmh: number[];
-  wheelieMaxSpeedKmh: number[];
   centerOfMassHeight: number;
   centerOfMassRearDistance: number;
   riderMass: number;
@@ -77,7 +76,6 @@ export const vehicles: VehicleSpec[] = [
       { rpm: 8500, torqueNm: 20 },
     ],
     gearMinSpeedKmh: [0, 18, 30, 43, 55, 65],
-    wheelieMaxSpeedKmh: [50, 70, 85, 0, 0, 0],
     centerOfMassHeight: 0.73,
     centerOfMassRearDistance: 0.71,
     riderMass: 75,
@@ -119,7 +117,6 @@ export const vehicles: VehicleSpec[] = [
       { rpm: 9500, torqueNm: 12.2 },
     ],
     gearMinSpeedKmh: [0, 18, 35, 50, 70],
-    wheelieMaxSpeedKmh: [48, 70, 80, 0, 0],
     centerOfMassHeight: 0.66,
     centerOfMassRearDistance: 0.68,
     riderMass: 75,
@@ -161,7 +158,6 @@ export const vehicles: VehicleSpec[] = [
       { rpm: 8500, torqueNm: 11.52 },
     ],
     gearMinSpeedKmh: [0, 18, 32, 50],
-    wheelieMaxSpeedKmh: [42, 62, 70, 0],
     centerOfMassHeight: 0.62,
     centerOfMassRearDistance: 0.64,
     riderMass: 75,
@@ -200,7 +196,6 @@ export const vehicles: VehicleSpec[] = [
       { rpm: 8500, torqueNm: 8.6 },
     ],
     gearMinSpeedKmh: [0, 15, 25, 38],
-    wheelieMaxSpeedKmh: [34, 50, 0, 0],
     centerOfMassHeight: 0.59,
     centerOfMassRearDistance: 0.63,
     riderMass: 75,
@@ -239,7 +234,6 @@ export const vehicles: VehicleSpec[] = [
       { rpm: 9000, torqueNm: 6.4 },
     ],
     gearMinSpeedKmh: [0, 17, 28, 40],
-    wheelieMaxSpeedKmh: [38, 56, 64, 0],
     centerOfMassHeight: 0.61,
     centerOfMassRearDistance: 0.65,
     riderMass: 75,
@@ -279,7 +273,6 @@ export const vehicles: VehicleSpec[] = [
       { rpm: 6500, torqueNm: 5.65 },
     ],
     gearMinSpeedKmh: [0],
-    wheelieMaxSpeedKmh: [35],
     centerOfMassHeight: 0.48,
     centerOfMassRearDistance: 0.54,
     riderMass: 75,
@@ -293,7 +286,7 @@ export const vehicles: VehicleSpec[] = [
 
 // Initial game calibration; existing sound banks are temporary.
 vehicles.push(
- {...vehicles.find(v=>v.id==='cg150')!,id:'twister',name:'Honda CB 300F Twister',note:'300 cc · 6 marchas',maxSpeed:145/3.6,mass:153,power:1.5,wheelbase:1.39,gears:6,gearRatios:[2.8,1.8,1.35,1.1,.95,.85],finalDrive:7.4,idleRpm:1450,peakPowerRpm:7500,redlineRpm:9000,torqueCurve:[{rpm:1400,torqueNm:12},{rpm:4000,torqueNm:22},{rpm:6500,torqueNm:26},{rpm:7500,torqueNm:24},{rpm:9000,torqueNm:18}],gearMinSpeedKmh:[0,12,20,30,40,50],wheelieMaxSpeedKmh:[40,55,70,80,90,100],audio:'twister',pitch:.93},
+ {...vehicles.find(v=>v.id==='cg150')!,id:'twister',name:'Honda CB 300F Twister',note:'300 cc · 6 marchas',maxSpeed:145/3.6,mass:153,power:1.5,wheelbase:1.39,gears:6,gearRatios:[2.8,1.8,1.35,1.1,.95,.85],finalDrive:7.4,idleRpm:1450,peakPowerRpm:7500,redlineRpm:9000,torqueCurve:[{rpm:1400,torqueNm:12},{rpm:4000,torqueNm:22},{rpm:6500,torqueNm:26},{rpm:7500,torqueNm:24},{rpm:9000,torqueNm:18}],gearMinSpeedKmh:[0,12,20,30,40,50],audio:'twister',pitch:.93},
  {...vehicles.find(v=>v.id==='sahara')!,id:'r1200gs',name:'BMW R 1200 GS',note:'Boxer 1200 · 6 marchas',maxSpeed:200/3.6,mass:244,power:3.6,wheelbase:1.515,gears:6,gearRatios:[2.38,1.7,1.3,1.06,.94,.85],finalDrive:5.6,idleRpm:1200,peakPowerRpm:7750,redlineRpm:8500,torqueCurve:[{rpm:1200,torqueNm:45},{rpm:3000,torqueNm:85},{rpm:6500,torqueNm:115},{rpm:7750,torqueNm:107},{rpm:8500,torqueNm:85}],audio:'r1200gs',pitch:.8,stability:1.3,wheelieAssist:.45,centerOfMassHeight:.65,centerOfMassRearDistance:.78}
 );
 export const getVehicle = (id: string) =>

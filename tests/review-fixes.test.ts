@@ -82,9 +82,22 @@ test('effects volume updates the shared gain even for already scheduled sounds',
  s.ctx={currentTime:2};s.effectsOutput={gain:{setTargetAtTime:(value:number)=>{target=value}}};
  s.effects=.2;assert.equal(target,.2);s.effects=0;assert.equal(target,0);assert.equal(s.volume,.5);
 });
-test('clutch kick cannot engage while pushing, braking, stalled or in a high gear',()=>{
- for(const mode of ['push','brake','stall','gear']){const e=new Powertrain(),spec=getVehicle('cg150');e.gear=mode==='gear'?5:1;e.stalled=mode==='stall';e.clutch=1;
+test('clutch kick cannot engage while pushing, braking, stalled or in neutral',()=>{
+ for(const mode of ['push','brake','stall','gear']){const e=new Powertrain(),spec=getVehicle('cg150');e.gear=mode==='gear'?0:1;e.stalled=mode==='stall';e.clutch=1;
   for(let i=0;i<90;i++)e.updateClutchKick(1/60,spec,3,1,mode==='brake'?1:0,-1,true,mode==='push');
   assert.equal(e.clutchKickGain,1,mode);assert.equal(e.clutch,1,mode);
+ }
+});
+
+test('each forward gear can deliver one clutch impulse on every motorcycle',()=>{
+ for(const spec of vehicles)for(let gear=1;gear<=spec.gears;gear++){
+  const e=new Powertrain();e.gear=gear;const speed=e.speedAtRpm(spec.peakPowerRpm*.75,spec,gear);
+  let peak=1;
+  for(let tick=0;tick<60;tick++){
+   e.update(1/60,speed,spec,spec.maxSpeed,1,0,false,false,true);
+   e.updateClutchKick(1/60,spec,speed,1,0,-1,true);
+   peak=Math.max(peak,e.clutchKickGain);
+  }
+  assert.ok(peak>1.5,spec.id+' gear '+gear);
  }
 });

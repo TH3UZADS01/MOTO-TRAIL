@@ -108,7 +108,7 @@ export class Powertrain {
       brake < 0.05 &&
       throttle > 0.45 &&
       speed >= t.minWheelieSpeed &&
-      speed * 3.6 <= (spec.wheelieMaxSpeedKmh[this.gear - 1] ?? 0);
+      this.gear >= 1 && this.gear <= spec.gears;
     if (!allowed || this.gear !== this.kickGear) this.kickTime = 0;
     if (
       held &&
@@ -323,10 +323,8 @@ export class Powertrain {
     brake: number,
     bodyLean: number,
   ) {
-    const maxKmh = spec.wheelieMaxSpeedKmh[this.gear - 1] ?? 0;
     if (
-      maxKmh <= 0 ||
-      speed * 3.6 > maxKmh ||
+      this.gear < 1 || this.gear > spec.gears || brake >= 0.05 ||
       speed < BODY_TUNING.minWheelieSpeed ||
       throttle < 0.45 ||
       this.limiting ||
