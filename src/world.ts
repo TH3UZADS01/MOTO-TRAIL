@@ -1,3 +1,5 @@
+import {horizonRoads} from './horizon-roads';
+import {horizons} from './map-layout';
 import {scars} from './pavement';
 import {makePlaceLights} from './place-lights';
 import {makeSea} from './coast';
@@ -13,7 +15,7 @@ export type {Obstacle} from './obstacle';
 export const obstacles:Obstacle[]=[];
 const fixed:Obstacle[]=[];
 export function makeWorld(scene:T.Scene){
- obstacles.length=0;fixed.length=0;const sea=makeSea(scene);
+ obstacles.length=0;fixed.length=0;const sea=makeSea(scene);const existing=new Set(scene.children);
  const materials=new Map<number,T.MeshStandardMaterial>();
  const material=(color:number)=>{if(!materials.has(color))materials.set(color,new T.MeshStandardMaterial({color,roughness:.9}));return materials.get(color)!};
  const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:number)=>{const m=new T.Mesh(new T.BoxGeometry(w,h,d),material(color));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m};
@@ -28,7 +30,9 @@ export function makeWorld(scene:T.Scene){
  }
  function sign(text:string,x:number,z:number,angle:number){const c=document.createElement('canvas');c.width=768;c.height=192;const ctx=c.getContext('2d')!;ctx.fillStyle='#304d40';ctx.fillRect(0,0,768,192);ctx.strokeStyle='#e5d8b4';ctx.lineWidth=8;ctx.strokeRect(8,8,752,176);ctx.fillStyle='#fff1cc';ctx.font='bold 40px sans-serif';ctx.textAlign='center';ctx.fillText(text,384,113,735);const texture=new T.CanvasTexture(c);texture.colorSpace=T.SRGBColorSpace;const mat=new T.MeshBasicMaterial({map:texture});const y=height(x,z);for(const side of [-1,1]){const m=new T.Mesh(new T.PlaneGeometry(5,1.25),mat);m.rotation.y=angle+(side<0?Math.PI:0);m.position.set(x+Math.sin(angle)*.04*side,y+2.5,z+Math.cos(angle)*.04*side);scene.add(m)}box(x,y+1.2,z,.18,2.4,.18,0x655744);block(x,z,.25)}
  // Paved and dirt routes share the exact geometry used by physics.
- for(const route of routes){for(let i=0;i<route.points.length-1;i+=100){const section=route.points.slice(i,Math.min(i+101,route.points.length)),mesh=ribbon(section,route.width,route.surface==='terra'?0xb48a58:0x555d59,route.surface==='terra'?.065:.075);scene.add(mesh);
+ const buildRoads=horizonRoads();
+ const streamedIds=new Set([...horizons.roads,horizons.bypass].map(t=>t.id));
+ for(const route of routes.filter(t=>!streamedIds.has(t.id))){for(let i=0;i<route.points.length-1;i+=100){const section=route.points.slice(i,Math.min(i+101,route.points.length)),mesh=ribbon(section,route.width,route.surface==='terra'?0xb48a58:0x555d59,route.surface==='terra'?.065:.075);scene.add(mesh);
    if(route.surface==='terra'){const p=mesh.geometry.attributes.position,colors:number[]=[];for(let j=0;j<p.count;j++){const shade=.91+.06*Math.sin(p.getX(j)*.8+p.getZ(j)*.3)+.03*Math.cos(p.getZ(j)*1.7);const kind=trailMaterial(p.getX(j),p.getZ(j));const tint=kind==='lama'?[.43,.41,.38]:kind==='areia'?[1.32,1.27,1.10]:kind==='cascalho'?[.85,.94,1.08]:[1,1,1];colors.push(shade*tint[0],shade*tint[1],shade*tint[2])}mesh.geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));(mesh.material as T.MeshStandardMaterial).vertexColors=true;
     for(const side of [-1,1]){const tread=section.map((p,j)=>{const a=section[Math.max(0,j-1)],b=section[Math.min(section.length-1,j+1)],dx=b.x-a.x,dz=b.z-a.z,l=Math.hypot(dx,dz);return new T.Vector3(p.x+dz/l*side*1.1,0,p.z-dx/l*side*1.1)});scene.add(ribbon(tread,.35,0xa47d51,.08))}
    }
@@ -168,19 +172,150 @@ export function makeWorld(scene:T.Scene){
     const fall=new T.Mesh(new T.PlaneGeometry(4.5,7),new T.MeshStandardMaterial({color:0x96cfc7,roughness:.25,transparent:true,opacity:.85,side:T.DoubleSide}));fall.position.set(x,y+4,z+3.4);scene.add(fall);box(x,y+.6,z+3.5,4.8,.2,.8,0xd6e7d9);scene.add(terrainPatch(x,z+10,7,0x7caaa0))}}
  }
  for(const route of routes.filter(t=>t.id!=='main')){for(const p of [route.points[8],route.points.at(-9)!]){const n=nearestRoute(p.x,p.z),a=n.track.points[n.index],b=n.track.points[n.index+1],angle=Math.atan2(b.x-a.x,b.z-a.z),x=p.x+Math.cos(angle)*9,z=p.z-Math.sin(angle)*9;if(!nearRoute(x,z,6))sign(route.name+(route.surface==='terra'?' · terra':' · asfalto'),x,z,angle)}}
+ // Two separated, tapered access lanes let riders pull off the Poente in either direction.
+ const posto=stations.find(p=>p.name==='Posto Trevo do Poente')!,axis=nearestRoute(posto.x,posto.z),pt=axis.track.points;
+ for(const dir of [-1,1]){
+  const a=pt[axis.index+dir*19],b=pt[axis.index+dir*19+1],w=b.distanceTo(a);
+  const start=a.clone().add(new T.Vector3((b.z-a.z)/w*6.9,0,-(b.x-a.x)/w*6.9)),end=new T.Vector3(posto.x,0,posto.z);
+  const path=new T.CatmullRomCurve3([start,pt[axis.index+dir*12].clone().lerp(end,.24),pt[axis.index+dir*6].clone().lerp(end,.60),end]);
+  scene.add(ribbon(path.getPoints(40),5.5,0x555d59,.145));
+ }
+ // Farmsteads have a porch, tiled gable, shelter and either crops or a water tower.
+ const grainGeo=new T.ConeGeometry(.42,1.55,4);
+ const parcel=horizons.roads[2];
+ for(let i=36;i<parcel.points.length-2;i+=101+(i%49)){
+  const p=parcel.points[i],q=parcel.points[i+1],heading=Math.atan2(q.x-p.x,q.z-p.z),side=i%2?1:-1;
+  const x=p.x+Math.cos(heading)*side*(31+i%17),z=p.z-Math.sin(heading)*side*(31+i%17);
+  if(nearRoute(x,z,17)||pois.some(v=>Math.hypot(x-v.x,z-v.z)<90)||Math.abs(x-horizons.creek.x)<80)continue;
+  const y=height(x,z),w=7+i%4;
+  box(x,y+1.6,z,w,3.4,7,i%3?0xe3d5ad:0xc4d1ba);wall(x,z,w,7);
+  for(const slope of [-1,1])box(x,y+3.9,z+slope*1.92,w+.9,.24,4.5,0xaf6140).rotation.x=slope*.35;
+  box(x,y+1,z+3.54,1.25,2.1,.12,0x48676a);box(x+2,y+1.6,z+3.57,1.2,.9,.1,0x768f89);
+  box(x,y+2.8,z+4.7,w,.16,2.6,0xb8784d);
+  for(const dx of [-1,1])box(x+dx*(w/2-.3),y+1.35,z+5.8,.16,2.7,.16,0x705139);
+  const tx=x+15,tz=z+9,base=height(tx,tz);
+  if(!nearRoute(tx,tz,10)){
+   if(i%3){for(const dx of [-1,1])for(const dz of [-1,1])box(tx+dx,base+2,tz+dz,.23,4,.23,0x765b43);
+    box(tx,base+4.8,tz,3.4,1.8,3.4,0x9aaab0);wall(tx,tz,2.4,2.4)}
+   else{box(tx,base+3,tz,12,.38,7,0xa5674c);for(const dx of [-5,5])for(const dz of [-3,3]){box(tx+dx,base+1.5,tz+dz,.3,3,.3,0x725338);block(tx+dx,tz+dz,.2)}}
+  }
+  const crop=new T.InstancedMesh(grainGeo,material(0xb7a350),72),plant=new T.Object3D();let count=0;
+  for(let row=0;row<6;row++)for(let j=0;j<12;j++){const xx=x-10-row*1.35,zz=z-7+j*1.45;if(nearRoute(xx,zz,9))continue;plant.position.set(xx,height(xx,zz)+.64,zz);plant.rotation.y=row+j;plant.updateMatrix();crop.setMatrixAt(count++,plant.matrix)}
+  crop.count=count;crop.computeBoundingSphere();scene.add(crop);
+ }
+ for(const place of viewpoints.slice(3)){
+  const x=place.x,z=place.z+4,y=height(x,z);
+  for(const dx of [-2.8,2.8])for(const dz of [-2,2]){box(x+dx,y+1.45,z+dz,.22,2.9,.22,0x725340);block(x+dx,z+dz,.17)}
+  for(const side of [-1,1])box(x,y+3.3,z+side*1.22,7.2,.23,2.9,0xb47854).rotation.x=side*.36;
+ }
+ const sitio=specials.find(p=>p.name==='Sítio do Milharal')!,sy=height(sitio.x,sitio.z);
+ box(sitio.x,sy+1.7,sitio.z,10,3.5,7,0xeadab8);wall(sitio.x,sitio.z,10,7);
+ for(const side of [-1,1]){
+  box(sitio.x,sy+4.2,sitio.z+side*1.9,11,.25,4.4,0xad603b).rotation.x=side*.39;
+  box(sitio.x+side*2.9,sy+1.8,sitio.z+3.55,1.2,1.25,.1,0x4d7379);
+ }
+ box(sitio.x,sy+1.1,sitio.z+3.56,1.2,2.2,.14,0x63503e);
+ const lane=horizons.roads[3],square=Math.floor((lane.points.length-1)*.32);
+ for(let i=-3;i<=3;i++){
+  const index=square+i*5,p=lane.points[index],q=lane.points[index+1],yaw=Math.atan2(q.x-p.x,q.z-p.z),side=i%2?1:-1;
+  const x=p.x+Math.cos(yaw)*side*(18+Math.abs(i)),z=p.z-Math.sin(yaw)*side*(18+Math.abs(i)),y=height(x,z);
+  if(fixed.some(o=>Math.hypot(x-o.x,z-o.z)<o.r+6))continue;
+  const angle=yaw-side*Math.PI/2;
+  const piece=(dx:number,dy:number,dz:number,w:number,h:number,d:number,color:number)=>{
+   const m=box(x+Math.cos(angle)*dx+Math.sin(angle)*dz,y+dy,z-Math.sin(angle)*dx+Math.cos(angle)*dz,w,h,d,color);m.rotation.y=angle;return m};
+  piece(0,1.65,0,8,3.4,6.5,[0xdfc49d,0xb5cfc5,0xe4d8bb][(i+3)%3]);wall(x,z,8,6.5,angle);
+  for(const sign of [-1,1]){const roof=piece(0,3.8,sign*1.8,9,.22,4,0xb26643);roof.rotateX(sign*.33);
+   piece(sign*2.4,1.75,3.29,1.2,1,.12,0x567879)}
+  piece(0,1.05,3.33,1.1,2.1,.14,0x68513e);
+ }
+ const chapel=villages[villages.length-1],cx=chapel.x-13,cz=chapel.z+56,cy=height(cx,cz);
+ box(cx,cy+2.7,cz,8,5.4,13,0xe9ddbe);wall(cx,cz,8,13);
+ for(const side of [-1,1])box(cx+side*2.1,cy+6,cz,4.8,.32,14,0xaf6849).rotation.z=-side*.32;
+ box(cx,cy+4,cz-6.5,3.3,8,2.7,0xeadbc1);box(cx,cy+7,cz-7.9,1,1.35,.14,0x5e5243);
+ box(cx,cy+8.9,cz-6.5,.18,1.9,.18,0x685247);box(cx,cy+9.2,cz-6.5,1.1,.16,.16,0x685247);
+ // Cull permanent landmarks by cell, retaining their logical service records.
+ const landmarks=new Map<string,T.Group>();
+ for(const object of [...scene.children]){
+  if(existing.has(object))continue;
+  const bounds=new T.Box3().setFromObject(object),mid=bounds.getCenter(new T.Vector3());
+  if(bounds.isEmpty()||bounds.max.x-bounds.min.x>1400||bounds.max.z-bounds.min.z>1400)continue;
+  const key=Math.round(mid.x/512)+','+Math.round(mid.z/512);
+  let group=landmarks.get(key);if(!group){group=new T.Group();landmarks.set(key,group);group.userData.center=mid;scene.add(group)}group.add(object);
+ }
+ // A coarse ring samples the physical plateau beyond the detailed terrain tiles.
+ // Each concentric square shares an edge with its neighbour. The inner one
+ // includes all 8 m vertices on the boundary of the 7 x 7 detailed tiles.
+ const radii=[896,1024,1536,2304,3328,4608,6144],rimSteps=224;
+ const distant=new T.BufferGeometry(),coords:number[]=[],faces:number[]=[];
+ for(const [row,r] of radii.entries()){
+  for(let edge=0;edge<4;edge++)for(let i=0;i<rimSteps;i++){
+   const u=r*(2*i/rimSteps-1);
+   coords.push(edge===0?u:edge===1?r:edge===2?-u:-r,0,edge===0?-r:edge===1?u:edge===2?r:-u);
+   if(row){const a=(row-1)*4*rimSteps+edge*rimSteps+i,b=(row-1)*4*rimSteps+(edge*rimSteps+i+1)%(4*rimSteps);
+    faces.push(a,b,a+4*rimSteps,b,b+4*rimSteps,a+4*rimSteps)}
+  }
+ }
+ distant.setAttribute('position',new T.Float32BufferAttribute(coords,3));distant.setIndex(faces);
+ const ridgeMat=new T.MeshStandardMaterial({color:0x889a77,roughness:1,side:T.DoubleSide,flatShading:true});
+ const ridgeMesh=new T.Mesh(distant,ridgeMat);scene.add(ridgeMesh);
  // Local chunks: terrain, groves and rocks have bounded cost even on a 20 km trip.
- const chunks=new Map<string,{group:T.Group;details:T.Group;hits:Obstacle[];cx:number;cz:number}>();const dummy=new T.Object3D();
+ const chunks=new Map<string,ReturnType<typeof chunk>>();const dummy=new T.Object3D();
 
- function chunk(gx:number,gz:number){const group=new T.Group(),hits:Obstacle[]=[],cx=gx*256,cz=gz*256;group.add(terrain(cx,cz));let seed=((gx*73856093)^(gz*19349663)^73129)>>>0;const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};const samples=[];
+ function chunk(gx:number,gz:number){const group=new T.Group(),hits:Obstacle[]=[],cx=gx*256,cz=gz*256;const land=terrain(cx,cz);group.add(land);buildRoads(gx,gz,group,hits);let seed=((gx*73856093)^(gz*19349663)^73129)>>>0;const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};const samples=[];
   const rocks=new T.InstancedMesh(rock,material(0x929788),15);let rc=0;
-  for(let i=0;i<150;i++){const x=cx+(rand()-.5)*256,z=cz+(rand()-.5)*256;if(nearRoute(x,z,15)||deepWater(x,z)||(z>=riverStart&&z<=riverEnd&&Math.abs(x-riverX(z))<48)||pois.some(p=>Math.hypot(x-p.x,z-p.z)<(p.kind==='village'?85:45))||lakes.some(p=>Math.hypot(x-p.x,z-p.z)<p.r+20))continue;const y=height(x,z),s=.7+rand()*1.1;
+  for(let i=0;i<150;i++){const x=cx+(rand()-.5)*256,z=cz+(rand()-.5)*256;if(x<-1700&&Math.abs(height(x+4,z)-height(x-4,z))>3.5)continue;if(nearRoute(x,z,15)||deepWater(x,z)||(z>=riverStart&&z<=riverEnd&&Math.abs(x-riverX(z))<48)||pois.some(p=>Math.hypot(x-p.x,z-p.z)<(p.kind==='village'?85:45))||lakes.some(p=>Math.hypot(x-p.x,z-p.z)<p.r+20))continue;const y=height(x,z),s=.7+rand()*1.1;
    if(i<135)samples.push({x,y,z,s,r:rand(),rotation:rand()*Math.PI*2,tint:rand()});
    else{dummy.position.set(x,y+.5*s,z);dummy.scale.set(s*1.5,s,s);dummy.rotation.set(0,rand()*6,0);dummy.updateMatrix();rocks.setMatrixAt(rc++,dummy.matrix);hits.push(rockObstacle(dummy))}
   }
-  const plants=vegetation(samples);group.add(plants.group);hits.push(...plants.hits);rocks.count=rc;rocks.castShadow=true;rocks.computeBoundingSphere();group.add(rocks);enableShadows(group);scene.add(group);return {group,details:plants.details,hits,cx,cz};
+  const plants=vegetation(samples);group.add(plants.group);hits.push(...plants.hits);rocks.count=rc;rocks.castShadow=true;rocks.computeBoundingSphere();group.add(rocks);enableShadows(group);scene.add(group);return {group,land,fullIndex:land.geometry.index!,canSimplify:!nearRoute(cx,cz,195)&&!pois.some(p=>Math.hypot(p.x-cx,p.z-cz)<245),details:plants.details,hits,cx,cz};
  }
  enableShadows(scene);
+ // Simplify the interior of distant tiles; retain every perimeter vertex
+ // so the adjacent high-resolution lattice has exactly the same seam.
+ const coarse:number[]=[],idx=(x:number,z:number)=>z*33+x;
+ for(let z=0;z<32;z+=2)for(let x=0;x<32;x+=2){
+  const a=idx(x,z),b=idx(x+2,z),c=idx(x+2,z+2),d=idx(x,z+2);
+  if(x>0&&x<30&&z>0&&z<30){coarse.push(a,d,b,d,c,b);continue}
+  const rim=[a];if(x===0)rim.push(idx(x,z+1));rim.push(d);if(z===30)rim.push(idx(x+1,z+2));rim.push(c);
+  if(x===30)rim.push(idx(x+2,z+1));rim.push(b);if(z===0)rim.push(idx(x+1,z));
+  for(let i=0;i<rim.length;i++)coarse.push(idx(x+1,z+1),rim[i],rim[(i+1)%rim.length]);
+ }
+ const coarseIndex=new T.Uint16BufferAttribute(coarse,1);
+ let physicsCell='';
  let cell='';const birds=new T.Group();for(let i=0;i<12;i++){const bird=new T.Mesh(new T.ConeGeometry(.5,2,3),material(0x55645c));bird.rotation.z=Math.PI/2;birds.add(bird)}scene.add(birds);
  const updatePlaceLights=makePlaceLights(scene,fixed);
- return {dealers,shops,depots,pumps,washBays,updatePlaceLights,update(x:number,z:number,time:number){sea.update(time);if(lakeWater.map)lakeWater.map.offset.x=(time*.000018)%1;const gx=Math.round(x/256),gz=Math.round(z/256),key=gx+','+gz;if(key!==cell){cell=key;const wanted=new Set<string>();for(let a=gx-3;a<=gx+3;a++)for(let b=gz-3;b<=gz+3;b++){const k=a+','+b;wanted.add(k);if(!chunks.has(k))chunks.set(k,chunk(a,b))}for(const [k,c] of chunks)if(!wanted.has(k)){scene.remove(c.group);c.group.traverse(o=>{if(o instanceof T.InstancedMesh)o.dispose();else if(o instanceof T.Mesh){o.geometry.dispose();(o.material as T.Material).dispose()}});chunks.delete(k)}obstacles.length=0;obstacles.push(...fixed);for(const c of chunks.values())obstacles.push(...c.hits)}for(const c of chunks.values())c.details.visible=Math.hypot(c.cx-x,c.cz-z)<BIOME_TUNING.detailDistance;birds.position.set(x,height(x,z)+55,z);birds.children.forEach((b,i)=>b.position.set(Math.sin(time*.00012+i*.2)*100,Math.sin(time*.002+i)*2,Math.cos(time*.00012+i*.2)*100));}};
+ const fixedCells=new Map<string,Obstacle[]>();
+ for(const obstacle of fixed){
+  const key=Math.round(obstacle.x/256)+','+Math.round(obstacle.z/256);
+  if(!fixedCells.has(key))fixedCells.set(key,[]);fixedCells.get(key)!.push(obstacle);
+ }
+ return {get chunkCount(){return chunks.size},dealers,shops,depots,pumps,washBays,updatePlaceLights,update(x:number,z:number,time:number,speed=0,heading=0){sea.update(time);if(lakeWater.map)lakeWater.map.offset.x=(time*.000018)%1;const gx=Math.round((x+Math.sin(heading)*Math.min(95,speed*2))/256),gz=Math.round((z+Math.cos(heading)*Math.min(95,speed*2))/256),key=gx+','+gz;if(key!==cell){cell=key;
+  for(const g of landmarks.values())g.visible=Math.hypot(g.userData.center.x-x,g.userData.center.z-z)<1800;
+  ridgeMesh.visible=x<-1800;
+  if(ridgeMesh.visible){const px=gx*256,pz=gz*256;ridgeMesh.position.set(px,0,pz);const v=distant.attributes.position;
+   for(let row=0;row<radii.length;row++){
+    const stride=row===0?1:row===1?4:14,length=rimSteps*4,base=row*length;
+    for(let i=0;i<length;i+=stride){const j=base+i;v.setY(j,height(px+v.getX(j),pz+v.getZ(j)))}
+    for(let i=0;i<length;i+=stride)for(let j=1;j<stride;j++)v.setY(base+i+j,T.MathUtils.lerp(v.getY(base+i),v.getY(base+(i+stride)%length),j/stride));
+   }
+   v.needsUpdate=true;distant.computeVertexNormals();distant.computeBoundingSphere()}
+  const wanted=new Set<string>();for(let a=gx-3;a<=gx+3;a++)for(let b=gz-3;b<=gz+3;b++){const k=a+','+b;wanted.add(k);if(!chunks.has(k))chunks.set(k,chunk(a,b))}for(const [k,c] of chunks)if(!wanted.has(k)){scene.remove(c.group);c.group.traverse(o=>{if(o instanceof T.InstancedMesh)o.dispose();else if(o instanceof T.Mesh){o.geometry.dispose();if(!o.userData.sharedMaterial)(o.material as T.Material).dispose()}});chunks.delete(k)}physicsCell=''}
+  // Build the leading fringe one tile at a time before the next cell crossing.
+  if(speed>2){
+   const nextX=Math.round((x+Math.sin(heading)*Math.min(290,speed*8))/256);
+   const nextZ=Math.round((z+Math.cos(heading)*Math.min(290,speed*8))/256);
+   if((nextX!==gx||nextZ!==gz)&&chunks.size<59){
+    ahead:for(let i=nextX-3;i<=nextX+3;i++)for(let j=nextZ-3;j<=nextZ+3;j++){
+     const k=i+','+j;if(!chunks.has(k)){chunks.set(k,chunk(i,j));break ahead}
+    }
+   }
+  }
+  const ox=Math.round(x/256),oz=Math.round(z/256),physicsKey=ox+','+oz;
+  if(physicsCell!==physicsKey){physicsCell=physicsKey;obstacles.length=0;
+   for(let i=ox-1;i<=ox+1;i++)for(let j=oz-1;j<=oz+1;j++){const key=i+','+j;obstacles.push(...(fixedCells.get(key)??[]),...(chunks.get(key)?.hits??[]))}
+  }
+  for(const c of chunks.values()){const d=Math.hypot(c.cx-x,c.cz-z);c.details.visible=d<BIOME_TUNING.detailDistance+(c.details.visible?24:-24);
+   if(c.canSimplify)c.land.geometry.setIndex(d>(c.land.geometry.index===coarseIndex?380:450)?coarseIndex:c.fullIndex);
+  }
+  birds.position.set(x,height(x,z)+55,z);birds.children.forEach((b,i)=>b.position.set(Math.sin(time*.00012+i*.2)*100,Math.sin(time*.002+i)*2,Math.cos(time*.00012+i*.2)*100));}};
 }

@@ -1,0 +1,82 @@
+{
+  "original": {
+    "initMs": 696.1942999999997,
+    "firstMs": 514.0992999999999,
+    "rootObjects": 182,
+    "activeColliders": 447
+  },
+  "results": [
+    {
+      "id": "rodovia-poente",
+      "length": 30113.766873430297,
+      "maxGrade": 0.1330873169584593,
+      "wet": 0,
+      "cliffs": 0,
+      "obstructed": 0,
+      "firstObstructions": [],
+      "peakChunks": 59,
+      "maxColliders": 464,
+      "medianUpdateMs": 0.010299999999915599,
+      "p99UpdateMs": 12.849500000000262,
+      "peakUpdateMs": 43.77639999999883
+    },
+    {
+      "id": "serra-cobre",
+      "length": 30345.154301752525,
+      "maxGrade": 0.09539395344124493,
+      "wet": 0,
+      "cliffs": 0,
+      "obstructed": 0,
+      "firstObstructions": [],
+      "peakChunks": 59,
+      "maxColliders": 933,
+      "medianUpdateMs": 0.015800000001036096,
+      "p99UpdateMs": 51.84469999999419,
+      "peakUpdateMs": 443.3202999999994
+    },
+    {
+      "id": "vale-milho",
+      "length": 18829.77487758478,
+      "maxGrade": 0.09025895356242303,
+      "wet": 0,
+      "cliffs": 0,
+      "obstructed": 0,
+      "firstObstructions": [],
+      "peakChunks": 59,
+      "maxColliders": 939,
+      "medianUpdateMs": 0.012299999994866084,
+      "p99UpdateMs": 186.83830000000307,
+      "peakUpdateMs": 1325.5137000000032
+    },
+    {
+      "id": "estrada-capela",
+      "length": 20783.66483384473,
+      "maxGrade": 0.07982727434004437,
+      "wet": 0,
+      "cliffs": 0,
+      "obstructed": 0,
+      "firstObstructions": [],
+      "peakChunks": 59,
+      "maxColliders": 882,
+      "medianUpdateMs": 0.015599999998812564,
+      "p99UpdateMs": 138.33239999999932,
+      "peakUpdateMs": 818.8252000000066
+    },
+    {
+      "id": "atalho-pasto",
+      "length": 13758.908416789107,
+      "maxGrade": 0.03583628512016148,
+      "wet": 0,
+      "cliffs": 0,
+      "obstructed": 0,
+      "firstObstructions": [],
+      "peakChunks": 59,
+      "maxColliders": 901,
+      "medianUpdateMs": 0.012600000001839362,
+      "p99UpdateMs": 120.97030000000086,
+      "peakUpdateMs": 572.2392000000109
+    }
+  ],
+  "returnColliders": 447,
+  "heapMiB": 90.12178039550781
+}

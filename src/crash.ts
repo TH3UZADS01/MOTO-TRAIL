@@ -8,7 +8,7 @@ const v=new T.Vector3(),normal=new T.Vector3(),q=new T.Quaternion();
 export class CrashBody {
  position=new T.Vector3();velocity=new T.Vector3();orientation=new T.Quaternion();angular=new T.Vector3();
  grounded=false;sleeping=false;quiet=0;
- constructor(public half=new T.Vector3(.38,.65,1),public center=new T.Vector3(0,.65,0)){}
+ constructor(public half=new T.Vector3(.38,.65,1),public center=new T.Vector3(0,.65,0),private readonly body:'bike'|'rider'='bike'){}
  clearance(floor=ground){
   let gap=Infinity;
   for(const x of [-1,0,1])for(const z of [-1,0,1])for(const y of [-1,1]){
@@ -43,8 +43,17 @@ export class CrashBody {
     normal.set((floor(x-e,z)-floor(x+e,z))/(2*e),1,(floor(x,z-e)-floor(x,z+e))/(2*e)).normalize();
     const impact=this.velocity.dot(normal);
     if(impact<0)this.velocity.addScaledVector(normal,-impact*(impact<-2?1.08:1));
-    const speed=this.velocity.length(),loss=friction(x,z)*9.81*h;
-    this.velocity.multiplyScalar(Math.max(0,1-loss/Math.max(speed,.001)));
+    const mu=friction(x,z);
+    if(this.body==='rider'){
+     // Scrubbing and tumbling resist motion along the ground, including downhill.
+     const tangent=v.copy(this.velocity).addScaledVector(normal,-this.velocity.dot(normal));
+     const speed=tangent.length();
+     const deceleration=mu*(2.6*CRASH_TUNING.gravity+1.8*speed);
+     if(speed>0)this.velocity.addScaledVector(tangent,-Math.min(1,deceleration*h/speed));
+    }else{
+     const speed=this.velocity.length(),loss=mu*CRASH_TUNING.gravity*h;
+     this.velocity.multiplyScalar(Math.max(0,1-loss/Math.max(speed,.001)));
+    }
     this.angular.multiplyScalar(Math.exp(-(Math.abs(new T.Vector3(0,1,0).applyQuaternion(this.orientation).y)>.45?1.3:3.8)*h));
     if(this.velocity.length()<CRASH_TUNING.sleepSpeed&&this.angular.length()<.12)this.quiet+=h;else this.quiet=0;
     if(this.quiet>.5){this.sleeping=true;this.velocity.set(0,0,0);this.angular.set(0,0,0);break}
@@ -61,7 +70,7 @@ export class CrashState {
   this.bike.velocity.copy(velocity);this.bike.angular.copy(angular);
  }
  detach(position:T.Vector3,orientation:T.Quaternion,center:T.Vector3,half:T.Vector3){
-  const b=this.rider=new CrashBody(half,center);b.orientation.copy(orientation);b.position.copy(center).applyQuaternion(orientation).add(position);
+  const b=this.rider=new CrashBody(half,center,'rider');b.orientation.copy(orientation);b.position.copy(center).applyQuaternion(orientation).add(position);
   b.velocity.copy(this.incoming).add(v.copy(this.angular).cross(b.position.clone().sub(this.bike.position)));
   b.angular.copy(this.angular).multiplyScalar(.65);if(this.kind==='collision')b.angular.add(new T.Vector3(2,0,.8).applyQuaternion(orientation));
   return b;

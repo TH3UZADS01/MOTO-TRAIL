@@ -1,3 +1,4 @@
+import {makeHorizons} from './horizons';
 import * as T from 'three';
 export type Track={id:string;name:string;surface:'asfalto'|'terra';width:number;points:T.Vector3[]};
 export type Place={name:string;x:number;z:number;kind:'village'|'station'|'lookout'|'farm'|'camp'|'waterfall'};
@@ -24,6 +25,8 @@ export const tracks:Track[]=[{id:'main',name:'Estrada do Horizonte',surface:'asf
  path('falls','Trilha da Cachoeira','terra',[at(east,.63),point(3520,-1630),point(3660,-1690),point(3590,-1860),falls]),
  path('ridge','Trilha da Serra','terra',[anchor(18),point(3600,-2600),point(3400,-2350),point(3650,-2200),point(3450,-2000),at(east,.47)],5.4)
 ];
+export const horizons=makeHorizons(outer[0]);
+tracks.push(...horizons.roads,horizons.bypass);
 export const mainPlan=tracks[0].points;
 function beside(points:T.Vector3[],fraction:number,offset:number,name:string,kind:Place['kind']):Place{const index=Math.min(points.length-2,Math.floor(fraction*(points.length-1))),p=points[index],q=points[index+1],l=p.distanceTo(q);return {name,kind,x:p.x+(q.z-p.z)/l*offset,z:p.z-(q.x-p.x)/l*offset}}
 const fractionAt=(i:number)=>{const p=anchor(i);return outer.indexOf(outer.reduce((a,b)=>a.distanceToSquared(p)<b.distanceToSquared(p)?a:b))/(outer.length-1)};
@@ -31,6 +34,11 @@ export const villages:Place[]=[beside(outer,0,80,'Vila do Ipê','village'),besid
 export const stations:Place[]=[.003,.20,.41,.62,.82].map((f,i)=>beside(outer,f,24,['Posto do Ipê','Posto Aurora','Posto da Serra','Posto Boa Vista','Posto do Sol'][i],'station'));
 export const viewpoints:Place[]=[beside(outer,fractionAt(20),35,'Mirante da Serra Azul','lookout'),beside(outer,fractionAt(33),35,'Mirante do Lago','lookout'),{name:'Praia da Brisa',kind:'lookout',x:6210,z:-180}];
 export const specials:Place[]=[{name:'Fazenda Boa Vista',kind:'farm',x:farm.x,z:farm.z},{name:'Camping do Lago',kind:'camp',x:camp.x,z:camp.z},{name:'Cachoeira',kind:'waterfall',x:falls.x,z:falls.z}];
+const [highway,serra,rural,capela]=horizons.roads;
+stations.push(beside(highway.points,.18,35,'Posto Trevo do Poente','station'),beside(serra.points,.84,32,'Posto Alto do Cobre','station'),beside(capela.points,.2,32,'Posto das Palmeiras','station'));
+viewpoints.push(beside(highway.points,.76,28,'Mirante do Poente','lookout'),beside(serra.points,.44,27,'Mirante dos Cotovelos','lookout'));
+villages.push(beside(capela.points,.32,70,'São Bento da Capela','village'));
+specials.push(beside(rural.points,.35,45,'Sítio do Milharal','farm'),beside(rural.points,.75,-50,'Fazenda das Pedras','farm'));
 export const places=[...villages,...stations,...viewpoints,...specials];
 export const lake={...point(1820,1100),r:650*MAP_SCALE};
 export const riverStart=-4200*MAP_SCALE,riverEnd=1100*MAP_SCALE;

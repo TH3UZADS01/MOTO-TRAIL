@@ -1,4 +1,4 @@
-import {deepWater,ground,SIZE} from './terrain';
+import {cliffAt,deepWater,ground,SIZE} from './terrain';
 import {blocked, type Obstacle} from './obstacle';
 import type {Ride} from './riding';
 
@@ -13,7 +13,7 @@ export class OnFoot {
  private clock=0;private velocity=0;private vertical=0;private anchor={x:0,z:0};
  get riding(){return this.mode==='RIDING'}
  private clear(x:number,z:number,r:number,obs:readonly Obstacle[]){
-  return Math.max(Math.abs(x),Math.abs(z))<SIZE/2-30&&!deepWater(x,z)&&!obs.some(o=>blocked(o,x,z,r));
+  return Math.max(Math.abs(x),Math.abs(z))<SIZE/2-30&&!cliffAt(x,z)&&!deepWater(x,z)&&!obs.some(o=>blocked(o,x,z,r));
  }
  private beside(b:Ride,side=this.side,heading=b.heading,x=b.x,z=b.z,pushing=false){
   const lateral=pushing?.47:.72,forward=pushing?-.06:b.spec.wheelbase*.09;

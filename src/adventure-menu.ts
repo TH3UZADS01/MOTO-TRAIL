@@ -1,5 +1,5 @@
 import {parts,partPrice,originalPrep,type Part} from './adventure-tuning';
-import {buyUsed,installPart,startTrip,pauseTrip,trips} from './adventures';
+import {buyUsed,installPart,startTrip,pauseTrip,tripById,trips} from './adventures';
 import {cancelJob,carriedKg,cash,equipment,weightLimit,target,type Career,type openCareer} from './career';
 import {getVehicle,type VehicleId} from './vehicles';
 
@@ -11,7 +11,8 @@ export function adventureMenu(tab:string,store:ReturnType<typeof openCareer>,id:
    const jobId=s.job.id;line('p',s.job.name+' → '+target(s.job).name);
    button('Cancelar entrega',()=>act(state=>cancelJob(state,jobId),'Entrega cancelada'));
   }
-  for(const t of trips){
+  for(const option of trips){
+   const t=tripById(option.id,s.expedition)!;
    line('h3',t.name);line('p',t.description+' '+t.difficulty+' · '+t.km.toFixed(1)+' km entre pontos · '+cash(t.pay));
    line('p',t.stops.map(p=>p.name).join(' → '));
    const e=s.expedition;

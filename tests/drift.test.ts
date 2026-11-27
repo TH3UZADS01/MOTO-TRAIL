@@ -8,6 +8,19 @@ import {Controller} from '../src/input';
 import {surfaces,type ContactSurface} from '../src/traction';
 import {getVehicle} from '../src/vehicles';
 
+test('rear lock tightens the turn progressively at lower speeds in either direction',()=>{
+ for(const mode of ['arcade','simcade'] as const)for(const direction of [-1,1]){
+  function curvature(speed:number,held:boolean){
+   const r=new Ride();r.setHandlingMode(mode);r.speed=speed;r.steer=.6*direction;
+   const heading=r.heading,x=r.x,z=r.z;
+   r.step(1/120,0,0,r.steer,[],false,0,true,true,false,0,held);
+   return direction*(r.heading-heading)/Math.hypot(r.x-x,r.z-z);
+  }
+  const gains=[19,10,4].map(speed=>curvature(speed,true)/curvature(speed,false));
+  assert.ok(gains[0]>1&&gains[1]>gains[0]&&gains[2]>gains[1]);
+ }
+});
+
 test('locked rear steps out in a turn and recovers smoothly on release at different frame rates',()=>{
  for(const surface of Object.keys(surfaces) as ContactSurface[]){
   const peaks=[];
@@ -28,7 +41,8 @@ test('held rear brake slows the bike under power and releases on the next physic
   const r=new Ride();r.setHandlingMode(mode);r.speed=10;r.gear=2;r.contact=()=>{r.pitch=0};
   const step=(held:boolean,turn=0)=>r.step(1/60,1,0,turn,[],false,0,true,true,false,0,held);
   const initial=r.speed;
-  for(let i=0;i<45;i++)step(true,.45);
+  // Release during the moving skid, before the stronger rear lock stops the bike.
+  for(let i=0;i<15;i++)step(true,.45);
   assert.ok(r.drift.active&&r.brakeInput===1&&r.speed<initial&&r.drift.slip>.01);
   const slowed=r.speed;
   for(let i=0;i<30;i++){step(false);assert.ok(!r.drift.active&&r.brakeInput===0)}

@@ -1,0 +1,32 @@
+[
+  {
+    "kmh": 20,
+    "frameMs": 612.1374999996275,
+    "fps": 1.6336198974913456,
+    "calls": 158,
+    "triangles": 242135,
+    "geometries": 105,
+    "chunks": 49,
+    "colliders": 853
+  },
+  {
+    "kmh": 100,
+    "frameMs": 610.0291666664183,
+    "fps": 1.639265882096469,
+    "calls": 191,
+    "triangles": 267589,
+    "geometries": 127,
+    "chunks": 56,
+    "colliders": 902
+  },
+  {
+    "kmh": 150,
+    "frameMs": 574.9166666665424,
+    "fps": 1.7393825192060581,
+    "calls": 185,
+    "triangles": 238885,
+    "geometries": 140,
+    "chunks": 49,
+    "colliders": 905
+  }
+]

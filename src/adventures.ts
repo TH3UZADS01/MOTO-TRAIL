@@ -46,16 +46,17 @@ function trip(id:string,name:string,description:string,difficulty:string,factor:
  const km=stops.slice(1).reduce((sum,p,i)=>sum+distance(stops[i],p)/1000,0);
  return {id,name,description,difficulty,stops,km,pay:payment(Math.round((km*adventure.trips.perKm+stops.length*adventure.trips.perStop)*factor))};
 }
+const legacyCrossing=trip('travessia','Travessia do Horizonte','Atravesse o vale entre a serra, o lago e o litoral.','Longa · mista',1.3,[villages[0],viewpoints[0],specials[0],villages[2],specials[2],specials[1],villages[3],viewpoints[2]]);
 export const trips=[
  trip('vila','Passeio da vila','Visite o posto e suba ao mirante.','Fácil',1,[villages[0],stations[0],viewpoints[0]]),
  trip('interior','Caminhos do interior','Cruze a vila, a fazenda e o camping.','Mista',1.15,[villages[1],specials[0],villages[2],specials[1],stations[4]]),
- trip('travessia','Travessia do Horizonte','Atravesse o vale entre a serra, o lago e o litoral.','Longa · mista',1.3,[villages[0],viewpoints[0],specials[0],villages[2],specials[2],specials[1],villages[3],viewpoints[2]])
+ trip('travessia','Travessia do Horizonte','Saia da Vila do Ipê, atravesse a Serra do Cobre e volte pelo Vale do Milho.','Longa · mista',1.3,[villages[0],stations[5],viewpoints[3],viewpoints[4],stations[6],specials[3],villages[4],villages[0]])
 ];
-export type TripProgress={id:string;next:number;paused:boolean};
-export const tripById=(id:string)=>trips.find(t=>t.id===id);
+export type TripProgress={id:string;next:number;paused:boolean;expanded?:boolean};
+export const tripById=(id:string,progress?:TripProgress)=>id===legacyCrossing.id&&progress?.id===id&&!progress.expanded?legacyCrossing:trips.find(t=>t.id===id);
 export function startTrip(s:Career,id:string){
  if(s.job||s.expedition||!tripById(id)||s.completedTrips?.includes(id))throw Error('Expedição indisponível');
- s.expedition={id,next:0,paused:false};
+ s.expedition={id,next:0,paused:false,expanded:true};
 }
 export function pauseTrip(s:Career,id:string,paused:boolean){
  if(s.expedition?.id!==id||!paused&&s.job)throw Error('Conclua o objetivo atual');
@@ -64,10 +65,10 @@ export function pauseTrip(s:Career,id:string,paused:boolean){
 export function destination(s:Career){
  if(s.job)return target(s.job);
  const e=s.expedition;
- return e&&!e.paused?tripById(e.id)?.stops[e.next]:undefined;
+ return e&&!e.paused?tripById(e.id,e)?.stops[e.next]:undefined;
 }
 export function visitStop(s:Career,id:string,index:number,p:Site){
- const e=s.expedition,t=tripById(id);
+ const e=s.expedition,t=tripById(id,e);
  if(!e||!t||e.id!==id||e.paused||s.job||index!==e.next||!t.stops[index]||distance(t.stops[index],p)>adventure.trips.radius)return '';
  if(++e.next<t.stops.length)return 'Etapa concluída · siga para '+t.stops[e.next].name;
  delete s.expedition;

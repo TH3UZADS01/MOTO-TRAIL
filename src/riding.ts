@@ -14,7 +14,7 @@ import {Drift} from './drift';
 import {BODY_TUNING,bodyDragMultiplier,clamp,counterweightBlend} from './body-control';
 import {Fuel} from './fuel';
 import {getVehicle,type VehicleSpec} from './vehicles';
-import {ground,nearestRoute,contactSurface,surface,SIZE,deepWater} from './terrain';
+import {ground,nearestRoute,contactSurface,surface,SIZE,cliffAt,deepWater} from './terrain';
 import type {Obstacle} from './world';
 const flatTyreKmh={twister:48,r1200gs:50,caloi:30,urban:35,cub:38,pop:42,cg150:46,sahara:50};
 const CRASH_SPEED=35/3.6; // Closing speed perpendicular to the obstacle, in m/s.
@@ -194,6 +194,15 @@ export class Ride {
           const rolling=(frontLoad*this.frontContact.rollingResistance+rearLoad*this.rearContact.rollingResistance)/weight;
           accelerationApplied-=rolling*(.65+.055*this.speed)*Math.min(1,this.speed);
         }
+        if(locked&&accelerationApplied<0){
+          // Apply the skid gain after tyre grip is resolved. When both brakes
+          // are held, boost only the share attributed to the rear lock.
+          const serviceBrake=8*effectiveBrake*grip*(this.spec.braking??1);
+          const lockShare=lockBrake/Math.max(.001,lockBrake+serviceBrake);
+          // Simcade progressively unloads the rear as braking transfers weight forward.
+          const skidGain=simcade?6.5:3.2;
+          accelerationApplied*=1+skidGain*lockShare;
+        }
         const nextSpeed=this.speed+accelerationApplied*dt;
         const tyreCeiling=damage>0?Math.max(tyreLimit,this.speed-2*dt):Infinity;
         this.speed=Math.max(0,Math.min(tyreCeiling,Math.max(this.speed,speedLimit),nextSpeed));
@@ -208,7 +217,10 @@ export class Ride {
     const postureGain=this.posture.stand*ergonomics[this.spec.id].assist;
     const uprightSteering=type==='asfalto'?1-postureGain*clamp(this.speed/24,0,1):1+postureGain*Math.abs(this.frontContact.lateralSlip);
     const contactSteering=simcade?uprightSteering*(1-.55*Math.abs(this.frontContact.lateralSlip)):1;
-    const yaw=contactSteering*this.speed*Math.tan(steeringAngle(this.speed,this.steer,this.wheelie)+disturbance)/this.spec.wheelbase*grip*steeringGrip;
+    // A locked rear lets the front wheel pull the bike around a tighter arc.
+    // The gain rises as the bike slows; translation still determines all turning.
+    const skidSteering=locked?1+1.65/(1+(this.speed/9)**2):1;
+    const yaw=skidSteering*contactSteering*this.speed*Math.tan(steeringAngle(this.speed,this.steer,this.wheelie)+disturbance)/this.spec.wheelbase*grip*steeringGrip;
     const previousHeading=this.heading;
     this.heading+=(burnout?1.9*this.steer*throttle:yaw)*dt;
     const slideTarget=simcade&&!burnout&&!push?this.rearContact.lateralSlip*touringAssist.maxSlide:0;
@@ -255,7 +267,7 @@ export class Ride {
       }
     };
     obstacles.forEach(checkObstacle);this.eventObstacles.forEach(checkObstacle);
-    const hit=hitObject||deepWater(x,z)||Math.abs(x)>SIZE/2-30||Math.abs(z)>SIZE/2-30;
+    const hit=hitObject||cliffAt(x,z)||deepWater(x,z)||Math.abs(x)>SIZE/2-30||Math.abs(z)>SIZE/2-30;
     if(hit){
       if(burnout)this.heading=previousHeading;
       this.impact=Math.max(this.impact,Math.abs(this.speed));

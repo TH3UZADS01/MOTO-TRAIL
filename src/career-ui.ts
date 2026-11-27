@@ -111,7 +111,7 @@ export function careerUI(store:ReturnType<typeof openCareer>,npc:Roadside,shops:
   const exp=s.expedition,checkpoint=!j&&exp&&!exp.paused?destination(s):undefined;
   if(exp&&checkpoint){
    const d=distance(p,checkpoint);
-   mission.textContent='Etapa '+(exp.next+1)+'/'+tripById(exp.id)!.stops.length+' · '+checkpoint.name+' · '+Math.round(d)+' m';
+   mission.textContent='Etapa '+(exp.next+1)+'/'+tripById(exp.id,exp)!.stops.length+' · '+checkpoint.name+' · '+Math.round(d)+' m';
    if(active&&!busy&&d<=adventure.trips.radius){
     busy=true;let msg='';
     void store.change(state=>{msg=visitStop(state,exp.id,exp.next,position())}).then(()=>{if(msg)notify(msg)}).catch(()=>notify('Falha ao salvar etapa')).finally(()=>{busy=false});

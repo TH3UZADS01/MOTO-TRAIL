@@ -1,6 +1,6 @@
 import type {RoadNotice} from './road-events';
 import type {VehicleId} from './vehicles';
-export const WORLD='vale-horizonte-v9';
+export const WORLD='vale-horizonte-v10';
 export type WalkerPose={x:number;y:number;z:number;heading:number;blend:number;side:number;phase:number;stride:number;hold:number};
 export type CrashPose={bike:{p:number[];q:number[]};rider:{p:number[];q:number[]}};
 export interface RiderState {crash?:CrashPose;pose?:import("./rider-posture").RiderPose;walker?:WalkerPose;frontCompression?:number;rearCompression?:number;hornHeld?:boolean;cargo?:boolean;dirt?:number;fullFace?:boolean;vehicleId:VehicleId;color?:string;bodyLean?:number;wheelie?:number;fallen?:boolean;braking?:boolean;drifting?:boolean;burnoutSpeed?:number;petUnlocked?:boolean;revMatchSequence?:number;gear?:number;rpm?:number;x:number;y:number;z:number;heading:number;speed:number;pitch:number;lean:number;steer:number;sequence:number}

@@ -1,0 +1,80 @@
+MOTO TRAIL — EXPANSÃO DO VALE DO HORIZONTE
+
+Percurso
+O entroncamento da Vila do Ipê dá acesso a uma volta de 100,07 km.
+A medição soma distâncias tridimensionais entre amostras consecutivas
+do eixo da pista, com espaçamento horizontal de aproximadamente 6 m.
+
+Rodovia do Poente       30,11 km    asfalto
+Serra do Cobre          30,35 km    asfalto
+Vale do Milho           18,83 km    terra
+Estrada da Capela       20,78 km    asfalto
+
+O Caminho dos Currais acrescenta um atalho de 13,76 km. O circuito
+original de 20,10 km continua acessível. O minimapa alterna entre a
+vizinhança da moto e o território completo.
+
+Comparação com as referências visuais
+1. Posto de rodovia. A pista larga tem acostamento, acesso próprio e
+   posto com cobertura. A escala visual do posto é menor na captura.
+2. Trevo. O Caminho dos Currais cria uma decisão de rota em nível.
+   O viaduto da referência continua ausente.
+3. Panorama ao entardecer. O mirante acompanha a descida. A posição
+   do sol muda com o relógio. O horizonte tem menos camadas de relevo.
+4. Paredão. A encosta avermelhada acompanha a pista com defensa.
+   A superfície rochosa tem menos variação de cor e de textura.
+5. Cotovelos. A estrada muda de direção ao longo da encosta e permite
+   parar no mirante. As curvas são mais abertas na perspectiva do piloto.
+6. Vale. O lado aberto da pista revela o desnível. A profundidade
+   visual e o recorte das montanhas são menores que na referência.
+7. Milharal. Estrada de terra com marcas de pneus, roças, casas com
+   varanda e cercas. As plantações e construções são mais espaçadas.
+8. Capela. São Bento reúne casas com telhados de barro e uma igreja.
+   A ocupação é menor que a do povoado de referência.
+9. Travessia. Uma ponte baixa leva a estrada de terra sobre o córrego.
+   A água e as margens têm geometria e materiais mais simples.
+
+Renderização e colisões
+O terreno usa blocos de 256 m, níveis de detalhe com bordas compatíveis,
+pré-carregamento na direção do movimento e descarte de geometria.
+Trechos da estrada e marcações compartilham malhas. Elementos repetidos
+usam instâncias. O horizonte usa uma malha mais espaçada. A busca por
+colisores acompanha a moto em uma janela de nove blocos.
+
+Verificação
+map-tests.log registra os testes de rota, mundo, litoral e derrapagem.
+compat-tests.log registra os testes de mundo, pilotagem, exploração e
+expedições. Há testes de mundo nos dois grupos. A suíte online verifica
+seis cenários do servidor. percurso.json traz as inclinações máximas,
+obstruções e tempos de atualização por estrada, além da memória ao fim
+do trajeto. Uma única leitura de memória não comprova estabilidade
+em sessões prolongadas. O carregamento de blocos ainda produz picos.
+
+render.json registra quadros parados em nove cenas. movimento.json mede
+um deslocamento roteirizado a 20, 100 e 150 km/h na serra. Ambos usam
+Chrome headless, SwiftShader, 960 × 600 e o servidor local. Cada ponto
+em movimento mede 24 quadros. Os valores incluem o custo de renderizar
+por software e não permitem estimar FPS em uma GPU física.
+
+Na Serra do Cobre, foram medidos 1,63 FPS a 20 km/h, 1,64 FPS a
+100 km/h e 1,74 FPS a 150 km/h. Com essa configuração de software,
+a movimentação ficou abaixo da fluidez necessária para jogar.
+No ponto inicial do circuito original, os colisores ativos passaram
+de 3.261 para 447. Durante a varredura, o pico foi de 59 blocos e 939
+colisores ativos. O desembarque, a caminhada, a condução a pé e a
+remontagem passaram nas cinco estradas novas. A checagem confirmou
+também a próxima parada de uma Travessia salva no formato antigo.
+O build de produção passou. O Vite alertou para o arquivo JavaScript
+principal de 38,19 MB (13,54 MB gzip), que inclui os modelos de motos.
+
+Arquivos da implementação
+src/horizons.ts, src/horizon-roads.ts, src/map-layout.ts, src/terrain.ts,
+src/world.ts e src/biomes.ts — traçado, relevo, estradas e cenários.
+src/main.ts e src/interface.ts — mapa, câmera, inspeção e controles.
+src/adventure-menu.ts, src/adventures.ts e src/career-ui.ts — expedições
+e destinos. src/riding.ts e src/on-foot.ts — colisões com encostas.
+src/network.ts e server/app.mjs — limites do mapa e salas salvas.
+tests/map-network.test.ts, tests/online.test.mjs, tests/riding.test.ts
+e tests/world.test.ts — cobertura da expansão e compatibilidade.
+tools/check-horizons.ts e tools/inspect-horizons.mjs — validação do
+percurso e captura das cenas e métricas.

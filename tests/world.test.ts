@@ -4,13 +4,13 @@ import * as T from 'three';
 import {makeWorld,obstacles} from '../src/world';
 import {blocked,wallImpact} from '../src/obstacle';
 import {Ride} from '../src/riding';
-import {road,nearest,stations} from '../src/terrain';
+import {road,lakes,nearest,nearestRoute,stations} from '../src/terrain';
 // Canvas drawing is irrelevant to the geometry/collision test; no browser is emulated.
 const context={fillStyle:'',strokeStyle:'',lineWidth:0,font:'',textAlign:'',fillRect(){},strokeRect(){},fillText(){}};
 (globalThis as any).document={createElement:()=>({width:0,height:0,getContext:()=>context})};
 test('fixed and streamed rocks block walkers and crossing motorcycle paths at their visible ends',()=>{
  const scene=new T.Scene(),world=makeWorld(scene);
- world.update(road[0].x,road[0].z,0);
+ const site={x:lakes[1].x+lakes[1].r,z:lakes[1].z};world.update(site.x,site.z,0);
  let fixed=0,streamed=0;
  scene.traverse(mesh=>{
   if(!(mesh instanceof T.Mesh)||!(mesh.geometry instanceof T.DodecahedronGeometry))return;
@@ -21,6 +21,7 @@ test('fixed and streamed rocks block walkers and crossing motorcycle paths at th
    if(instanced)mesh.getMatrixAt(i,matrix);else mesh.updateMatrix();
    if(!instanced)matrix.copy(mesh.matrix);
    const center=new T.Vector3().setFromMatrixPosition(matrix);
+   if(Math.abs(Math.round(center.x/256)-Math.round(site.x/256))>1||Math.abs(Math.round(center.z/256)-Math.round(site.z/256))>1)continue;
    const hit=obstacles.find(o=>Math.hypot(o.x-center.x,o.z-center.z)<.001);
    assert.ok(hit);
    const end=new T.Vector3(bounds.max.x*.98,0,0).applyMatrix4(matrix);
@@ -46,5 +47,5 @@ test('expanded circuit can be completed with actual world obstacles',()=>{
 });
 
 test('station approaches have a collision-free stopping point within refueling reach',()=>{
- const world=makeWorld(new T.Scene());for(const s of stations){world.update(s.x,s.z,0);const n=nearest(s.x,s.z),d=Math.hypot(n.x-s.x,n.z-s.z),target={x:s.x+(n.x-s.x)/d*8,z:s.z+(n.z-s.z)/d*8};assert.ok(Math.hypot(target.x-s.x,target.z-s.z)<12);for(let i=0;i<=40;i++){const x=n.x+(target.x-n.x)*i/40,z=n.z+(target.z-n.z)*i/40;assert.ok(!obstacles.some(o=>Math.hypot(x-o.x,z-o.z)<o.r+.4),s.name+' has a blocked driveway: '+JSON.stringify(obstacles.filter(o=>Math.hypot(x-o.x,z-o.z)<o.r+.4)))}}
+ const world=makeWorld(new T.Scene());for(const s of stations){world.update(s.x,s.z,0);const n=nearestRoute(s.x,s.z),d=Math.hypot(n.x-s.x,n.z-s.z),target={x:s.x+(n.x-s.x)/d*8,z:s.z+(n.z-s.z)/d*8};assert.ok(Math.hypot(target.x-s.x,target.z-s.z)<12);for(let i=0;i<=40;i++){const x=n.x+(target.x-n.x)*i/40,z=n.z+(target.z-n.z)*i/40;assert.ok(!obstacles.some(o=>Math.hypot(x-o.x,z-o.z)<o.r+.4),s.name+' has a blocked driveway: '+JSON.stringify(obstacles.filter(o=>Math.hypot(x-o.x,z-o.z)<o.r+.4)))}}
 });

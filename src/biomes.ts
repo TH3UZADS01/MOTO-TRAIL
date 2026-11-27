@@ -7,7 +7,8 @@ export type BiomeWeights={forest:number;pasture:number;dry:number;urban:number;c
 export function biomeAt(x:number,z:number):BiomeWeights{
  const t=BIOME_TUNING,dry=(1-T.MathUtils.smoothstep(Math.hypot(x-t.dryCenterX,z-t.dryCenterZ),t.dryRadius*.45,t.dryRadius))*.95;
  const urban=1-T.MathUtils.smoothstep(Math.min(...villages.map(v=>Math.hypot(x-v.x,z-v.z))),85,240);
- const coast=coastalBlend(x,z),forest=T.MathUtils.smoothstep(-z,-t.forestNorth-t.transition,-t.forestNorth+t.transition);
+ const western=1-T.MathUtils.smoothstep(-x,1800,2700)*(.62+.18*Math.cos(x/510)*Math.sin(z/670));
+ const coast=coastalBlend(x,z),forest=western*T.MathUtils.smoothstep(-z,-t.forestNorth-t.transition,-t.forestNorth+t.transition);
  return {forest:(1-dry)*(1-urban)*forest*(1-coast),pasture:(1-dry)*(1-urban)*(1-forest)*(1-coast),dry:dry*(1-urban)*(1-coast),urban:urban*(1-coast),coast};
 }
 const tones={forest:new T.Color('#69824e'),pasture:new T.Color('#a3aa64'),dry:new T.Color('#bd9d6b'),urban:new T.Color('#9c9d7c'),coast:new T.Color('#dfcf9c')};

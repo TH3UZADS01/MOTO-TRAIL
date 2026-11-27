@@ -1,0 +1,83 @@
+[
+  {
+    "view": "postoPoente",
+    "frameMs": 528.1166666659216,
+    "calls": 153,
+    "triangles": 176980,
+    "geometries": 108,
+    "chunks": 49,
+    "colliders": 403
+  },
+  {
+    "view": "trevo",
+    "frameMs": 496.7083333333333,
+    "calls": 148,
+    "triangles": 194937,
+    "geometries": 84,
+    "chunks": 49,
+    "colliders": 435
+  },
+  {
+    "view": "panorama",
+    "frameMs": 770.3833333328366,
+    "calls": 164,
+    "triangles": 200360,
+    "geometries": 104,
+    "chunks": 49,
+    "colliders": 396
+  },
+  {
+    "view": "paredao",
+    "frameMs": 564.5666666664183,
+    "calls": 148,
+    "triangles": 210541,
+    "geometries": 79,
+    "chunks": 49,
+    "colliders": 718
+  },
+  {
+    "view": "cotovelos",
+    "frameMs": 577.8083333335817,
+    "calls": 158,
+    "triangles": 221518,
+    "geometries": 95,
+    "chunks": 49,
+    "colliders": 791
+  },
+  {
+    "view": "vale",
+    "frameMs": 521.3083333323399,
+    "calls": 141,
+    "triangles": 195471,
+    "geometries": 78,
+    "chunks": 49,
+    "colliders": 691
+  },
+  {
+    "view": "milharal",
+    "frameMs": 498.68333333233994,
+    "calls": 190,
+    "triangles": 221110,
+    "geometries": 119,
+    "chunks": 49,
+    "colliders": 754
+  },
+  {
+    "view": "capela",
+    "frameMs": 513.1083333343267,
+    "calls": 248,
+    "triangles": 218438,
+    "geometries": 174,
+    "chunks": 49,
+    "colliders": 766
+  },
+  {
+    "view": "travessia",
+    "frameMs": 458.5083333328366,
+    "calls": 167,
+    "triangles": 216829,
+    "geometries": 104,
+    "chunks": 49,
+    "colliders": 756
+  }
+]

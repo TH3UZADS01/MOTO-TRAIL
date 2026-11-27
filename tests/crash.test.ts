@@ -37,6 +37,15 @@ test('frontal and lateral obstacles resolve without tunnelling',()=>{
  c.bike.velocity.set(0,0,0);const p=c.detach(new T.Vector3(0,1,0),new T.Quaternion(),new T.Vector3(),new T.Vector3(.4,.8,.4));
  assert.equal(p.velocity.z,30);
 });
+test('detached rider sheds momentum quickly on contact across surfaces and frame rates',()=>{
+ for(const speed of [8,20])for(const mu of [.24,.48])for(const fps of [30,120]){
+  const crash=new CrashState('slide',new T.Vector3(),new T.Quaternion(),new T.Vector3(0,0,speed),new T.Vector3());
+  const rider=crash.detach(new T.Vector3(),new T.Quaternion(),crash.bike.center.clone(),crash.bike.half.clone());
+  for(const body of [rider,crash.bike])for(let i=0;i<fps*12;i++)body.step(1/fps,[],()=>0,()=>mu);
+  assert.ok(rider.sleeping&&rider.position.z>0);
+  assert.ok(rider.position.z<crash.bike.position.z*.45);
+ }
+});
 test('visual detach preserves world transform and recovery restores walking and riding',()=>{
  const r=new Ride(),b=createBike('pop'),scene=new T.Scene(),view=new CrashView(),foot=new OnFoot();scene.add(b.root);
  b.root.position.set(r.x,r.y,r.z);b.root.rotation.y=r.heading;scene.updateMatrixWorld(true);
