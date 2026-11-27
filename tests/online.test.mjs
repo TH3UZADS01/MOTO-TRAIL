@@ -48,8 +48,10 @@ test('braking state changes replicate, persist when omitted, and reach late join
   const {port}=await game.listen(0),a=await client(port),b=await client(port);sockets.push(a.ws,b.ws);
   a.send(hello('create','Ana'));const wa=await a.wait(m=>m.type==='welcome');
   b.send(hello('join','Bruno',{code:wa.code}));await b.wait(m=>m.type==='welcome');
-  a.send({type:'state',state:{...state(-300),braking:true,drifting:true,petUnlocked:true,revMatchSequence:2}});
-  await b.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===wa.id&&p.state.braking===true&&p.state.drifting===true&&p.state.petUnlocked===true&&p.state.revMatchSequence===2));
+  const pose={stand:.95,rise:.14,sideLean:-.08,brace:-.3,absorption:.02};
+  a.send({type:'state',state:{...state(-300),braking:true,drifting:true,petUnlocked:true,revMatchSequence:2,pose}});
+  const moving=await b.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===wa.id&&p.state.braking===true&&p.state.drifting===true&&p.state.petUnlocked===true&&p.state.revMatchSequence===2));
+  assert.deepEqual(moving.players.find(p=>p.id===wa.id).state.pose,pose);
   a.send({type:'state',state:state(-299,1)});
   const retained=await b.wait(m=>m.type==='snapshot'&&m.players.some(p=>p.id===wa.id&&p.state.sequence===1));
   assert.equal(retained.players.find(p=>p.id===wa.id).state.braking,true);

@@ -2,11 +2,12 @@ import * as T from 'three';
 
 export const TIRE_PARTICLE_CONFIG={capacity:96,minimumSpeed:.5,dirtParticlesPerMeter:.9,grassParticlesPerMeter:.55,maximumParticlesPerSecond:32} as const;
 const SMOKE_COLOR=new T.Color(0xe8e8e8);
+const SAND_COLOR=new T.Color(0xd4b780),MUD_COLOR=new T.Color(0x503924);
 const DIRT_COLOR=new T.Color(0x80502b),GRASS_COLOR=new T.Color(0x548542),CAPACITY=TIRE_PARTICLE_CONFIG.capacity;
 
 export function tireParticleEmissionRate(surface:string,speed:number){
  if(surface==='smoke')return Math.abs(speed)>.8?Math.min(32,Math.abs(speed)*4):0;
- if(surface!=='terra'&&surface!=='grama')return 0;
+ if(surface!=='terra'&&surface!=='grama'&&surface!=='areia'&&surface!=='cascalho'&&surface!=='lama')return 0;
  const magnitude=Math.abs(speed);
  if(magnitude<TIRE_PARTICLE_CONFIG.minimumSpeed)return 0;
  const density=surface==='terra'?TIRE_PARTICLE_CONFIG.dirtParticlesPerMeter:TIRE_PARTICLE_CONFIG.grassParticlesPerMeter;
@@ -127,13 +128,13 @@ void main(){
   this.positions[index*3]=this.wheelPosition.x-this.movement.x*trailing+lateralX*spread;
   this.positions[index*3+1]=this.wheelPosition.y-.18+this.random()*.16;
   this.positions[index*3+2]=this.wheelPosition.z-this.movement.z*trailing+lateralZ*spread;
-  p.duration=isSmoke?1.1+this.random()*.5:isLeaf?.65+this.random()*.45:.75+this.random()*.6;
+  p.duration=surface==='lama'?.3+this.random()*.18:isSmoke?1.1+this.random()*.5:isLeaf?.65+this.random()*.45:.75+this.random()*.6;
   p.life=p.duration;
   const lateralVelocity=(this.random()-.5)*.45;
   p.vx=-this.movement.x*(.45+this.random()*.7)+lateralX*lateralVelocity;
   p.vy=isLeaf?.45+this.random()*.55:.25+this.random()*.45;
   p.vz=-this.movement.z*(.45+this.random()*.7)+lateralZ*lateralVelocity;
-  this.color.copy(isSmoke?SMOKE_COLOR:isLeaf?GRASS_COLOR:DIRT_COLOR).multiplyScalar(.82+this.random()*.36);
+  this.color.copy(isSmoke?SMOKE_COLOR:isLeaf?GRASS_COLOR:surface==='areia'?SAND_COLOR:surface==='lama'?MUD_COLOR:DIRT_COLOR).multiplyScalar(.82+this.random()*.36);
   this.colors[index*4]=this.color.r;
   this.colors[index*4+1]=this.color.g;
   this.colors[index*4+2]=this.color.b;

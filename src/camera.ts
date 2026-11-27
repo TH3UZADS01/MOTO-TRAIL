@@ -26,7 +26,8 @@ export class FollowCamera {
  }
  toggle(){this.firstPerson=!this.firstPerson;this.initialized=false;this.orbit=0;this.pitch=0;this.camera.fov=this.firstPerson?this.firstFov:this.thirdFov;this.camera.updateProjectionMatrix()}
  update(r:Ride,dt:number,eyeHeight=1.48,body?:T.Object3D,eye?:T.Vector3){dt=Math.max(0,Math.min(dt,.1));this.time+=dt;const c=CAMERA_TUNING,a=r.heading+this.orbit,impact=r.takeImpact();if(impact>c.impactMinimum){this.shake=Math.min(1,impact/c.impactReference);this.shakeLeft=c.shakeDuration}
-  const braking=r.brakeInput*T.MathUtils.clamp(Math.abs(r.speed)/8,0,1);this.braking=T.MathUtils.lerp(this.braking,braking,1-Math.exp(-dt*c.brakeResponse));this.shakeLeft=Math.max(0,this.shakeLeft-dt);const envelope=this.shakeLeft/Math.max(.001,c.shakeDuration),shock=this.shake*envelope*envelope;
+  const brakingInput=r.handlingMode==='simcade'?T.MathUtils.clamp(-r.suspension.loadShift,0,1):r.brakeInput;
+  const braking=brakingInput*T.MathUtils.clamp(Math.abs(r.speed)/8,0,1);this.braking=T.MathUtils.lerp(this.braking,braking,1-Math.exp(-dt*c.brakeResponse));this.shakeLeft=Math.max(0,this.shakeLeft-dt);const envelope=this.shakeLeft/Math.max(.001,c.shakeDuration),shock=this.shake*envelope*envelope;
   if(this.firstPerson){const targetFov=T.MathUtils.lerp(this.firstFov,Math.min(105,this.firstFov+c.maxFov-c.baseFov),T.MathUtils.clamp(Math.abs(r.speed)/r.topSpeed,0,1))-c.brakeFov*this.braking;this.camera.fov=T.MathUtils.lerp(this.camera.fov,targetFov,1-Math.exp(-dt*c.fovResponse));this.camera.updateProjectionMatrix();
    if(body&&eye){body.updateWorldMatrix(true,false);this.target.copy(eye);this.target.z+=c.eyeOffsetZ;body.localToWorld(this.target)}else this.target.set(r.x,r.y+eyeHeight,r.z);
    const advance=this.braking*c.brakeAdvance-shock*c.recoil;this.target.x+=Math.sin(r.heading)*advance;this.target.z+=Math.cos(r.heading)*advance;this.target.y-=this.braking*.025;

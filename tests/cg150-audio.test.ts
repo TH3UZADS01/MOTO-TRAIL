@@ -4,6 +4,14 @@ import {readFileSync} from 'node:fs';
 import {Sound,AUDIO_ASSETS,CG_AUDIO_TUNING} from '../src/audio';
 function setup(){const sound=new Sound();sound.ctx={currentTime:1} as AudioContext;sound.ready=true;sound.vehicle='cg150';const parameter=()=>({value:0,response:0,setTargetAtTime(value:number,_time:number,response:number){this.value=value;this.response=response}});sound.layers=AUDIO_ASSETS.map(a=>({bank:a.bank,load:a.load,gain:{gain:parameter()},source:{playbackRate:parameter()},filter:{frequency:parameter()}})) as any;return sound}
 const gain=(s:Sound,load:boolean)=>s.layers.find(l=>l.bank==='cg150'&&l.load===load)!.gain.gain.value;
+test('higher overrun RPM and braking strength raise the pitch and gain of the existing coast loop',()=>{
+ const sound=setup(),layer=sound.layers.find(l=>l.bank==='cg150'&&!l.load)!;
+ sound.update(60/3.6,4,0,false,0,{rpm:3500,engineBrakeStrength:.2},-.6);
+ const pitch=layer.source.playbackRate.value,level=gain(sound,false);
+ sound.update(60/3.6,3,0,false,0,{rpm:5000,engineBrakeStrength:.5},-1.4);
+ assert.ok(layer.source.playbackRate.value>pitch&&gain(sound,false)>level);
+ assert.equal(gain(sound,true),0);
+});
 test('CG selects supplied acceleration and coast loops with smoothed transitions',()=>{
  const s=setup();s.update(20,4,1,false);assert.ok(gain(s,true)>0);assert.equal(gain(s,false),0);assert.ok(s.layers.filter(l=>l.bank==='engine'||l.bank==='moped').every(l=>l.gain.gain.value===0));
  s.update(20,4,0,false);assert.equal(gain(s,true),0);assert.ok(gain(s,false)>0);

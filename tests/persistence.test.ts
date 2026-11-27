@@ -8,7 +8,9 @@ test('transmission and automatic tuck preferences are saved and restored',()=>{
  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(key:string)=>values.get(key)??null,setItem:(key:string,value:string)=>values.set(key,value)}});
  try{
   const settings=load();assert.equal(settings.transmission,'automatic');assert.equal(settings.autoTuck,false);assert.equal(settings.autoBlip,true);
+  assert.equal(settings.handlingMode,'arcade');settings.handlingMode='simcade';
   settings.autoBlip=false;settings.transmission='manual';settings.autoTuck=true;save(settings);
+  assert.equal(load().handlingMode,'simcade');
   assert.equal(load().autoBlip,false);assert.equal(load().transmission,'manual');assert.equal(load().autoTuck,true);
   values.set('pe-na-estrada',JSON.stringify({...settings,transmission:'invalid'}));
   assert.equal(load().transmission,'automatic');

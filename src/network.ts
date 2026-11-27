@@ -2,7 +2,7 @@ import type {RoadNotice} from './road-events';
 import type {VehicleId} from './vehicles';
 export const WORLD='vale-horizonte-v9';
 export type WalkerPose={x:number;y:number;z:number;heading:number;blend:number;side:number;phase:number;stride:number;hold:number};
-export interface RiderState {walker?:WalkerPose;frontCompression?:number;rearCompression?:number;hornHeld?:boolean;cargo?:boolean;dirt?:number;fullFace?:boolean;vehicleId:VehicleId;color?:string;bodyLean?:number;wheelie?:number;fallen?:boolean;braking?:boolean;drifting?:boolean;burnoutSpeed?:number;petUnlocked?:boolean;revMatchSequence?:number;gear?:number;rpm?:number;x:number;y:number;z:number;heading:number;speed:number;pitch:number;lean:number;steer:number;sequence:number}
+export interface RiderState {pose?:import("./rider-posture").RiderPose;walker?:WalkerPose;frontCompression?:number;rearCompression?:number;hornHeld?:boolean;cargo?:boolean;dirt?:number;fullFace?:boolean;vehicleId:VehicleId;color?:string;bodyLean?:number;wheelie?:number;fallen?:boolean;braking?:boolean;drifting?:boolean;burnoutSpeed?:number;petUnlocked?:boolean;revMatchSequence?:number;gear?:number;rpm?:number;x:number;y:number;z:number;heading:number;speed:number;pitch:number;lean:number;steer:number;sequence:number}
 export interface RemotePlayer {id:string;name:string;connected:boolean;state:RiderState}
 interface Session {code:string;id:string;token:string;name:string;vehicleId:VehicleId}
 interface Events {roads?:(notices:RoadNotice[])=>void;horn:(id:string)=>void;status:(text:string)=>void;welcome:(state:RiderState,code:string,id:string)=>void;players:(players:RemotePlayer[])=>void;ended:()=>void}

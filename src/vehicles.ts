@@ -12,6 +12,7 @@ export interface VehicleSpec {
   maxSpeed: number;
   aerodynamicDrag: number;
   power: number;
+  engineBrake: {peakNm:number; exponent:number; response:number};
   wheelbase: number;
   eyeHeight: number;
   gears: number;
@@ -47,6 +48,7 @@ export const vehicles: VehicleSpec[] = [
   // Mass includes fuel and fluids.
   {
     id: "sahara",
+    engineBrake: {peakNm:9, exponent:1.15, response:5},
     name: "Honda Sahara 300 2026",
     note: "293,5 cc · trail moderna · 6 marchas",
     maxSpeed: 150 / 3.6,
@@ -89,6 +91,7 @@ export const vehicles: VehicleSpec[] = [
   },
   {
     id: "cg150",
+    engineBrake: {peakNm:6, exponent:1.1, response:7},
     name: "Honda CG Titan 150 2008",
     note: "150 cc · urbana · até 132 km/h",
     maxSpeed: 132 / 3.6,
@@ -129,6 +132,7 @@ export const vehicles: VehicleSpec[] = [
   },
   {
     id: "pop",
+    engineBrake: {peakNm:3.8, exponent:1.1, response:6},
     name: "Honda Pop 110i 2024",
     note: "Leve e ágil · até 115 km/h",
     maxSpeed: 115 / 3.6,
@@ -168,6 +172,7 @@ export const vehicles: VehicleSpec[] = [
   },
   {
     id: "cub",
+    engineBrake: {peakNm:3.5, exponent:1.2, response:5},
     name: "Honda Super Cub C125",
     note: "Clássica de escudo creme · até 82,8 km/h",
     maxSpeed: 82.8 / 3.6,
@@ -206,6 +211,7 @@ export const vehicles: VehicleSpec[] = [
   },
   {
     id: "urban",
+    engineBrake: {peakNm:2.5, exponent:1.2, response:6},
     name: "Shineray Phoenix 50",
     note: "50 cc · carburada · 4 marchas",
     maxSpeed: 92 / 3.6,
@@ -245,6 +251,7 @@ export const vehicles: VehicleSpec[] = [
   },
   {
     id: "caloi",
+    engineBrake: {peakNm:0.65, exponent:1.4, response:6},
     name: "Caloi XR 50 2T",
     note: "AV10 · dois tempos · transmissão automática",
     maxSpeed: 57.5 / 3.6,

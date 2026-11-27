@@ -61,6 +61,18 @@ export const routes=tracks.map(t=>({...t,points:t.id==='main'?road:t.points.map(
 export const roadLength=road.slice(1).reduce((sum,p,i)=>sum+p.distanceTo(road[i]),0);
 export const dirtLength=routes.filter(t=>t.surface==='terra').reduce((sum,t)=>sum+t.points.slice(1).reduce((d,p,i)=>d+p.distanceTo(t.points[i]),0),0);
 export function surface(x:number,z:number){const n=nearestRoute(x,z,12);return bridgeAt(x,z)||onCobbles(x,z)?'asfalto':n.distance<n.track.width/2?n.track.surface:pads.some(p=>Math.hypot(x-p.x,z-p.z)<p.r)?'terra':'grama'}
+// Stable bands on the existing dirt routes; shared by contact sampling and vertex colours.
+export function trailMaterial(x:number,z:number){
+ const band=Math.sin(x/54+z/83)+.55*Math.sin(z/34-x/128);
+ return band>1?'areia':band<-.98?'lama':band>.32?'cascalho':'terra';
+}
+export function contactSurface(x:number,z:number){
+ const n=nearestRoute(x,z,12);
+ if(bridgeAt(x,z)||onCobbles(x,z))return 'asfalto';
+ if(n.distance<n.track.width/2)return n.track.surface==='terra'?trailMaterial(x,z):'asfalto';
+ if(pads.some(p=>Math.hypot(x-p.x,z-p.z)<p.r))return 'terra';
+ return x>shoreline(z)-28?'areia':'grama';
+}
 export function ground(x:number,z:number){return roadBed(x,z)+.06}
 export function deepWater(x:number,z:number){if(x>shoreline(z)+8)return true;if(bridgeAt(x,z))return false;if(lakes.some(l=>Math.abs(x-l.x)<l.r+10&&Math.abs(z-l.z)<l.r+10&&height(x,z)<12))return true;return z>=riverStart&&z<=riverEnd&&Math.abs(x-riverX(z))<riverWidth/2+3&&height(x,z)<waterY(z)-.4}
 export function terrain(cx=0,cz=0,size=256){const g=new T.PlaneGeometry(size,size,size/STEP,size/STEP);g.rotateX(-Math.PI/2);g.translate(cx,0,cz);const p=g.attributes.position,colors=[];for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),h=height(x,z);p.setY(i,h);const c=biomeColor(x,z);if(lakes.some(l=>Math.abs(x-l.x)<l.r+35&&Math.abs(z-l.z)<l.r+35)&&h<17)c.setHex(0xc8b782);else if(h>145)c.lerp(new T.Color(0x898982),.53);colors.push(c.r,c.g,c.b)}g.setAttribute('color',new T.Float32BufferAttribute(colors,3));g.computeVertexNormals();worldUV(g,6);const mesh=new T.Mesh(g,surfaceMaterial('grass',0xffffff,true));mesh.receiveShadow=true;return mesh}

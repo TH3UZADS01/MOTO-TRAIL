@@ -12,6 +12,7 @@ import { getVehicle, type VehicleId } from "./vehicles";
 // Pop e Cub usam pop-idle.wav. O volume padrao de todos os WAVs idle e 0.85.
 // Arquivos opcionais: se ausentes, mantem-se o som anterior.
 export const GENERIC_IDLE_AUDIO_TUNING = {
+  response: 0.025,
   idleGain: 0.85,
   idlePlaybackRate: 1.0,
   idleFadeStart: 0.02,
@@ -25,7 +26,7 @@ export const CG_AUDIO_TUNING = {
   idleGain: 0.85,
   minRate: 0.65,
   maxRate: 1.1,
-  response: 0.16,
+  response: 0.025,
   filter: 7000,
   idlePlaybackRate: 1.0,
   idleFadeStart: 0.02,
@@ -44,7 +45,7 @@ export const SAHARA_AUDIO_TUNING = {
 
   maxRate: 1.5,
 
-  response: 0.16,
+  response: 0.025,
 
   filter: 15000,
   // Velocidade do arquivo WAV exclusivo de marcha lenta.
@@ -562,11 +563,15 @@ export class Sound {
         | "limiting"
         | "cutting"
         | "lugging"
+        | "engineBrakeStrength"
         | "revMatchTime"
         | "revMatchPeak"
         | "revMatchEnvelope"
       >
     >,
+    longitudinalAcceleration=0,
+    frontContact?:import('./traction').WheelContact,
+    rearContact?:import('./traction').WheelContact,
   ) {
     if (!this.ready || !this.ctx) return;
     const c = this.ctx,
@@ -614,6 +619,9 @@ export class Sound {
     const gas =
       Math.max(0, Math.min(1, throttle)) *
       (1 - Math.max(0, Math.min(1, brake)));
+    const decel=Math.min(1,Math.max(0,-longitudinalAcceleration)/4);
+    const looseSlip=rearContact&&rearContact.surface!=='asfalto'?Math.max(Math.abs(rearContact.slipRatio),Math.abs(frontContact?.lateralSlip??0)):0;
+    const coastGain=1+.04*looseSlip+(.14+.04*decel)*(engine?.engineBrakeStrength??0);
     const fadeStart = tuning.idleFadeStart;
     const fadeEnd = Math.max(fadeStart + 0.001, tuning.idleFadeEnd);
     const u = Math.max(
@@ -659,7 +667,7 @@ export class Sound {
             : (vehicleTuning.coastIdleGain +
                 (vehicleTuning.coastGain - vehicleTuning.coastIdleGain) *
                   moving) *
-              Math.sqrt(1 - gas)) *
+              Math.sqrt(1 - gas)*coastGain) *
           runningFactor;
         rate =
           vehicleTuning.minRate +
@@ -670,7 +678,7 @@ export class Sound {
         const load = Math.min(1, throttle * 0.8 + ratio * 0.2);
         gain =
           this.volume *
-          (layer.load ? 0.55 * load : 0.42 * (1 - load * 0.7)) *
+          (layer.load ? 0.55 * load : 0.42 * (1 - load * 0.7)*coastGain) *
           runningFactor;
         rate =
           spec.pitch * (layer.load ? 0.95 + rev * 0.50 : 0.85 + rev * 0.25);
@@ -698,11 +706,7 @@ export class Sound {
         brake < 0.05;
       if (layer.bank !== "wind" && !layer.idle && cutting)
         gain *= ENGINE_TUNING.cutGain;
-      const response = layer.idle
-        ? 0.16
-        : layer.bank === "cg150"
-          ? CG_AUDIO_TUNING.response
-          : 0.16;
+      const response = layer.bank === "wind" ? 0.16 : tuning.response;
       layer.gain.gain.setTargetAtTime(
         gain,
         t,
@@ -713,7 +717,7 @@ export class Sound {
       layer.source.playbackRate.setTargetAtTime(
         rate,
         t,
-        layer.idle ? 0.12 : 0.2,
+        layer.bank === "wind" ? 0.2 : 0.03,
       );
     }
   }

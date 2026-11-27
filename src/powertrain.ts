@@ -8,7 +8,7 @@ export const ENGINE_TUNING = {
   cutHz: 8, // Fallback para specs antigas sem cutFrequencyHz.
   cutDuty: 0.32,
   cutGain: 0.16,
-  rpmResponse: 12,
+  rpmResponse: 32, // Free or slipping engine reaches 90% of a throttle step in 72 ms.
   clutchSlipRpm: 700,
   revMatchDuration: 0.3,
   blipThrottle: 0.65,
@@ -50,6 +50,22 @@ export class Powertrain {
   limiting = false;
   cutting = false;
   clutch = 0;
+  engineBrakeTorque=0; // Resistive torque at the rear wheel, Nm (magnitude).
+  engineBrakeStrength=0; // Fraction of calibrated peak crank torque actually transmitted.
+  private coastCurve=0;
+  resetEngineBrake(){this.coastCurve=0;this.engineBrakeTorque=0;this.engineBrakeStrength=0}
+  updateEngineBrake(dt:number,spec:VehicleSpec,speed:number,throttle:number,enabled:boolean){
+    if(!enabled||this.gear===0||this.stalled||this.clutch<=0||speed<=0){
+      this.resetEngineBrake();return 0;
+    }
+    const wheelRpm=this.wheelRpmFromSpeed(speed,spec);
+    const rev=clamp((Math.min(this.rpm,wheelRpm)-spec.idleRpm)/(spec.redlineRpm-spec.idleRpm),0,1);
+    const curve=Math.pow(rev,spec.engineBrake.exponent);
+    this.coastCurve+=(curve-this.coastCurve)*(1-Math.exp(-dt*spec.engineBrake.response));
+    this.engineBrakeStrength=this.coastCurve*this.clutch*(1-smoothstep(throttle/.18));
+    this.engineBrakeTorque=spec.engineBrake.peakNm*this.engineBrakeStrength*this.getTotalRatio(spec);
+    return this.engineBrakeTorque/spec.wheelRadius;
+  }
   lugging = false;
   revMatchTime = 0;
   revMatchPeak = 0;
@@ -407,6 +423,33 @@ export class Powertrain {
     return true;
   }
   update(
+    dt: number,
+    speed: number,
+    spec: VehicleSpec,
+    topSpeed: number,
+    throttle: number,
+    brake: number,
+    push: boolean,
+    automatic = true,
+    realistic = false,
+    lever = 0,
+  ) {
+    const previousRpm=this.rpm;
+    if(lever<1)this.updateEngaged(dt,speed,spec,topSpeed,throttle,brake,push,automatic,realistic);
+    else{
+      this.shiftCooldown=Math.max(0,this.shiftCooldown-dt);
+      this.clutch=0;this.lugging=false;this.stalled=false;this.cancelBlip();
+    }
+    if(lever>0){
+      this.clutch*=1-lever;
+      const target=spec.idleRpm+clamp(throttle,0,1)*(spec.redlineRpm-spec.idleRpm);
+      const freeRpm=previousRpm+(target-previousRpm)*(1-Math.exp(-ENGINE_TUNING.rpmResponse*dt));
+      this.rpm+=(freeRpm-this.rpm)*lever;
+      this.ratio=clamp((this.rpm-spec.idleRpm)/(spec.redlineRpm-spec.idleRpm),0,1);
+      this.updateLimiter(dt,this.rpm,spec,throttle,brake,push);
+    }
+  }
+  private updateEngaged(
     dt: number,
     speed: number,
     spec: VehicleSpec,

@@ -59,7 +59,7 @@ export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,_jacket
  }
  const neckBase=new T.Vector3(),neckTop=new T.Vector3();
  const eye=new T.Vector3();let fallBlend=0,wheelieSide=0,leftSupport=1;
- function update(speed:number,steer:number,dt:number,firstPerson=false,bodyInput=0,throttle=0,fallen=false,wheelie=0,chassisLean=0,burnout=false){
+ function update(speed:number,steer:number,dt:number,firstPerson=false,bodyInput=0,throttle=0,fallen=false,wheelie=0,chassisLean=0,burnout=false,pose?:import('./rider-posture').RiderPose){
   leftSupport=T.MathUtils.lerp(leftSupport,burnout&&steer<0?0:1,1-Math.exp(-14*Math.max(0,dt)));
   const sideTarget=fallen?0:T.MathUtils.smoothstep(wheelie,.08,.65);
   wheelieSide=T.MathUtils.lerp(wheelieSide,sideTarget,1-Math.exp(-RIDER_TUNING.wheelieSideResponse*Math.max(0,dt)));
@@ -77,23 +77,28 @@ export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,_jacket
   // The torso inherits the chassis bank. Keep it outboard until the rider tips into the turn.
   const outward=steer*RIDER_TUNING.counterweightLean;
   const balanced=-chassisLean+.08*steer;
-  const target=T.MathUtils.lerp(inward,steer>=0?Math.max(outward,balanced):Math.min(outward,balanced),counterweight);
+  const seatedTarget=T.MathUtils.lerp(inward,steer>=0?Math.max(outward,balanced):Math.min(outward,balanced),counterweight);
+  const target=pose&&!fallen?T.MathUtils.lerp(seatedTarget,pose.sideLean,T.MathUtils.smoothstep(speed,25/3.6,30/3.6)):seatedTarget;
   lean=T.MathUtils.lerp(lean,target,1-Math.exp(-RIDER_TUNING.response*Math.max(0,dt)));
   hips.position.y=.86;hips.position.z=-.21-RIDER_TUNING.seatSetback-foreAft*.035;hips.position.x=-lean*RIDER_TUNING.hipShift+wheelieSide*.06;hips.rotation.z=lean*.4;torso.position.x=hips.position.x-lean*.35+wheelieSide*.20;torso.rotation.z=lean-wheelieSide*RIDER_TUNING.wheelieSideLean;torso.rotation.x=.20+foreAft*.5;torso.position.z=-.17-RIDER_TUNING.seatSetback+foreAft*.12;torso.position.y=.86+(.27-Math.max(0,foreAft)*.06)*size+Math.max(0,eyeHeight-1.48)*.15;
+  const stand=fallen?0:pose?.stand??0,rise=fallen?0:pose?.rise??0,brace=fallen?0:pose?.brace??0;
+  hips.position.y+=rise;hips.position.z+=stand*.18+Math.min(0,brace)*.045;
+  torso.position.y+=rise*.75;torso.position.z+=stand*.24+brace*.055;
+  torso.rotation.x+=stand*.25+brace*.11;
   // Attach head and neck to the oriented torso, including tuck, lean and wheelie poses.
   // The helmet remains upright in wheelies, but its attachment moves with the chest.
   neckBase.set(0,.19*size,0).applyQuaternion(torso.quaternion).add(torso.position);
   head.position.set(0,.35*size,.015*size).applyQuaternion(torso.quaternion).add(torso.position);
-  head.rotation.z=torso.rotation.z;head.rotation.x=fallen?0:Math.min(wheelie,Math.PI/2);
+  head.rotation.z=torso.rotation.z*(pose?.75:1);head.rotation.x=fallen?0:Math.min(wheelie,Math.PI/2);
   neckTop.set(0,-.12*size,0).applyQuaternion(head.quaternion).add(head.position);
   segment(neck,neckBase,neckTop,.047*size);head.visible=!firstPerson;neck.visible=!firstPerson;
-  eye.copy(head.position);eye.y+=seatLift;eye.z+=.10*size;
-  for(const l of limbs){const side=l.side,inside=side*steer>0&&lean*steer<0?Math.abs(lean)/RIDER_TUNING.maxLean:0;hip.set(side*.12+hips.position.x,.84,hips.position.z+.01);const leftStop=stopPose*(side===1?leftSupport:1-leftSupport);ankle.set(side*(.21+leftStop*.27),.3-leftStop*(.3-(.035+.04*size)),-.05+leftStop*.10);if(burnout){
+  eye.copy(head.position);eye.y+=seatLift-rise*.25;eye.z+=.10*size;
+  for(const l of limbs){const side=l.side,inside=side*steer>0&&lean*steer<0?Math.abs(lean)/RIDER_TUNING.maxLean:0;hip.set(side*.12+hips.position.x,.84+rise,hips.position.z+.01);const leftStop=(1-stand)*stopPose*(side===1?leftSupport:1-leftSupport);ankle.set(side*(.21+leftStop*.27),.3-leftStop*(.3-(.035+.04*size)),-.05+leftStop*.10);if(burnout){
     const x=side*.48,y=.04*size;
     ankle.x=T.MathUtils.lerp(ankle.x,x*Math.cos(chassisLean)+y*Math.sin(chassisLean),leftStop);
     ankle.y+=leftStop*(y*(Math.cos(chassisLean)-1)-x*Math.sin(chassisLean));
    }
-   ankle.y-=seatLift*leftStop;l.knee.set(side*(kneeWidth+inside*RIDER_TUNING.kneeOpening+leftStop*.20)+hips.position.x*.4,.60-leftStop*.15,.16*size-RIDER_TUNING.seatSetback*.45+leftStop*.05);if(leftStop>0){straightKnee.copy(hip).lerp(ankle,.5);straightKnee.z+=.1;l.knee.lerp(straightKnee,leftStop*.75)}segment(l.thigh,hip,l.knee,.064*size);segment(l.shin,l.knee,ankle,.052*size);l.foot.position.copy(ankle);l.foot.position.y-=.035;
+   ankle.y-=seatLift*leftStop;l.knee.set(side*(kneeWidth+inside*RIDER_TUNING.kneeOpening+leftStop*.20)+hips.position.x*.4,.60+rise*.48-leftStop*.15,.16*size+stand*.12+(pose?.absorption??0)*.8-RIDER_TUNING.seatSetback*.45+leftStop*.05);if(leftStop>0){straightKnee.copy(hip).lerp(ankle,.5);straightKnee.z+=.1;l.knee.lerp(straightKnee,leftStop*.75)}segment(l.thigh,hip,l.knee,.064*size);segment(l.shin,l.knee,ankle,.052*size);l.foot.position.copy(ankle);l.foot.position.y-=.035;
    // Hands are evaluated in the same parent coordinates as the turning handlebar.
    hand.set(side*gripHalfWidth,handleY,gripLocalZ).applyQuaternion(steering.quaternion).add(steering.position);hand.y-=seatLift;
    const twist=side===-1?throttlePose:0;

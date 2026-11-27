@@ -9,8 +9,9 @@ import * as T from 'three';
 import {createBike,disposeBike} from './vehicle-models';
 import type {RemotePlayer,RiderState} from './network';
 import {ground} from './terrain';
+const poseKeys=['stand','rise','sideLean','brace','absorption'] as const;
 type Frame={time:number;state:RiderState};
-type Peer={blipTime:number;blipSequence:number;smoke:TireParticles;bike:ReturnType<typeof createBike>;label:T.Sprite;frames:Frame[];name:string;connected:boolean;vehicleId:string};
+type Peer={pose:import("./rider-posture").RiderPose;blipTime:number;blipSequence:number;smoke:TireParticles;bike:ReturnType<typeof createBike>;label:T.Sprite;frames:Frame[];name:string;connected:boolean;vehicleId:string};
 export class RemoteRiders {
  peers=new Map<string,Peer>();
  constructor(private scene:T.Scene){}
@@ -19,7 +20,7 @@ export class RemoteRiders {
   const live=new Set(players.map(p=>p.id));for(const [id,p] of this.peers)if(!live.has(id))this.remove(id,p);
   for(const p of players){let peer=this.peers.get(p.id);
    if(peer&&peer.vehicleId!==p.state.vehicleId){this.remove(p.id,peer);peer=undefined}
-   if(!peer){const bike=createBike(p.state.vehicleId),label=this.label(p.name);enableShadows(bike.root);this.scene.add(bike.root,label);peer={blipTime:0,blipSequence:p.state.revMatchSequence??0,smoke:new TireParticles(this.scene),bike,label,frames:[],name:p.name,connected:p.connected,vehicleId:p.state.vehicleId};this.peers.set(p.id,peer)}
+   if(!peer){const bike=createBike(p.state.vehicleId),label=this.label(p.name);enableShadows(bike.root);this.scene.add(bike.root,label);peer={pose:{stand:0,rise:0,sideLean:0,brace:0,absorption:0},blipTime:0,blipSequence:p.state.revMatchSequence??0,smoke:new TireParticles(this.scene),bike,label,frames:[],name:p.name,connected:p.connected,vehicleId:p.state.vehicleId};this.peers.set(p.id,peer)}
    if(peer.name!==p.name||peer.connected!==p.connected){this.scene.remove(peer.label);peer.label.material.map?.dispose();peer.label.material.dispose();peer.label=this.label(p.name+(p.connected?'':' · reconectando'));this.scene.add(peer.label);peer.name=p.name;peer.connected=p.connected;}
    const sequence=p.state.revMatchSequence??0;if(sequence>peer.blipSequence&&p.connected)peer.blipTime=ENGINE_TUNING.revMatchDuration;peer.blipSequence=sequence;
    peer.bike.cargo.visible=p.state.cargo===true;
@@ -43,7 +44,8 @@ export class RemoteRiders {
    p.bike.setSteering(steeringAngle(speed,steer,lift));
    const bank=T.MathUtils.lerp(s.lean,e.lean,u);
    const burnout=p.connected&&!e.fallen?(e.burnoutSpeed??0):0;
-   p.bike.riderRig.update(speed,steer,dt,false,T.MathUtils.lerp(s.bodyLean??0,e.bodyLean??0,u),blip,!!e.fallen,lift,bank,burnout>0);applyBikePose(p.bike,T.MathUtils.lerp(s.pitch,e.pitch,u),bank,lift,burnout?0:p.bike.riderRig.stopPose,T.MathUtils.lerp(s.frontCompression??0,e.frontCompression??0,u),T.MathUtils.lerp(s.rearCompression??0,e.rearCompression??0,u),getVehicle(e.vehicleId).wheelbase,!!e.fallen,e.walker?e.walker.side*e.walker.hold:0);
+   if(e.pose){for(const k of poseKeys)p.pose[k]=T.MathUtils.lerp(s.pose?.[k]??0,e.pose[k],u)}
+   p.bike.riderRig.update(speed,steer,dt,false,T.MathUtils.lerp(s.bodyLean??0,e.bodyLean??0,u),blip,!!e.fallen,lift,bank,burnout>0,e.pose?p.pose:undefined);applyBikePose(p.bike,T.MathUtils.lerp(s.pitch,e.pitch,u),bank,lift,burnout?0:p.bike.riderRig.stopPose,T.MathUtils.lerp(s.frontCompression??0,e.frontCompression??0,u),T.MathUtils.lerp(s.rearCompression??0,e.rearCompression??0,u),getVehicle(e.vehicleId).wheelbase,!!e.fallen,e.walker?e.walker.side*e.walker.hold:0);
    if(e.walker){const w=e.walker,f=s.walker??w;
     p.bike.riderRig.onFoot(T.MathUtils.lerp(f.x,w.x,u),T.MathUtils.lerp(f.y,w.y,u),T.MathUtils.lerp(f.z,w.z,u),w.heading,T.MathUtils.lerp(f.blend,w.blend,u),w.side,w.phase,w.stride,w.hold);
    }

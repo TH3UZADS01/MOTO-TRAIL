@@ -6,7 +6,7 @@ import {BIOME_TUNING} from './biomes';
 import {enableShadows,surfaceMaterial,worldUV} from './graphics';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import * as T from 'three';
-import {height,terrain,ribbon,terrainPatch,road,nearest,pois,stations,villages,viewpoints,lakes,routes,nearestRoute,nearRoute,bridges,specials,deepWater,lakeRadius} from './terrain';
+import {height,terrain,trailMaterial,ribbon,terrainPatch,road,nearest,pois,stations,villages,viewpoints,lakes,routes,nearestRoute,nearRoute,bridges,specials,deepWater,lakeRadius} from './terrain';
 import {river,riverWidth,waterY,riverX,riverStart,riverEnd,point} from './map-layout';
 import type {Obstacle} from './obstacle';
 export type {Obstacle} from './obstacle';
@@ -29,7 +29,7 @@ export function makeWorld(scene:T.Scene){
  function sign(text:string,x:number,z:number,angle:number){const c=document.createElement('canvas');c.width=768;c.height=192;const ctx=c.getContext('2d')!;ctx.fillStyle='#304d40';ctx.fillRect(0,0,768,192);ctx.strokeStyle='#e5d8b4';ctx.lineWidth=8;ctx.strokeRect(8,8,752,176);ctx.fillStyle='#fff1cc';ctx.font='bold 40px sans-serif';ctx.textAlign='center';ctx.fillText(text,384,113,735);const texture=new T.CanvasTexture(c);texture.colorSpace=T.SRGBColorSpace;const mat=new T.MeshBasicMaterial({map:texture});const y=height(x,z);for(const side of [-1,1]){const m=new T.Mesh(new T.PlaneGeometry(5,1.25),mat);m.rotation.y=angle+(side<0?Math.PI:0);m.position.set(x+Math.sin(angle)*.04*side,y+2.5,z+Math.cos(angle)*.04*side);scene.add(m)}box(x,y+1.2,z,.18,2.4,.18,0x655744);block(x,z,.25)}
  // Paved and dirt routes share the exact geometry used by physics.
  for(const route of routes){for(let i=0;i<route.points.length-1;i+=100){const section=route.points.slice(i,Math.min(i+101,route.points.length)),mesh=ribbon(section,route.width,route.surface==='terra'?0xb48a58:0x555d59,route.surface==='terra'?.065:.075);scene.add(mesh);
-   if(route.surface==='terra'){const p=mesh.geometry.attributes.position,colors:number[]=[];for(let j=0;j<p.count;j++){const shade=.91+.06*Math.sin(p.getX(j)*.8+p.getZ(j)*.3)+.03*Math.cos(p.getZ(j)*1.7);colors.push(shade,shade,shade)}mesh.geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));(mesh.material as T.MeshStandardMaterial).vertexColors=true;
+   if(route.surface==='terra'){const p=mesh.geometry.attributes.position,colors:number[]=[];for(let j=0;j<p.count;j++){const shade=.91+.06*Math.sin(p.getX(j)*.8+p.getZ(j)*.3)+.03*Math.cos(p.getZ(j)*1.7);const kind=trailMaterial(p.getX(j),p.getZ(j));const tint=kind==='lama'?[.43,.41,.38]:kind==='areia'?[1.32,1.27,1.10]:kind==='cascalho'?[.85,.94,1.08]:[1,1,1];colors.push(shade*tint[0],shade*tint[1],shade*tint[2])}mesh.geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));(mesh.material as T.MeshStandardMaterial).vertexColors=true;
     for(const side of [-1,1]){const tread=section.map((p,j)=>{const a=section[Math.max(0,j-1)],b=section[Math.min(section.length-1,j+1)],dx=b.x-a.x,dz=b.z-a.z,l=Math.hypot(dx,dz);return new T.Vector3(p.x+dz/l*side*1.1,0,p.z-dx/l*side*1.1)});scene.add(ribbon(tread,.35,0xa47d51,.08))}
    }
   }

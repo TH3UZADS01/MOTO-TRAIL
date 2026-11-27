@@ -70,7 +70,8 @@ export class RoadEvents{
   if(!this.pool.has(e.kind))this.pool.set(e.kind,[]);this.pool.get(e.kind)!.push(e.group);
   this.hits.length=0;for(const other of this.active)this.hits.push(...other.hits);
  }
- onSand(p:Point){return this.active.some(e=>e.kind==='sand'&&dist(p,e.group.position)<1.4)}
+ onSand(p:Point){return this.sandAt(p.x,p.z)}
+ sandAt(x:number,z:number){return this.active.some(e=>e.kind==='sand'&&Math.hypot(x-e.group.position.x,z-e.group.position.z)<1.4)}
  update(dt:number,p:Point,heading:number,fixed:Obstacle[],protectedPoints:readonly Point[],peers:Iterable<{bike:{root:{position:Point}}}>=[],propose?:(e:RoadNotice)=>void){
   this.elapsed+=dt;
   for(let i=this.active.length-1;i>=0;i--){
