@@ -1,6 +1,6 @@
 import type {VehicleId, VehicleSpec} from './vehicles';
 import type {Suspension} from './suspension';
-import type {WheelContact} from './traction';
+import type {ContactSurface,WheelContact} from './traction';
 import type {Equipment} from './career';
 import {clamp} from './body-control';
 
@@ -30,7 +30,9 @@ export class SteeringInstability {
   private sampled=false;
   private previousTravel=0;
   private previousRelief=0;private previousLift=0;private descent=0;
-  get visualAngle(){return clamp(this.angle*1.8,-.20,.20)}
+  shimmy=0;
+  private phase=0;
+  get visualAngle(){return clamp(this.angle*1.8,-.20,.20)+this.shimmy}
   private previousSlip=0;
   private peak=0;
   private envelope=0;
@@ -41,16 +43,22 @@ export class SteeringInstability {
     this.angle=this.velocity=this.envelope=this.physicalAngle=this.disturbance=this.peak=0;
     this.frontLoad=this.previousTravel=this.previousSlip=this.frequency=this.damping=0;
     this.previousRelief=this.previousLift=this.descent=0;
+    this.shimmy=this.phase=0;
     this.sampled=this.grounded=false;
   }
 
   step(dt:number,spec:VehicleSpec,speed:number,suspension:Suspension,contact:WheelContact,
-       gear:Equipment,cargo:number,assist:number,steer:number,lift:number,relief=0,simcade=true,roadImpulseGain=1){
+       gear:Equipment,cargo:number,assist:number,steer:number,lift:number,relief=0,simcade=true,roadImpulseGain=1,surface:ContactSurface=contact.surface){
     if(!(dt>0 && dt<=.1))return;
     const p=steeringProfiles[spec.id], front=suspension.front;
     const staticLoad=((spec.mass??100)+spec.riderMass+cargo)*9.81*spec.centerOfMassRearDistance/spec.wheelbase;
     const load=simcade?clamp(front.normalLoad/staticLoad,0,1.5):clamp(1-lift/.20,0,1);
     const supported=load>.025 && lift<(this.grounded?.16:.06);
+    const roughness=surface==='terra'?1:surface==='cascalho'?.55:0;
+    const amplitude=.032*roughness*smooth((speed*3.6-24)/32)*Math.min(1,load);
+    this.phase+=dt*(32+Math.min(12,speed*.6));
+    const irregular=.62*Math.sin(this.phase)+.26*Math.sin(this.phase*.63+.8)+.12*Math.sin(this.phase*1.73);
+    this.shimmy+=((supported?amplitude*irregular:0)-this.shimmy)*(-Math.expm1(-45*dt));
     if(this.sampled&&lift>.06)this.descent=Math.max(this.descent*.96,clamp((this.previousLift-lift)/(dt*2),0,1));
     const fast=smooth((speed-1.5)/Math.min(26,Math.max(12,spec.maxSpeed*.65)));
     const tyreWear=smooth(1-gear.pneus/100),forkWear=smooth(1-(gear.forkCondition??100)/100);

@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
-import {axis,BrakePushAssist,Controller,touchSteering} from '../src/input';
+import {axis,Controller,touchSteering} from '../src/input';
 import {createBike,disposeBike} from '../src/vehicle-models';
 import {vehicles} from '../src/vehicles';
 import {Ride} from '../src/riding';
@@ -12,7 +12,6 @@ test('gamepad deadzone, analog triggers, edge buttons and disconnect',()=>{
  const input=c.poll(.14,1,[pad]);assert.equal(input.throttle,.4);assert.ok(input.turn<0);assert.equal(input.camera,true);assert.equal(c.poll(.14,1,[pad]).camera,false);assert.equal(c.poll(.14,1,[]).disconnected,true);assert.equal(c.poll(.14,1,[]).throttle,0);
 });
 test('touch direction buttons match keyboard steering direction',()=>{assert.equal(touchSteering(true,false),1);assert.equal(touchSteering(false,true),-1);assert.equal(touchSteering(false,false),0)});
-test('holding brake for one second while stopped starts and sustains reverse push',()=>{const assist=new BrakePushAssist();assert.equal(assist.update(1,0,.5),false);assert.equal(assist.update(1,0,.49),false);assert.equal(assist.update(1,0,.02),true);assert.equal(assist.update(1,-.8,.1),true);assert.equal(assist.update(0,-.8,.1),false);assert.equal(assist.update(1,5,1.1),false);assert.equal(assist.update(1,0,1),true)});
 test('push backwards escapes an overlapping obstacle without teleporting',()=>{const r=new Ride(),x=r.x,z=r.z,dx=Math.sin(r.heading),dz=Math.cos(r.heading),o=[{x:x+dx*.65,z:z+dz*.65,r:.5}];for(let i=0;i<120;i++)r.step(1/60,0,0,0,o,true);assert.ok(r.speed<0);assert.ok((r.x-x)*dx+(r.z-z)*dz< -1);assert.ok(r.distance>1);const d=r.distance;for(let i=0;i<60;i++)r.step(1/60,0,0,0,o);assert.equal(r.speed,0);assert.ok(r.distance>=d);});
 test('pushing at speed first brakes before moving backwards',()=>{const r=new Ride();r.speed=15;r.step(1/60,0,0,0,[],true);assert.ok(r.speed>14);});
 // Different bikes may legitimately use the same number of batched meshes.

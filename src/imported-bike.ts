@@ -3,6 +3,8 @@ import {createRider} from './rider';
 import twister from './assets/twister-model.json';
 import gs from './assets/r1200gs-model.json';
 
+// The packed Twister has a 748 mm saddle and vertically compressed chassis.
+const twisterSeatLift=.041;
 function buffer(encoded:string){
  const raw=atob(encoded),bytes=new Uint8Array(raw.length);
  for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
@@ -71,7 +73,38 @@ export function createImportedBike(id:'twister'|'r1200gs'){
  }
  const body=groups.get('Body')!,steering=groups.get('Steering')!;
  const wheels=[groups.get('RearWheel')!,groups.get('FrontWheel')!];
- const riderRig=createRider(steering,id==='twister'?1.48:1.6,id==='twister'?-.085:.14,0x526b72,.25,id==='twister'?0:.14,id==='twister'?-.15:-.10,id==='twister'?.36:.365);
+ if(id==='twister'){
+  // Match each hub to its tyre radius. Blend the fork and swingarm ends
+  // into the raised chassis, keeping wheel geometry and wheelbase intact.
+  root.updateMatrixWorld(true);
+  const hubs=wheels.map(w=>w.getWorldPosition(new T.Vector3()));
+  const drops=wheels.map((w,i)=>{
+   const tyre=w.children.find(m=>m.name.endsWith('_pneu_borracha')) as T.Mesh;
+   return hubs[i].y+tyre.geometry.boundingBox!.min.y;
+  });
+  body.traverse(part=>{
+   if(!(part instanceof T.Mesh)||wheels.includes(part.parent as T.Group))return;
+   const positions=part.geometry.getAttribute('position');
+   const origin=part.getWorldPosition(new T.Vector3());
+   for(let i=0;i<positions.count;i++){
+    const y=origin.y+positions.getY(i),z=origin.z+positions.getZ(i);
+    const axle=z>0?1:0,hub=hubs[axle];
+    const nearHub=1-T.MathUtils.smoothstep(Math.hypot(y-hub.y,z-hub.z),.18,.39);
+    const shift=twisterSeatLift-nearHub*(twisterSeatLift+drops[axle]);
+    positions.setY(i,positions.getY(i)+shift-(part.parent===body?0:twisterSeatLift));
+   }
+   part.geometry.computeBoundingBox();part.geometry.computeBoundingSphere();
+  });
+  steering.position.y+=twisterSeatLift;
+  wheels[0].position.y-=drops[0];
+  wheels[1].position.y-=drops[1]+twisterSeatLift;
+  // The packed material lost the GLB's transmission. Only the front cover
+  // needs to reveal FarolCB behind it.
+  const cover=steering.getObjectByName('Steering_translucido_incolor') as T.Mesh<T.BufferGeometry,T.MeshStandardMaterial>;
+  cover.material=cover.material.clone();
+  Object.assign(cover.material,{transparent:true,opacity:.16,metalness:0,depthWrite:false});
+ }
+ const riderRig=createRider(steering,id==='twister'?1.48:1.6,id==='twister'?-.085:.14,0x526b72,.25,id==='twister'?twisterSeatLift:.14,id==='twister'?-.15:-.10,id==='twister'?.36:.365);
  const rider=riderRig.root;body.add(rider);
  const lamp=body.getObjectByName('Steering_Headlamp');
  if(lamp&&lamp.parent!==steering){root.updateMatrixWorld(true);steering.attach(lamp)}

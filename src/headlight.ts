@@ -8,7 +8,8 @@ export function makeHeadlight(mount:T.Group,lensName:string){
   throw new Error(`Missing mounted headlamp lens: ${lensName}`);
  }
  const material=lens.material,unlitOpacity=material.opacity;
- material.emissive.setHex(0xffe5ad);
+ const whiteLed=material.name==='FarolCB';
+ material.emissive.setHex(whiteLed?0xf1f7ff:0xffe5ad);
  material.emissiveIntensity=0;
 
  const t=HEADLIGHT_TUNING;
@@ -18,6 +19,11 @@ export function makeHeadlight(mount:T.Group,lensName:string){
  const bounds=lens.geometry.boundingBox!.clone().applyMatrix4(lens.matrix);
  bounds.getCenter(light.position);
  light.position.z=bounds.max.z+.008;
+ if(whiteLed){
+  const glass=mount.getObjectByName('Steering_translucido_incolor') as T.Mesh;
+  light.position.z=Math.max(light.position.z,glass.geometry.boundingBox!.max.z+.008);
+  light.color.setHex(0xf1f7ff);
+ }
  light.target.position.set(0,-.2,28);
  mount.add(light,light.target);
 

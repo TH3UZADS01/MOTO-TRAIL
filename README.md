@@ -33,7 +33,7 @@ Abra o endereço indicado pelo Vite. `npm run build` gera `dist/` para servir po
 
 Empurrar primeiro freia se estiver em movimento e depois recua a cerca de 4 km/h. Soltar interrompe o recuo suavemente. Não é marcha à ré motorizada. É possível sair de uma colisão recuando, inclusive de uma pequena sobreposição com um obstáculo.
 
-No celular, segure o freio por um segundo com a moto parada para começar a empurrar para trás; solte para interromper. O botão de abastecimento aparece apenas próximo a um posto e exige que a moto esteja parada. A interface touch reduz os controles e indicadores conforme o tamanho da tela.
+No celular, segure Ré para empurrar a moto para trás; solte para interromper. O botão de abastecimento aparece apenas próximo a um posto e exige que a moto esteja parada. A interface touch reduz os controles e indicadores conforme o tamanho da tela.
 
 O retrovisor virtual mostra a estrada atrás da moto durante o passeio. Ative ou desative em Configurações; a atualização inicial é de 20 FPS em 512 × 256, com opções de 10–30 FPS e 256 × 128 a 768 × 384. A captura usa uma câmera traseira e `WebGLRenderTarget`, composta no canvas principal para evitar outro contexto WebGL.
 
@@ -100,6 +100,6 @@ Veja [REVISAO-V6.md](REVISAO-V6.md) para as sete melhorias, parâmetros ajustáv
 
 Veja [UPDATE-01.md](UPDATE-01.md) para comandos, limites, ajustes e roteiro de testes. Analógico esquerdo vertical (ou I/K) controla a postura: inclinar para frente reduz o arrasto aerodinâmico; para trás, com aceleração, permite empinar até 45°. O limite de velocidade é fixo por moto. Há câmbio manual ou automático, corte de giro integrado às marchas, ciclo de 24 minutos com faróis automáticos e consumo 10% maior. Cliente e servidor usam `vale-horizonte-v7`.
 
-### Drift de freio
+### Drift
 
-Em movimento, segure o freio por 1 segundo (S/seta para baixo, LT/L2 ou FREIO no touch). Com velocidade suficiente, a roda traseira trava e emite fumaça branca; esterçar aumenta a rotação da moto e a traseira desliza. Soltar o freio recupera a aderência suavemente. Ao parar, permanece o comando de empurrar para trás. Empinada, queda, recuo, colisão e recuperação cancelam o drift. Ajustes: `src/drift.ts`. O estado de drift e a fumaça dos amigos precisam da atualização do cliente na Vercel e do servidor no Render; o campo é opcional e não muda a versão do protocolo.
+Segure Espaço ou R3 para travar a roda traseira. Esterce em movimento para derrapar. Solte para liberar o freio e voltar a acelerar. Se R3 controla a postura, use L3. No touch, segure Derrapar.

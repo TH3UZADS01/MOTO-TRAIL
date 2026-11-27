@@ -10,7 +10,7 @@ import {Suspension,loadTuning} from './suspension';
 import {adventure} from './adventure-tuning';
 import {conditionFactor,criticalCondition,factory,tyreResponse} from './career';
 import {Powertrain} from './powertrain';
-import {Drift,DRIFT_TUNING} from './drift';
+import {Drift} from './drift';
 import {BODY_TUNING,bodyDragMultiplier,clamp,counterweightBlend} from './body-control';
 import {Fuel} from './fuel';
 import {getVehicle,type VehicleSpec} from './vehicles';
@@ -84,7 +84,7 @@ export class Ride {
     this.drift.reset();this.fallen=true;this.engineThrottle=0;this.burnoutSpeed=0;this.instability.reset();this.engine.cancelBlip();
   }
   liftHere(){this.fallen=false;this.crash=undefined;this.slipTime=0;this.speed=0;this.lean=0;this.steer=0;this.resetBody();this.engine.reset(this.spec.idleRpm);this.contact()}
-  step(dt:number,throttle:number,brake:number,turn:number,obstacles:Obstacle[],push=false,bodyInput=0,automatic=true,realistic=false,servicing=false,clutchLever=0){
+  step(dt:number,throttle:number,brake:number,turn:number,obstacles:Obstacle[],push=false,bodyInput=0,automatic=true,realistic=false,servicing=false,clutchLever=0,rearBrakeHeld=false){
     const prep=this.equipment.prep;
     this.engine.torqueScale=prep?.engine==='cam'?adventure.camTorqueGain:1;
     this.engine.finalRatioScale=adventure.gearing[prep?.gearing??'original'];
@@ -95,7 +95,7 @@ export class Ride {
     dt=clamp(dt,0,.1);this.brakeInput=brake;this.engineThrottle=0;
     const motor=conditionFactor('motor',this.equipment.motor);
     brake*=conditionFactor('freios',this.equipment.freios);
-    this.drift.update(dt,brake,this.speed,this.steer,push||this.fallen||this.wheelie>.08);
+
     if(this.fallen){
       if(!this.crash)this.beginCrash(this.wheelie>=BODY_TUNING.loopOutAngle?'loop-out':'slide');
       this.crash!.step(dt,obstacles.concat(this.eventObstacles));
@@ -107,8 +107,8 @@ export class Ride {
     const before=this.distance;
     const simcade=this.handlingMode==='simcade';
     const halfAxle=this.spec.wheelbase/2,ax=Math.sin(this.heading)*halfAxle,az=Math.cos(this.heading)*halfAxle;
-    const frontSurface=simcade?this.sampleContact(this.x+ax,this.z+az):'asfalto';
-    const rearSurface=simcade?this.sampleContact(this.x-ax,this.z-az):'asfalto';
+    const frontSurface=this.sampleContact(this.x+ax,this.z+az);
+    const rearSurface=this.sampleContact(this.x-ax,this.z-az);
     const type=simcade?rearSurface:this.softGround?'terra':surface(this.x,this.z);
     const tyre=tyreResponse(this.equipment,type==='asfalto',this.speed,this.steer,throttle);
     const surfaceGrip=simcade||type==='asfalto'?1:type==='terra'?.7:.5;
@@ -128,7 +128,12 @@ export class Ride {
     // Use the last completed suspension sample for both tyre demand and yaw this tick.
     const disturbance=simcade&&!push&&this.wheelie<.20?this.instability.physicalAngle:0;
     const lever=simcade?clamp(clutchLever,0,1):0;
-    const burnout=lever===0&&!push&&Math.abs(this.speed)<.20&&this.wheelie<.02&&throttle*motor>=.18&&brake>=.25&&this.gear>0&&!this.engine.stalled;
+    const locked=rearBrakeHeld&&!push&&!servicing&&this.wheelie<=.08;
+    const staticRear=(baseMass+this.cargoLoad)*9.81*(1-this.spec.centerOfMassRearDistance/this.spec.wheelbase);
+    const rearLoad=simcade&&this.rearContact.normalLoad>0?this.rearContact.normalLoad/staticRear:1;
+    this.drift.update(dt,locked,this.speed,this.steer,rearSurface,simcade?this.rearContact.lateralGrip:tyre.grip,rearLoad);
+    if(locked)this.brakeInput=1;
+    const burnout=!locked&&lever===0&&!push&&Math.abs(this.speed)<.20&&this.wheelie<.02&&throttle*motor>=.18&&brake>=.25&&this.gear>0&&!this.engine.stalled;
     if(burnout){
       const target=this.engine.speedAtRedline(this.spec,this.gear)*(.35+.45*throttle);
       this.burnoutSpeed+=(target-this.burnoutSpeed)*(1-Math.exp(-8*dt));
@@ -147,11 +152,11 @@ export class Ride {
       if(this.speed>.2)this.speed=Math.max(0,this.speed-6*dt);
       else this.speed+=(-1.15-this.speed)*(1-Math.exp(-dt*5));
     }else if(this.speed<0){this.speed=Math.min(0,this.speed+3*dt);}
-    else if(this.speed<.15&&throttle===0){this.speed=0;}
+    else if(this.speed<.15&&(throttle===0||locked)){this.speed=0;}
     else {
       const stalled=realistic&&this.engine.stalled;
-      const gearThrottle=this.gear===0||stalled||this.drift.active||(!automatic&&this.speed>speedLimit)?0:this.engineThrottle*motor;
-      const effectiveBrake=brake*(simcade?1-loadTuning.brakeFeedback*this.suspension.loadShift:1)*(prep?.brakes==='improved'?adventure.brakeGain:1)/(1+adventure.cargo.braking*loadRatio)*(1-(1-DRIFT_TUNING.brakingFactor)*this.drift.amount);
+      const gearThrottle=locked||this.gear===0||stalled||(!automatic&&this.speed>speedLimit)?0:this.engineThrottle*motor;
+      const effectiveBrake=brake*(simcade?1-loadTuning.brakeFeedback*this.suspension.loadShift:1)*(prep?.brakes==='improved'?adventure.brakeGain:1)/(1+adventure.cargo.braking*loadRatio);
         const baseAcceleration=acceleration(this.speed,0,effectiveBrake*grip*(this.spec.braking??1),this.pitch,rollingGrip,this.spec.aerodynamicDrag*bodyDragMultiplier(this.bodyLean),this.topSpeed);
         const mass=baseMass+adventure.cargo.inertia*this.cargoLoad;
         const arcadeTorque=realistic?1:this.engine.torqueAtRpm(this.engine.torqueRpm,this.spec)/this.engine.torqueAtRpm(this.spec.peakPowerRpm,this.spec);
@@ -169,6 +174,10 @@ export class Ride {
           const geared=baseAcceleration+this.engine.wheelForce(this.spec,this.speed,gearThrottle*(1-lever))*driveGrip/mass;
           accelerationApplied+=(geared-netAcceleration)*scale*blend;
         }
+        // The service brake already applies part of its force at the rear.
+        // Add only the missing rear demand; the front keeps its normal force.
+        const lockBrake=locked?Math.max(0,4*conditionFactor('freios',this.equipment.freios)-8*.32*effectiveBrake)*grip*(this.spec.braking??1):0;
+        accelerationApplied-=lockBrake;
         if(simcade){
           const totalMass=baseMass+this.cargoLoad,weight=totalMass*9.81;
           const bias=this.spec.centerOfMassRearDistance/this.spec.wheelbase;
@@ -199,7 +208,7 @@ export class Ride {
     const postureGain=this.posture.stand*ergonomics[this.spec.id].assist;
     const uprightSteering=type==='asfalto'?1-postureGain*clamp(this.speed/24,0,1):1+postureGain*Math.abs(this.frontContact.lateralSlip);
     const contactSteering=simcade?uprightSteering*(1-.55*Math.abs(this.frontContact.lateralSlip)):1;
-    const yaw=contactSteering*this.speed*Math.tan(steeringAngle(this.speed,this.steer,this.wheelie)+disturbance)/this.spec.wheelbase*grip*steeringGrip*(1+DRIFT_TUNING.steeringBoost*this.drift.amount);
+    const yaw=contactSteering*this.speed*Math.tan(steeringAngle(this.speed,this.steer,this.wheelie)+disturbance)/this.spec.wheelbase*grip*steeringGrip;
     const previousHeading=this.heading;
     this.heading+=(burnout?1.9*this.steer*throttle:yaw)*dt;
     const slideTarget=simcade&&!burnout&&!push?this.rearContact.lateralSlip*touringAssist.maxSlide:0;
@@ -261,13 +270,13 @@ export class Ride {
       }
       this.drift.reset();this.wheelie=0;this.wheelieAngularVelocity=0;this.speed=0;
     }else {this.x=x;this.z=z;this.distance+=Math.abs(this.speed)*dt}
-    const liftThrottle=throttle*motor*(1-damage*.75);
+    const liftThrottle=locked?0:throttle*motor*(1-damage*.75);
     const wheeliePhysics=this.engine.wheeliePhysics(this.spec,this.speed,liftThrottle,this.bodyLean);
     this.wheelieDebug={gear:this.engine.gear,rpm:this.engine.rpm,wheelTorque:wheeliePhysics.wheelTorque,pitchTorque:wheeliePhysics.pitchTorque*BODY_TUNING.wheeliePitchForceScale,stabilizingTorque:wheeliePhysics.stabilizingTorque,angle:this.wheelie};
     const physicalWheelieMargin=this.engine.allowWheelie(this.spec,this.speed,liftThrottle,brake,this.bodyLean);
      // Once airborne, transmit throttle torque without requiring a new body pull.
      const airborne=this.wheelie>BODY_TUNING.airborneThreshold;
-     const activeWheelie=!hit&&!push&&!this.engine.stalled&&throttle>0&&(airborne||physicalWheelieMargin>0)&&this.speed>=BODY_TUNING.minWheelieSpeed;
+     const activeWheelie=!locked&&!hit&&!push&&!this.engine.stalled&&throttle>0&&(airborne||physicalWheelieMargin>0)&&this.speed>=BODY_TUNING.minWheelieSpeed;
     // Extra lift only during the pull/clutch impulse, not during neutral-body balancing.
     const launchLoad=Math.max(clamp(-this.bodyLean,0,1),clamp((this.engine.clutchKickGain-1)/BODY_TUNING.clutchBoost,0,1));
     const pitchMoment=activeWheelie?wheeliePhysics.pitchTorque*BODY_TUNING.wheeliePitchForceScale*(this.spec.wheelieAssist??1)*(1+BODY_TUNING.launchPitchBoost*launchLoad):0;
@@ -303,7 +312,7 @@ export class Ride {
      const frontRelief=bump(this.x+dx,this.z+dz);
      this.suspension.step(dt,this.spec,this.y+slope+frontRelief,this.y-slope+bump(this.x-dx,this.z-dz),(this.speed-initialSpeed)/dt,this.cargoLoad,this.wheelie,suspension.travel,suspension.frequency,simcade,this.pitch,this.posture.rise);
      if(push||this.fallen||servicing)this.instability.reset();
-     else this.instability.step(dt,this.spec,this.speed,this.suspension,this.frontContact,this.equipment,this.cargoLoad,this.handling.assist,this.steer,this.wheelie,frontRelief,simcade,type!=='asfalto'&&type!=='grama'?.72:1);
+     else this.instability.step(dt,this.spec,this.speed,this.suspension,this.frontContact,this.equipment,this.cargoLoad,this.handling.assist,this.steer,this.wheelie,frontRelief,simcade,type!=='asfalto'&&type!=='grama'?.72:1,frontSurface);
     }
     if(simcade&&!this.fallen)this.posture.step(dt,this.spec.id,this.speed,this.lean,yaw*this.speed,this.suspension.acceleration,type!=='asfalto',this.rearContact.lateralSlip,this.suspension.front.compression,this.suspension.rear.compression);
     if(simcade&&!burnout){

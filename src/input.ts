@@ -1,24 +1,13 @@
 export function axis(value:number,deadzone:number,sensitivity=1){const v=Math.abs(value);return v<=deadzone?0:Math.sign(value)*Math.min(1,(v-deadzone)/(1-deadzone)*sensitivity);}
 export function touchSteering(left:boolean,right:boolean){return Number(left)-Number(right);}
-export class BrakePushAssist {
-  private stoppedFor=0;private active=false;
-  reset(){this.stoppedFor=0;this.active=false}
-  update(brake:number,speed:number,dt:number){
-    if(brake<=.05){this.stoppedFor=0;this.active=false;return false}
-    if(this.active)return true;
-    this.stoppedFor=Math.abs(speed)<.2?this.stoppedFor+Math.max(0,dt):0;
-    if(this.stoppedFor>=1)this.active=true;
-    return this.active;
-  }
-}
 export class Controller {
   previous:boolean[]=[];id='';
   poll(deadzone:number,sensitivity:number,pads:readonly (Gamepad|null)[]=Array.from(navigator.getGamepads?.()||[]),postureButton=10){
     const pad=pads.find(p=>p?.connected&&p.mapping==='standard');
-    if(!pad){const disconnected=!!this.id;this.id='';this.previous=[];return {connected:false,disconnected,posture:false,clutch:0,throttle:0,brake:0,turn:0,body:0,lookX:0,lookY:0,push:false,refuel:false,camera:false,pause:false,start:false,horn:false,previous:false,next:false,shiftUp:false,shiftDown:false}}
+    if(!pad){const disconnected=!!this.id;this.id='';this.previous=[];return {connected:false,disconnected,drift:false,posture:false,clutch:0,throttle:0,brake:0,turn:0,body:0,lookX:0,lookY:0,push:false,refuel:false,camera:false,pause:false,start:false,horn:false,previous:false,next:false,shiftUp:false,shiftDown:false}}
     if(this.id!==pad.id){this.previous=[];this.id=pad.id}
     const down=(i:number)=>!!pad.buttons[i]?.pressed,edge=(i:number)=>down(i)&&!this.previous[i];
-    const state={connected:true,disconnected:false,posture:edge(postureButton),clutch:pad.buttons[5]?.value??0,throttle:pad.buttons[7]?.value||0,brake:pad.buttons[6]?.value||0,turn:-axis(pad.axes[0]||0,deadzone,sensitivity),body:-axis(pad.axes[1]||0,deadzone),lookX:axis(pad.axes[2]||0,deadzone),lookY:axis(pad.axes[3]||0,deadzone),push:down(1),refuel:down(2),camera:edge(3),pause:edge(9),start:edge(0),horn:down(4),previous:edge(14),next:edge(15),shiftUp:edge(12),shiftDown:edge(13)};
+    const state={connected:true,disconnected:false,drift:down(postureButton===11?10:11),posture:edge(postureButton),clutch:pad.buttons[5]?.value??0,throttle:pad.buttons[7]?.value||0,brake:pad.buttons[6]?.value||0,turn:-axis(pad.axes[0]||0,deadzone,sensitivity),body:-axis(pad.axes[1]||0,deadzone),lookX:axis(pad.axes[2]||0,deadzone),lookY:axis(pad.axes[3]||0,deadzone),push:down(1),refuel:down(2),camera:edge(3),pause:edge(9),start:edge(0),horn:down(4),previous:edge(14),next:edge(15),shiftUp:edge(12),shiftDown:edge(13)};
     this.previous=pad.buttons.map(b=>b.pressed);return state;
   }
 }
