@@ -31,12 +31,13 @@ export class RemoteRiders {
    peer.frames.push({time:now,state:{...p.state,y:ground(p.state.x,p.state.z)}});if(peer.frames.length>20)peer.frames.shift();
   }
  }
- private remove(id:string,p:Peer){this.scene.remove(p.bike.root,p.label);disposeBike(p.bike);p.smoke.dispose();p.label.material.map?.dispose();p.label.material.dispose();this.peers.delete(id)}
+ private remove(id:string,p:Peer){p.bike.body.attach(p.bike.rider);this.scene.remove(p.bike.root,p.label);disposeBike(p.bike);p.smoke.dispose();p.label.material.map?.dispose();p.label.material.dispose();this.peers.delete(id)}
  clear(){for(const [id,p] of this.peers)this.remove(id,p)}
  render(now:number,dt:number,night=0){const target=now-120;
   for(const p of this.peers.values()){const frames=p.frames;if(!frames.length)continue;while(frames.length>2&&frames[1].time<target)frames.shift();const a=frames[0],b=frames[1]||a,t=T.MathUtils.clamp((target-a.time)/Math.max(1,b.time-a.time),0,1),s=a.state,e=b.state;
    p.blipTime=Math.max(0,p.blipTime-dt);const blip=p.connected&&!e.fallen?ENGINE_TUNING.blipThrottle*Math.sin(Math.PI*(1-p.blipTime/ENGINE_TUNING.revMatchDuration)):0;
    const teleport=Math.hypot(s.x-e.x,s.z-e.z)>12,u=teleport?1:t;
+   if(!e.crash&&p.bike.rider.parent!==p.bike.body)p.bike.body.attach(p.bike.rider);
    p.bike.root.position.set(T.MathUtils.lerp(s.x,e.x,u),T.MathUtils.lerp(s.y,e.y,u),T.MathUtils.lerp(s.z,e.z,u));
    p.bike.root.rotation.y=s.heading+Math.atan2(Math.sin(e.heading-s.heading),Math.cos(e.heading-s.heading))*u;
    p.bike.headlight.update(night);p.bike.brakeLight.update(p.connected?T.MathUtils.lerp(Number(s.braking??false),Number(e.braking??false),u):0,dt);
@@ -48,6 +49,16 @@ export class RemoteRiders {
    p.bike.riderRig.update(speed,steer,dt,false,T.MathUtils.lerp(s.bodyLean??0,e.bodyLean??0,u),blip,!!e.fallen,lift,bank,burnout>0,e.pose?p.pose:undefined);applyBikePose(p.bike,T.MathUtils.lerp(s.pitch,e.pitch,u),bank,lift,burnout?0:p.bike.riderRig.stopPose,T.MathUtils.lerp(s.frontCompression??0,e.frontCompression??0,u),T.MathUtils.lerp(s.rearCompression??0,e.rearCompression??0,u),getVehicle(e.vehicleId).wheelbase,!!e.fallen,e.walker?e.walker.side*e.walker.hold:0);
    if(e.walker){const w=e.walker,f=s.walker??w;
     p.bike.riderRig.onFoot(T.MathUtils.lerp(f.x,w.x,u),T.MathUtils.lerp(f.y,w.y,u),T.MathUtils.lerp(f.z,w.z,u),w.heading,T.MathUtils.lerp(f.blend,w.blend,u),w.side,w.phase,w.stride,w.hold);
+   }
+   if(e.crash){
+    const previous=s.crash??e.crash;
+    p.bike.root.position.set(0,0,0);p.bike.root.quaternion.identity();
+    if(p.bike.rider.parent!==this.scene)this.scene.attach(p.bike.rider);
+    for(const [object,from,to] of [[p.bike.body,previous.bike,e.crash.bike],[p.bike.rider,previous.rider,e.crash.rider]] as const){
+     object.position.fromArray(from.p).lerp(new T.Vector3().fromArray(to.p),u);
+     object.quaternion.fromArray(from.q).slerp(new T.Quaternion().fromArray(to.q),u);
+    }
+    if(!e.walker)p.bike.riderRig.accident(dt,true);
    }
    if(e.petUnlocked&&!e.fallen)p.bike.pet.update(T.MathUtils.lerp(s.bodyLean??0,e.bodyLean??0,u), Number(e.braking??false), dt);
    p.bike.roll((p.connected?e.speed:0)*dt,!!e.drifting,(p.connected?(burnout||e.speed):0)*dt);

@@ -73,6 +73,11 @@ export function careerUI(store:ReturnType<typeof openCareer>,npc:Roadside,shops:
     const value=gear()[part],cost=repairPrice(value);
     install(part+' · '+value.toFixed(1)+'%',cost,g=>{if(g[part]>=100)throw Error('Componente em dia');g[part]=100}).disabled=value>=100;
    }
+   const fork=gear().forkCondition??100;
+   install('Suspensão dianteira · '+fork.toFixed(1)+'%',repairPrice(fork),g=>{
+    if((g.forkCondition??100)>=100)throw Error('Componente em dia');
+    g.forkCondition=100;
+   }).disabled=fork>=100;
    line('h3','Personalização');
    const preview=document.createElement('input');preview.type='color';preview.value=currentColor();preview.oninput=()=>paint(preview.value);preview.setAttribute('aria-label','Prévia da pintura');dialog.append(preview);
    const palette=document.createElement('div');palette.className='paint-palette';dialog.append(palette);

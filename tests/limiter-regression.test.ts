@@ -38,3 +38,13 @@ test('a transient RPM blip below wheel redline cannot prematurely cut drive',()=
   assert.equal(e.limiting,false);assert.equal(e.driveFactor,1);
  }
 });
+
+test('touring bikes pull through their nominal speed while sixth gear has RPM available',()=>{
+ for(const id of ['sahara','twister','r1200gs'] as const)for(const realistic of [false,true]){
+  const r=new Ride();r.spec=vehicles.find(v=>v.id===id)!;r.gear=6;r.speed=r.spec.maxSpeed;
+  r.contact=()=>{r.pitch=0};
+  for(let i=0;i<180;i++){r.x=-310;r.z=0;r.step(1/60,1,0,0,[],false,1,false,realistic)}
+  assert.ok(r.speed>r.spec.maxSpeed+.1,id);
+  assert.ok(r.speed<=r.engine.speedAtRedline(r.spec,6),id);
+ }
+});

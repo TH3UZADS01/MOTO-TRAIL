@@ -2,7 +2,7 @@ import * as T from 'three';
 import type {VehicleId} from './vehicles';
 
 // Rake measured from vertical in the exported meshes (+Z is forward).
-export const rakeDegrees:Record<VehicleId,number>={sahara:28.3,cg150:25.3,cub:26,pop:24,urban:11.5,caloi:11.8};
+export const rakeDegrees:Record<VehicleId,number>={twister:25,r1200gs:26,sahara:28.3,cg150:25.3,cub:26,pop:24,urban:11.5,caloi:11.8};
 
 export function bindSteering(steering:T.Group,id:VehicleId){
  const rake=T.MathUtils.degToRad(rakeDegrees[id]);

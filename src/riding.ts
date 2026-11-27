@@ -1,4 +1,7 @@
+import * as T from 'three';
+import {CrashState,type CrashKind} from './crash';
 import {SimcadeHandling,defaultHandlingMode,type HandlingMode} from './simcade';
+import {SteeringInstability} from './steering-instability';
 import {RiderPosture,ergonomics} from './rider-posture';
 import {WheelContact,touringAssist} from './traction';
 import {pavementRelief} from './pavement';
@@ -13,12 +16,12 @@ import {Fuel} from './fuel';
 import {getVehicle,type VehicleSpec} from './vehicles';
 import {ground,nearestRoute,contactSurface,surface,SIZE,deepWater} from './terrain';
 import type {Obstacle} from './world';
-const flatTyreKmh={caloi:30,urban:35,cub:38,pop:42,cg150:46,sahara:50};
+const flatTyreKmh={twister:48,r1200gs:50,caloi:30,urban:35,cub:38,pop:42,cg150:46,sahara:50};
 const CRASH_SPEED=35/3.6; // Closing speed perpendicular to the obstacle, in m/s.
 export const TOP_SPEED=100/3.6;
 export const ACCELERATION_SCALE=.8; // 20% slower acceleration for every motorcycle.
 export interface WheelieDebugState {gear:number;rpm:number;wheelTorque:number;pitchTorque:number;stabilizingTorque:number;angle:number}
-export function steeringAngle(speed:number,input:number,wheelie=0){return input*(.56+.14*counterweightBlend(speed,wheelie))/(1+(speed/5.8)**2);}
+export function steeringAngle(speed:number,input:number,wheelie=0){return input*(.56+.14*counterweightBlend(speed,wheelie))/(1+(Math.abs(speed)/6.5)**2);}
 export function automaticTuckInput(input:number,speed:number,topSpeed:number){return clamp(input+Math.min(1,Math.max(0,speed)/(topSpeed*.8)),-1,1);}
 export function acceleration(speed:number,throttle:number,brake:number,pitch:number,grip:number,aerodynamicDrag=.002,topSpeed=TOP_SPEED){
   const drive=throttle*4.8*Math.max(0,1-speed/48);
@@ -30,9 +33,11 @@ export function acceleration(speed:number,throttle:number,brake:number,pitch:num
 }
 export class Ride {
   handlingMode:HandlingMode=defaultHandlingMode;
+  readonly instability=new SteeringInstability();
   readonly handling=new SimcadeHandling();
   setHandlingMode(mode:HandlingMode){
     if(this.handlingMode===mode)return;
+    this.instability.reset();
     this.frontContact=new WheelContact();this.rearContact=new WheelContact();this.assistedSlide=0;this.posture.reset();this.handlingMode=mode;this.engine.resetEngineBrake();this.suspension.resetLoads();
     this.handling.reset(this.lean);
   }
@@ -54,15 +59,31 @@ export class Ride {
   burnoutSpeed=0;
   get gear(){return this.engine.gear}
   set gear(value:number){this.engine.gear=value}
-  fuel=new Fuel();spec:VehicleSpec=getVehicle('pop');pushing=false;brakeInput=0;fallen=false;private impact=0;private fallTimer=0;private wheelieAngularVelocity=0;
+  fuel=new Fuel();spec:VehicleSpec=getVehicle('pop');pushing=false;brakeInput=0;fallen=false;private impact=0;crash?:CrashState;private slipTime=0;private wheelieAngularVelocity=0;
   bodyLean=0;wheelie=0;wheelieDebug:WheelieDebugState={gear:1,rpm:0,wheelTorque:0,pitchTorque:0,stabilizingTorque:0,angle:0};
-  get topSpeed(){return this.spec.maxSpeed/adventure.gearing[this.equipment.prep?.gearing??'original']}
-   resetBody(){this.posture.reset();this.frontContact=new WheelContact();this.rearContact=new WheelContact();this.assistedSlide=0;this.engine.resetEngineBrake();this.handling.reset(this.lean);this.suspension.reset();this.burnoutSpeed=0;this.engineThrottle=0;this.engine.cancelBlip();this.drift.reset();this.bodyLean=0;this.wheelie=0;this.wheelieAngularVelocity=0;this.engine.resetClutchKick();}
+  get usesGearTopSpeed(){return this.spec.id==='sahara'||this.spec.id==='twister'||this.spec.id==='r1200gs'}
+  get topSpeed(){if(this.usesGearTopSpeed)return this.engine.speedAtRedline(this.spec,this.spec.gears);
+    return this.spec.maxSpeed/adventure.gearing[this.equipment.prep?.gearing??'original']}
+   resetBody(){this.instability.reset();this.posture.reset();this.frontContact=new WheelContact();this.rearContact=new WheelContact();this.assistedSlide=0;this.engine.resetEngineBrake();this.handling.reset(this.lean);this.suspension.reset();this.burnoutSpeed=0;this.engineThrottle=0;this.engine.cancelBlip();this.drift.reset();this.bodyLean=0;this.wheelie=0;this.wheelieAngularVelocity=0;this.engine.resetClutchKick();}
   takeImpact(){const impact=this.impact;this.impact=0;return impact}
   x=-310;z=0;heading=0;speed=0;steer=0;lean=0;pitch=0;distance=0;y=ground(this.x,this.z);
   constructor(){this.recover()}
   contact(){const dx=Math.sin(this.heading),dz=Math.cos(this.heading),front=ground(this.x+dx*this.spec.wheelbase/2,this.z+dz*this.spec.wheelbase/2),rear=ground(this.x-dx*this.spec.wheelbase/2,this.z-dz*this.spec.wheelbase/2);this.pitch=Math.atan2(front-rear,this.spec.wheelbase);this.y=(front+rear)/2;}
-  recover(){const n=nearestRoute(this.x,this.z),p=n.track.points[n.index],q=n.track.points[n.index+1];this.x=p.x;this.z=p.z;this.heading=Math.atan2(q.x-p.x,q.z-p.z);this.speed=0;this.lean=0;this.steer=0;this.fallen=false;this.fallTimer=0;this.resetBody();this.engine.reset(this.spec.idleRpm);this.contact()}
+  recover(){const n=nearestRoute(this.x,this.z),p=n.track.points[n.index],q=n.track.points[n.index+1];this.x=p.x;this.z=p.z;this.heading=Math.atan2(q.x-p.x,q.z-p.z);this.speed=0;this.lean=0;this.steer=0;this.fallen=false;this.crash=undefined;this.resetBody();this.engine.reset(this.spec.idleRpm);this.contact()}
+  beginCrash(kind:CrashKind,travelHeading=this.heading){
+    if(this.crash&&this.fallen)return;
+    const terrain=new T.Quaternion().setFromEuler(new T.Euler(-this.pitch,0,this.lean));
+    const lift=new T.Quaternion().setFromAxisAngle(new T.Vector3(1,0,0),-this.wheelie);
+    const heading=new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),this.heading);
+    const pivot=new T.Vector3(0,.32,-this.spec.wheelbase/2);
+    const offset=pivot.clone().sub(pivot.clone().applyQuaternion(lift)).applyQuaternion(terrain).applyQuaternion(heading);
+    const orientation=heading.clone().multiply(terrain).multiply(lift);
+    const velocity=new T.Vector3(Math.sin(travelHeading)*this.speed,Math.sin(this.pitch)*this.speed,Math.cos(travelHeading)*this.speed);
+    const angular=new T.Vector3(kind==='loop-out'?-this.wheelieAngularVelocity:kind==='collision'?2.4:0,0,kind==='slide'?Math.sign(this.lean||-this.steer||1)*2.8:kind==='collision'?1.4:this.handling.rate).applyQuaternion(heading);
+    this.crash=new CrashState(kind,new T.Vector3(this.x,this.y,this.z).add(offset),orientation,velocity,angular);
+    this.drift.reset();this.fallen=true;this.engineThrottle=0;this.burnoutSpeed=0;this.instability.reset();this.engine.cancelBlip();
+  }
+  liftHere(){this.fallen=false;this.crash=undefined;this.slipTime=0;this.speed=0;this.lean=0;this.steer=0;this.resetBody();this.engine.reset(this.spec.idleRpm);this.contact()}
   step(dt:number,throttle:number,brake:number,turn:number,obstacles:Obstacle[],push=false,bodyInput=0,automatic=true,realistic=false,servicing=false,clutchLever=0){
     const prep=this.equipment.prep;
     this.engine.torqueScale=prep?.engine==='cam'?adventure.camTorqueGain:1;
@@ -76,11 +97,10 @@ export class Ride {
     brake*=conditionFactor('freios',this.equipment.freios);
     this.drift.update(dt,brake,this.speed,this.steer,push||this.fallen||this.wheelie>.08);
     if(this.fallen){
-      this.suspension.reset();
-      this.burnoutSpeed=0;
-      this.fallTimer+=dt;this.speed*=Math.exp(-4*dt);this.engine.update(dt,this.speed,this.spec,this.topSpeed,0,1,false,automatic,realistic);this.engine.cancelBlip();
-      if(this.wheelie>=BODY_TUNING.loopOutAngle)this.wheelie=Math.max(this.wheelie,BODY_TUNING.loopOutAngle+Math.min(.3,this.fallTimer*.5));
-      this.lean+=(Math.sign(this.lean||1)*.8-this.lean)*(1-Math.exp(-dt*3));this.contact();return;
+      if(!this.crash)this.beginCrash(this.wheelie>=BODY_TUNING.loopOutAngle?'loop-out':'slide');
+      this.crash!.step(dt,obstacles.concat(this.eventObstacles));
+      const p=this.crash!.bike.origin();this.x=p.x;this.y=p.y;this.z=p.z;
+      this.speed=this.crash!.bike.velocity.length();this.engineThrottle=0;this.burnoutSpeed=0;this.engine.cancelBlip();return;
     }
     this.bodyLean+=(clamp(bodyInput,-1,1)-this.bodyLean)*(1-Math.exp(-BODY_TUNING.response*dt));
     throttle=Math.max(0,Math.min(1,throttle));if(this.fuel.get(this.spec.id)<=0)throttle=0;
@@ -102,9 +122,11 @@ export class Ride {
     const tyreLimit=this.topSpeed+(flatTyreKmh[this.spec.id]/3.6-this.topSpeed)*damage;
     const response=(type==='asfalto'?suspension.road:suspension.dirt)/(1+adventure.cargo.steering*loadRatio);
     if(simcade)this.steer=this.handling.steer(dt,this.steer,turn,this.speed,this.spec,response/(1+.4*this.frontContact.rollingResistance)*(1-loadTuning.steeringFeedback*this.suspension.loadShift));
-    else this.steer+=(turn-this.steer)*(1-Math.exp(-dt*response*(10-this.speed*.2)/(this.spec.stability??1)));
+    else this.steer+=(turn-this.steer)*(1-Math.exp(-dt*response*(4+6/(1+(this.speed/15)**2))/(this.spec.stability??1)));
     this.contact();
     this.pushing=push;
+    // Use the last completed suspension sample for both tyre demand and yaw this tick.
+    const disturbance=simcade&&!push&&this.wheelie<.20?this.instability.physicalAngle:0;
     const lever=simcade?clamp(clutchLever,0,1):0;
     const burnout=lever===0&&!push&&Math.abs(this.speed)<.20&&this.wheelie<.02&&throttle*motor>=.18&&brake>=.25&&this.gear>0&&!this.engine.stalled;
     if(burnout){
@@ -140,16 +162,23 @@ export class Ride {
         const scale=gearThrottle>0&&netAcceleration>0&&brake===0
           ?this.spec.accelerationScale?.[realistic?'realistic':'arcade']??1:1;
         let accelerationApplied=netAcceleration*scale-coastForce/(baseMass+this.cargoLoad);
+        // At highway speeds the arcade drive curve runs out at 48 m/s regardless of engine size.
+        // Blend into geared tractive force so acceleration tapers against actual drag.
+        if(!realistic&&this.usesGearTopSpeed){
+          const blend=T.MathUtils.smoothstep(this.speed,this.spec.maxSpeed*.62,this.spec.maxSpeed*.9);
+          const geared=baseAcceleration+this.engine.wheelForce(this.spec,this.speed,gearThrottle*(1-lever))*driveGrip/mass;
+          accelerationApplied+=(geared-netAcceleration)*scale*blend;
+        }
         if(simcade){
           const totalMass=baseMass+this.cargoLoad,weight=totalMass*9.81;
           const bias=this.spec.centerOfMassRearDistance/this.spec.wheelbase;
           const loaded=this.suspension.front.normalLoad+this.suspension.rear.normalLoad>0;
           const frontLoad=loaded?this.suspension.front.normalLoad:weight*bias;
           const rearLoad=loaded?this.suspension.rear.normalLoad:weight*(1-bias);
-          const sideAcceleration=this.speed*this.speed*Math.tan(steeringAngle(this.speed,this.steer,this.wheelie))/this.spec.wheelbase;
+          const sideAcceleration=this.speed*this.speed*Math.tan(steeringAngle(this.speed,this.steer,this.wheelie)+disturbance)/this.spec.wheelbase;
           const braking=8*effectiveBrake*grip*(this.spec.braking??1)*totalMass;
           const frontForce=-braking*.68;
-          const rearForce=(netAcceleration-baseAcceleration)*scale*totalMass-braking*.32-coastForce;
+          const rearForce=(accelerationApplied-baseAcceleration*scale)*totalMass-braking*.32;
           this.frontContact.update(dt,frontSurface,this.equipment.tyre,health,frontLoad,frontForce,totalMass*bias*sideAcceleration,this.speed);
           this.rearContact.update(dt,rearSurface,this.equipment.tyre,health,rearLoad,rearForce,totalMass*(1-bias)*sideAcceleration,this.speed);
           accelerationApplied+=(frontForce*(this.frontContact.forceScale-1)+rearForce*(this.rearContact.forceScale-1))/totalMass;
@@ -170,7 +199,7 @@ export class Ride {
     const postureGain=this.posture.stand*ergonomics[this.spec.id].assist;
     const uprightSteering=type==='asfalto'?1-postureGain*clamp(this.speed/24,0,1):1+postureGain*Math.abs(this.frontContact.lateralSlip);
     const contactSteering=simcade?uprightSteering*(1-.55*Math.abs(this.frontContact.lateralSlip)):1;
-    const yaw=contactSteering*this.speed*Math.tan(steeringAngle(this.speed,this.steer,this.wheelie))/this.spec.wheelbase*grip*steeringGrip*(1+DRIFT_TUNING.steeringBoost*this.drift.amount);
+    const yaw=contactSteering*this.speed*Math.tan(steeringAngle(this.speed,this.steer,this.wheelie)+disturbance)/this.spec.wheelbase*grip*steeringGrip*(1+DRIFT_TUNING.steeringBoost*this.drift.amount);
     const previousHeading=this.heading;
     this.heading+=(burnout?1.9*this.steer*throttle:yaw)*dt;
     const slideTarget=simcade&&!burnout&&!push?this.rearContact.lateralSlip*touringAssist.maxSlide:0;
@@ -185,13 +214,21 @@ export class Ride {
       z+=footZ*dc-footX*ds;
     }
     const dx=x-this.x,dz=z-this.z,travelSq=dx*dx+dz*dz;
-    let hitObject=false,closingSpeed=0;
+    let hitObject=false,closingSpeed=0;const impactNormal=new T.Vector3();
     const checkObstacle=(o:Obstacle)=>{
       const ox=o.x-this.x,oz=o.z-this.z,radius=o.r+.35;
       if(Math.abs(ox)>radius+Math.abs(dx)||Math.abs(oz)>radius+Math.abs(dz))return;
       if(o.halfX!==undefined){
        const normal=wallImpact(o,this.x,this.z,dx,dz,.35);
-       if(normal>0){hitObject=true;closingSpeed=Math.max(closingSpeed,Math.abs(this.speed)*normal)}
+       if(normal>0){hitObject=true;
+        if(Math.abs(this.speed)*normal>closingSpeed){
+         closingSpeed=Math.abs(this.speed)*normal;
+         const c=Math.cos(o.angle??0),s=Math.sin(o.angle??0),rx=this.x-o.x,rz=this.z-o.z;
+         const lx=rx*c-rz*s,lz=rx*s+rz*c;
+         if(Math.abs(lx)-o.halfX!>Math.abs(lz)-(o.halfZ??o.r))impactNormal.set(Math.sign(lx)*c,0,-Math.sign(lx)*s);
+         else impactNormal.set(Math.sign(lz)*s,0,Math.sign(lz)*c);
+        }
+       }
        return;
       }
       const toward=ox*dx+oz*dz;
@@ -202,21 +239,32 @@ export class Ride {
       // The perpendicular offset from the path determines how directly the bike hits.
       const cross=ox*dz-oz*dx;
       const normalFraction=Math.sqrt(Math.max(0,1-cross*cross/(travelSq*radius*radius)));
-      closingSpeed=Math.max(closingSpeed,Math.abs(this.speed)*normalFraction);
+      if(Math.abs(this.speed)*normalFraction>closingSpeed){
+       closingSpeed=Math.abs(this.speed)*normalFraction;
+       const entry=Math.max(0,(toward-Math.sqrt(Math.max(0,toward*toward-travelSq*(ox*ox+oz*oz-radius*radius))))/travelSq);
+       impactNormal.set(this.x+dx*entry-o.x,0,this.z+dz*entry-o.z).normalize();
+      }
     };
     obstacles.forEach(checkObstacle);this.eventObstacles.forEach(checkObstacle);
     const hit=hitObject||deepWater(x,z)||Math.abs(x)>SIZE/2-30||Math.abs(z)>SIZE/2-30;
     if(hit){
       if(burnout)this.heading=previousHeading;
-      this.drift.reset();this.wheelie=0;this.wheelieAngularVelocity=0;
-      this.impact=Math.max(this.impact,Math.abs(this.speed));this.speed=0;
+      this.impact=Math.max(this.impact,Math.abs(this.speed));
       if(closingSpeed>=CRASH_SPEED){
-        this.fallen=true;this.fallTimer=0;this.resetBody();return;
+        this.beginCrash('collision',travelHeading);
+        // The obstacle resolves the motorcycle impulse; the rider inherits pre-impact speed.
+        const velocity=this.crash!.bike.velocity;
+        velocity.addScaledVector(impactNormal,-Math.min(0,velocity.dot(impactNormal)));
+        this.speed=Math.hypot(velocity.x,velocity.z);if(this.speed<1e-6)this.speed=0;
+        this.crash!.bike.angular.addScaledVector(new T.Vector3(0,1,0),impactNormal.x*Math.cos(this.heading)-impactNormal.z*Math.sin(this.heading));
+        return;
       }
+      this.drift.reset();this.wheelie=0;this.wheelieAngularVelocity=0;this.speed=0;
     }else {this.x=x;this.z=z;this.distance+=Math.abs(this.speed)*dt}
-    const wheeliePhysics=this.engine.wheeliePhysics(this.spec,this.speed,throttle*motor,this.bodyLean);
+    const liftThrottle=throttle*motor*(1-damage*.75);
+    const wheeliePhysics=this.engine.wheeliePhysics(this.spec,this.speed,liftThrottle,this.bodyLean);
     this.wheelieDebug={gear:this.engine.gear,rpm:this.engine.rpm,wheelTorque:wheeliePhysics.wheelTorque,pitchTorque:wheeliePhysics.pitchTorque*BODY_TUNING.wheeliePitchForceScale,stabilizingTorque:wheeliePhysics.stabilizingTorque,angle:this.wheelie};
-    const physicalWheelieMargin=this.engine.allowWheelie(this.spec,this.speed,throttle*motor,brake,this.bodyLean);
+    const physicalWheelieMargin=this.engine.allowWheelie(this.spec,this.speed,liftThrottle,brake,this.bodyLean);
      // Once airborne, transmit throttle torque without requiring a new body pull.
      const airborne=this.wheelie>BODY_TUNING.airborneThreshold;
      const activeWheelie=!hit&&!push&&!this.engine.stalled&&throttle>0&&(airborne||physicalWheelieMargin>0)&&this.speed>=BODY_TUNING.minWheelieSpeed;
@@ -244,15 +292,18 @@ export class Ride {
      // Ground contact absorbs downward rotation instead of storing imaginary momentum.
      if(this.wheelie===0)this.wheelieAngularVelocity=Math.max(0,this.wheelieAngularVelocity);
     this.wheelieDebug.angle=this.wheelie;
-    if(this.wheelie>BODY_TUNING.loopOutAngle&&this.wheelieAngularVelocity>0){this.fallen=true;this.fallTimer=0}
+    if(this.wheelie>BODY_TUNING.loopOutAngle&&this.wheelieAngularVelocity>0){this.beginCrash('loop-out',travelHeading);return}
     this.fuel.consume(this.spec.id,this.distance-before,dt,this.engineThrottle,this.speed,this.pitch,push||this.engine.stalled||servicing,this.engine.rpm,this.cargoLoad);
     this.contact();
     if(dt>0){
      const half=this.spec.wheelbase/2,slope=Math.tan(this.pitch)*half;
-     const relief=type==='terra'?.018:type==='grama'?.012:0;
+     const relief=type==='asfalto'?0:type==='grama'?.012:.010;
      const dx=Math.sin(this.heading)*half,dz=Math.cos(this.heading)*half;
      const bump=(x:number,z:number)=>pavementRelief(x,z)+relief*(.58*Math.sin(2.3*x+1.7*z)+.42*Math.sin(3.1*z-1.2*x));
-     this.suspension.step(dt,this.spec,this.y+slope+bump(this.x+dx,this.z+dz),this.y-slope+bump(this.x-dx,this.z-dz),(this.speed-initialSpeed)/dt,this.cargoLoad,this.wheelie,suspension.travel,suspension.frequency,simcade,this.pitch,this.posture.rise);
+     const frontRelief=bump(this.x+dx,this.z+dz);
+     this.suspension.step(dt,this.spec,this.y+slope+frontRelief,this.y-slope+bump(this.x-dx,this.z-dz),(this.speed-initialSpeed)/dt,this.cargoLoad,this.wheelie,suspension.travel,suspension.frequency,simcade,this.pitch,this.posture.rise);
+     if(push||this.fallen||servicing)this.instability.reset();
+     else this.instability.step(dt,this.spec,this.speed,this.suspension,this.frontContact,this.equipment,this.cargoLoad,this.handling.assist,this.steer,this.wheelie,frontRelief,simcade,type!=='asfalto'&&type!=='grama'?.72:1);
     }
     if(simcade&&!this.fallen)this.posture.step(dt,this.spec.id,this.speed,this.lean,yaw*this.speed,this.suspension.acceleration,type!=='asfalto',this.rearContact.lateralSlip,this.suspension.front.compression,this.suspension.rear.compression);
     if(simcade&&!burnout){
@@ -263,5 +314,12 @@ export class Ride {
     if(simcade)this.handling.reset(this.lean);
     }
 
+    const lost=simcade&&!push&&!burnout&&this.speed>6&&Math.abs(this.lean)>.22&&Math.abs(this.frontContact.lateralSlip)>.72;
+    this.slipTime=lost?this.slipTime+dt:Math.max(0,this.slipTime-dt*2);
+    if(this.slipTime>.55)this.beginCrash('slide',travelHeading);
+
   }
 }
+
+
+

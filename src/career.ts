@@ -4,7 +4,7 @@ import {vehicles,type VehicleId} from './vehicles';
 
 export type Tyre='original'|'pista'|'trilha';
 export type Condition='motor'|'freios'|'pneus';
-export type Equipment={km?:number;prep?:Prep;box:boolean;tyre:Tyre;color?:string}&Record<Condition,number>;
+export type Equipment={forkCondition?:number;km?:number;prep?:Prep;box:boolean;tyre:Tyre;color?:string}&Record<Condition,number>;
 export const factory=():Equipment=>({box:false,tyre:'original',motor:100,freios:100,pneus:100});
 export type Site={x:number;z:number;name:string};
 export type Job={id:string;name:string;from:Site;to:Site;returning:boolean;pickup:boolean;kg?:number;load:number;pay:number;vehicle:VehicleId};
@@ -12,7 +12,7 @@ export type RegionCooldown={x:number;z:number;until:number};
 export type Career={market?:Market;expedition?:TripProgress;completedTrips?:string[];tanks?:Partial<Record<VehicleId,number>>;money:number;owned:VehicleId[];garage:Partial<Record<VehicleId,Equipment>>;pet:boolean;job:Job|null;cooldowns:RegionCooldown[]};
 const key='moto-trail-career-v2';
 export const payment=(base:number)=>base*19.5;
-export const bikePrices:Record<Exclude<VehicleId,'cub'>,number>={pop:0,caloi:100*21,urban:350*21,cg150:650*21,sahara:1250*21};
+export const bikePrices:Record<Exclude<VehicleId,'cub'>,number>={twister:18000,r1200gs:65000,pop:0,caloi:100*21,urban:350*21,cg150:650*21,sahara:1250*21};
 export function buyVehicle(state:Career,id:VehicleId){
  if(id==='cub')throw Error('Descubra todos os locais do mapa para ganhar a Honda Cub');
  if(state.owned.includes(id))throw Error('Esta moto já está na garagem');

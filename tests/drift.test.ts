@@ -26,7 +26,7 @@ test('drift turns harder, slides sideways and stops on impact or recovery',()=>{
  const normal=new Ride();normal.speed=r.speed;normal.steer=r.steer;normal.heading=start;normal.contact=()=>{normal.pitch=0};normal.step(1/60,0,1,1,[]);
  assert.ok(driftYaw>normal.heading-start);assert.ok(r.speed<30);
  const travel=r.heading-r.drift.slip;
- r.step(1/60,0,1,1,[{x:r.x+Math.sin(travel),z:r.z+Math.cos(travel),r:2}]);assert.equal(r.speed,0);assert.equal(r.drift.active,false);
+ r.step(1/60,0,1,1,[{x:r.x+Math.sin(travel),z:r.z+Math.cos(travel),r:2}]);assert.equal(r.crash?.kind,'collision');assert.ok(r.speed<r.crash!.incoming.length()*.1);assert.equal(r.drift.active,false);
  r.recover();assert.equal(r.drift.slip,0);
 });
 test('locked rear emits bounded white smoke on asphalt and lets it fade after release',()=>{
@@ -37,3 +37,4 @@ test('locked rear emits bounded white smoke on asphalt and lets it fade after re
  for(let i=0;i<30;i++)p.update('asfalto',0,wheel,0,.1,false);
  assert.equal(p.count,0);p.dispose();
 });
+

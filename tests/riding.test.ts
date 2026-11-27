@@ -72,9 +72,10 @@ test('solid impacts distinguish frontal crashes from light and glancing contact'
   const obstacle={x:ride.x+offset,z:ride.z+1,r:.5};
   if(event)ride.eventObstacles=[obstacle];
   ride.step(.1,0,0,0,event?[]:[obstacle]);
-  assert.equal(ride.speed,0);assert.equal(ride.fallen,crash);
+  assert.equal(ride.fallen,crash);if(!crash)assert.equal(ride.speed,0);
   if(crash){
-   ride.step(.1,1,0,0,[]);assert.equal(ride.wheelie,0);assert.ok(ride.lean>0);
+   assert.ok(ride.crash!.incoming.length()>10);assert.ok(ride.crash!.bike.velocity.length()<ride.crash!.incoming.length());
+   ride.step(.1,1,0,0,[]);assert.ok(ride.crash!.bike.angular.length()>0);
    ride.recover();assert.equal(ride.fallen,false);assert.equal(ride.lean,0);
   }
  }
@@ -95,5 +96,16 @@ test('critical wear weakens propulsion, braking and cornering in both riding mod
   const heading=new Ride().heading;
   const turn=(health:number)=>Math.abs(step('pneus',health,0,0).heading-heading);
   assert.ok(turn(0)>0&&turn(0)<turn(100)*.3&&turn(10)>turn(0));
+ }
+});
+
+
+test('stock GS lifts in second with rearward input and stays planted during a neutral roll-on',()=>{
+ for(const kmh of [35,55])for(const body of [-1,0]){
+  const r=new Ride();r.spec=getVehicle('r1200gs');r.setHandlingMode('simcade');
+  r.speed=kmh/3.6;r.gear=2;r.contact=()=>{r.pitch=0};
+  for(let i=0;i<60;i++)r.step(1/60,1,0,0,[],false,body,false,true);
+  assert.equal(r.gear,2);assert.equal(r.fallen,false);
+  if(body<0)assert.ok(r.wheelie>Math.PI/6);else assert.equal(r.wheelie,0);
  }
 });

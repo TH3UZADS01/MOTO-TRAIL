@@ -21,7 +21,7 @@ test('Pop fourth-gear roll-on at 40 km/h stays coupled until road speed changes'
 });
 
 test('each calibrated power curve peaks at the requested RPM before its own cutoff',()=>{
- const expected={sahara:[7500,8500],cg150:[8000,9500],pop:[7250,8500],cub:[7500,8500],urban:[8000,9000],caloi:[5500,6500]};
+ const expected={twister:[7500,9000],r1200gs:[7750,8500],sahara:[7500,8500],cg150:[8000,9500],pop:[7250,8500],cub:[7500,8500],urban:[8000,9000],caloi:[5500,6500]};
  const engine=new Powertrain();
  for(const v of vehicles){
   assert.deepEqual([v.peakPowerRpm,v.redlineRpm],expected[v.id]);

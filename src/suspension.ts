@@ -1,7 +1,7 @@
 import type {VehicleId,VehicleSpec} from './vehicles';
 
 // Available compression from normal ride height, in metres.
-const travel:Record<VehicleId,number>={sahara:.135,cg150:.083,pop:.063,cub:.06,urban:.052,caloi:.047};
+const travel:Record<VehicleId,number>={twister:.075,r1200gs:.12,sahara:.135,cg150:.083,pop:.063,cub:.06,urban:.052,caloi:.047};
 // Dynamic travel per unit of weight moved between axles (fraction of total weight).
 export const loadTuning={gravity:9.81,response:9,frontTravel:1.35,rearTravel:1.05,steeringFeedback:.14,brakeFeedback:.08};
 class Axle {

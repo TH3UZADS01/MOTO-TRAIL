@@ -16,6 +16,8 @@ export const adventure={
  events
 } as const;
 export const parts={
+ sport:{slot:'damper',label:'Amortecedor esportivo',price:80,detail:'Acelera a recuperação do guidão após impactos.'},
+ reinforced:{slot:'damper',label:'Amortecedor reforçado',price:110,detail:'Maior amortecimento das oscilações em trechos irregulares.'},
  short:{slot:'gearing',label:'Relação curta',price:80,detail:'Mais força na roda e RPM mais alto. Menor final teórica.'},
  long:{slot:'gearing',label:'Relação longa',price:80,detail:'Menos RPM em cruzeiro. Retomadas e subidas mais lentas.'},
  trail:{slot:'suspension',label:'Suspensão de trilha',price:110,detail:'Mais curso e controle na terra. Direção menos precisa no asfalto.'},
@@ -25,8 +27,8 @@ export const parts={
 } as const;
 export type Part=keyof typeof parts;
 export type Slot=typeof parts[Part]['slot'];
-export type Prep={engine?:'original'|'cam';gearing:'original'|'short'|'long';suspension:'original'|'trail'|'road';brakes:'original'|'improved';bought:Part[]};
+export type Prep={damper?:'original'|'sport'|'reinforced';engine?:'original'|'cam';gearing:'original'|'short'|'long';suspension:'original'|'trail'|'road';brakes:'original'|'improved';bought:Part[]};
 export const originalPrep=():Prep=>({engine:'original',gearing:'original',suspension:'original',brakes:'original',bought:[]});
-const priceFactor:Record<VehicleId,number>={pop:1,cub:1,urban:.85,caloi:.65,cg150:1.25,sahara:1.6};
+const priceFactor:Record<VehicleId,number>={twister:1.6,r1200gs:3,pop:1,cub:1,urban:.85,caloi:.65,cg150:1.25,sahara:1.6};
 export const workshopMultiplier=3.5;
 export const partPrice=(id:VehicleId,part:Part)=>Math.round(parts[part].price*priceFactor[id])*workshopMultiplier;

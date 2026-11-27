@@ -176,5 +176,21 @@ export function createRider(steering:T.Group,eyeHeight=1.48,handleY=1.02,_jacket
    solveArm(sign,0);segment(l.upperArm,shoulder,elbow,.051*size);segment(l.forearm,elbow,wrist,.043*size);
   }
  }
- update(0,0,0);return {onFoot,root,head,setFullFace,neck,hips,torso,limbs,eye,update,get lean(){return lean},get foreAft(){return foreAft},get stopPose(){return stopPose}};
+ // The crash body owns the root transform; only local joints animate here.
+ function accident(dt:number,grounded:boolean){
+  const blend=1-Math.exp(-7*dt);
+  head.visible=neck.visible=true;
+  torso.rotation.x=T.MathUtils.lerp(torso.rotation.x,grounded?.18:.3,blend);
+  for(const l of limbs){
+   const side=l.side;
+   hip.copy(hips.position);hip.x+=side*.10;
+   l.knee.lerp(new T.Vector3(side*.18,hips.position.y-.30,hips.position.z+.12),blend);
+   l.foot.position.lerp(new T.Vector3(side*.22,hips.position.y-.70,hips.position.z+.06),blend);
+   segment(l.thigh,hip,l.knee,.064*size);segment(l.shin,l.knee,l.foot.position,.052*size);
+   shoulder.set(side*.16*size,.14*size,.05*size).applyQuaternion(torso.quaternion).add(torso.position);
+   l.hand.position.lerp(new T.Vector3(side*.29,torso.position.y+.02,torso.position.z+.32),blend);
+   wrist.copy(l.hand.position);solveArm(side,0);segment(l.upperArm,shoulder,elbow,.051*size);segment(l.forearm,elbow,wrist,.043*size);
+  }
+ }
+ update(0,0,0);return {accident,onFoot,root,head,setFullFace,neck,hips,torso,limbs,eye,update,get lean(){return lean},get foreAft(){return foreAft},get stopPose(){return stopPose}};
 }

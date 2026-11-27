@@ -1,4 +1,4 @@
-export type VehicleId = "pop" | "cub" | "urban" | "caloi" | "cg150" | "sahara";
+export type VehicleId = "twister" | "r1200gs" | "pop" | "cub" | "urban" | "caloi" | "cg150" | "sahara";
 
 export interface TorquePoint {
   rpm: number;
@@ -33,7 +33,7 @@ export interface VehicleSpec {
   centerOfMassHeight: number;
   centerOfMassRearDistance: number;
   riderMass: number;
-  audio: "engine" | "moped" | "cg150" | "sahara";
+  audio: "engine" | "moped" | "cg150" | "sahara" | "twister" | "r1200gs";
   pitch: number;
   filter: number;
   mass?: number;
@@ -291,5 +291,10 @@ export const vehicles: VehicleSpec[] = [
   },
 ];
 
+// Initial game calibration; existing sound banks are temporary.
+vehicles.push(
+ {...vehicles.find(v=>v.id==='cg150')!,id:'twister',name:'Honda CB 300F Twister',note:'300 cc · 6 marchas',maxSpeed:145/3.6,mass:153,power:1.5,wheelbase:1.39,gears:6,gearRatios:[2.8,1.8,1.35,1.1,.95,.85],finalDrive:7.4,idleRpm:1450,peakPowerRpm:7500,redlineRpm:9000,torqueCurve:[{rpm:1400,torqueNm:12},{rpm:4000,torqueNm:22},{rpm:6500,torqueNm:26},{rpm:7500,torqueNm:24},{rpm:9000,torqueNm:18}],gearMinSpeedKmh:[0,12,20,30,40,50],wheelieMaxSpeedKmh:[40,55,70,80,90,100],audio:'twister',pitch:.93},
+ {...vehicles.find(v=>v.id==='sahara')!,id:'r1200gs',name:'BMW R 1200 GS',note:'Boxer 1200 · 6 marchas',maxSpeed:200/3.6,mass:244,power:3.6,wheelbase:1.515,gears:6,gearRatios:[2.38,1.7,1.3,1.06,.94,.85],finalDrive:5.6,idleRpm:1200,peakPowerRpm:7750,redlineRpm:8500,torqueCurve:[{rpm:1200,torqueNm:45},{rpm:3000,torqueNm:85},{rpm:6500,torqueNm:115},{rpm:7750,torqueNm:107},{rpm:8500,torqueNm:85}],audio:'r1200gs',pitch:.8,stability:1.3,wheelieAssist:.45,centerOfMassHeight:.65,centerOfMassRearDistance:.78}
+);
 export const getVehicle = (id: string) =>
   vehicles.find((v) => v.id === id) || vehicles.find((v) => v.id === "pop")!;

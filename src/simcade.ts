@@ -5,9 +5,9 @@ export const defaultHandlingMode:HandlingMode='arcade';
 export const simcadeTuning={
  steeringResponse:9,          // Steering entry rate, per second, at low speed.
  steeringReturn:11,           // Centering rate after releasing the stick or keys.
- highSpeedReduction:.48,      // Fraction of low-speed response lost at cruising speed.
+ highSpeedReduction:.20,      // Fraction of low-speed response lost at cruising speed.
  speedScale:15,               // m/s at the midpoint of the speed-dependent reduction.
- leanResponse:7.5,            // Natural frequency of the critically damped roll spring, per second.
+ leanResponse:5.5,            // Natural frequency of the critically damped roll spring, per second.
  maxLean:.48,                 // Soft limit in radians, approached progressively.
  balanceSpeed:3,              // m/s at half strength of the low-speed balance assist.
  selfStabilization:.35,       // Extra spring response near center and at walking pace.

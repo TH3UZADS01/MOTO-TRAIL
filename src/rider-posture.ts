@@ -3,6 +3,7 @@ import type {VehicleId} from './vehicles';
 
 // Hip rise in metres, seated corner lean in radians, loose-ground steering assist as a fraction.
 export const ergonomics = {
+  twister:{rise:.17,lean:.16,assist:.045},r1200gs:{rise:.20,lean:.13,assist:.075},
   pop:   {rise: .145, lean: .10,  assist: .035},
   cub:   {rise: .135, lean: .09,  assist: .030},
   cg150: {rise: .170, lean: .16,  assist: .045},

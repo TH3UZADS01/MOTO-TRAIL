@@ -2,8 +2,8 @@ import {getVehicle,vehicles,type VehicleId} from './vehicles';
 import type {Career,openCareer} from './career';
 
 export const GAS_PRICE=7;
-export const capacities:Record<VehicleId,number>={pop:4.2,cub:3.7,urban:3,caloi:2.7,cg150:14,sahara:13.8};
-export const kmPerLiter:Record<VehicleId,number>={pop:48,cub:100/1.5,urban:45,caloi:35,cg150:38,sahara:29};
+export const capacities:Record<VehicleId,number>={twister:14.1,r1200gs:20,pop:4.2,cub:3.7,urban:3,caloi:2.7,cg150:14,sahara:13.8};
+export const kmPerLiter:Record<VehicleId,number>={twister:30,r1200gs:20,pop:48,cub:100/1.5,urban:45,caloi:35,cg150:38,sahara:29};
 export const CONSUMPTION_MULTIPLIER=3;
 const bounded=(value:number,id:VehicleId)=>Math.max(0,Math.min(capacities[id],value));
 

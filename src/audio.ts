@@ -69,10 +69,14 @@ export const AUDIO_ASSETS = [
 
   { name: "sahara-on-high", bank: "sahara", load: true },
   { name: "sahara-off-high", bank: "sahara", load: false },
+  { name: "twister-on", bank: "twister", load: true },
+  { name: "twister-off", bank: "twister", load: false },
+  { name: "gs-on", bank: "r1200gs", load: true },
+  { name: "gs-off", bank: "r1200gs", load: false },
 ] as const;
 
-type AudioBank = "engine" | "moped" | "wind" | "cg150" | "sahara";
-type IdleSoundName = "pop-idle" | "cg150-idle" | "caloi-idle" | "sahara-idle";
+type AudioBank = "engine" | "moped" | "wind" | "cg150" | "sahara" | "twister" | "r1200gs";
+type IdleSoundName = "pop-idle" | "cg150-idle" | "caloi-idle" | "sahara-idle" | "twister-idle" | "gs-idle";
 type Layer = {
   source: AudioBufferSourceNode;
   gain: GainNode;
@@ -90,6 +94,8 @@ const IDLE_SOUND_BY_BANK: Partial<Record<AudioBank, IdleSoundName>> = {
   moped: "caloi-idle",
   cg150: "cg150-idle",
   sahara: "sahara-idle",
+  twister: "twister-idle",
+  r1200gs: "gs-idle",
 };
 
 function idleSoundForVehicle(
@@ -335,9 +341,9 @@ export class Sound {
       filter.frequency.value =
         asset.bank === "wind"
           ? 700
-          : asset.bank === "cg150"
+          : (asset.bank === "cg150" || asset.bank === "twister")
             ? CG_AUDIO_TUNING.filter
-            : asset.bank === "sahara"
+            : (asset.bank === "sahara" || asset.bank === "r1200gs")
               ? SAHARA_AUDIO_TUNING.filter
               : 1800;
       // Todos os arquivos da Sahara passam pelo mesmo filtro; ajuste se o seu projeto usa equalização própria.
@@ -407,9 +413,9 @@ export class Sound {
       gain.gain.value = 0;
       filter.type = "lowpass";
       filter.frequency.value =
-        bank === "sahara"
+        (bank === "sahara" || bank === "r1200gs")
           ? SAHARA_AUDIO_TUNING.filter
-          : bank === "cg150"
+          : (bank === "cg150" || bank === "twister")
             ? CG_AUDIO_TUNING.filter
             : 1800;
       source.connect(filter);
@@ -611,9 +617,9 @@ export class Sound {
       (layer) => layer.idle && layer.idleSound === idleSound,
     );
     const tuning =
-      spec.audio === "sahara"
+      (spec.audio === "sahara" || spec.audio === "r1200gs")
         ? SAHARA_AUDIO_TUNING
-        : spec.audio === "cg150"
+        : (spec.audio === "cg150" || spec.audio === "twister")
           ? CG_AUDIO_TUNING
           : GENERIC_IDLE_AUDIO_TUNING;
     const gas =
@@ -645,20 +651,20 @@ export class Sound {
           gain = this.volume * tuning.idleGain * idleFactor;
           rate = tuning.idlePlaybackRate;
           const cutoff =
-            spec.audio === "sahara"
+            (spec.audio === "sahara" || spec.audio === "r1200gs")
               ? SAHARA_AUDIO_TUNING.filter
-              : spec.audio === "cg150"
+              : (spec.audio === "cg150" || spec.audio === "twister")
                 ? CG_AUDIO_TUNING.filter
                 : spec.filter;
           layer.filter.frequency.setTargetAtTime(cutoff, t, 0.25);
         }
       } else if (
-        (layer.bank === "cg150" || layer.bank === "sahara") &&
+        ((layer.bank === "cg150" || layer.bank === "twister") || (layer.bank === "sahara" || layer.bank === "r1200gs")) &&
         layer.bank === spec.audio &&
         !paused
       ) {
         const vehicleTuning =
-          layer.bank === "sahara" ? SAHARA_AUDIO_TUNING : CG_AUDIO_TUNING;
+          (layer.bank === "sahara" || layer.bank === "r1200gs") ? SAHARA_AUDIO_TUNING : CG_AUDIO_TUNING;
         const moving = Math.min(1, v / 5);
         gain =
           this.volume *
