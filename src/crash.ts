@@ -4,10 +4,12 @@ import {blocked,type Obstacle} from './obstacle';
 export type CrashKind='loop-out'|'collision'|'slide';
 export const CRASH_TUNING={gravity:9.81,step:1/120,maxTravel:.12,friction:{asfalto:.48,terra:.38,cascalho:.32,areia:.55,lama:.24,grama:.30},sleepSpeed:.18};
 const v=new T.Vector3(),normal=new T.Vector3(),q=new T.Quaternion();
+const forward=new T.Vector3(),right=new T.Vector3(),up=new T.Vector3(),basis=new T.Matrix4();
 /** One oriented box per body; corners and centre support uneven terrain. */
 export class CrashBody {
  position=new T.Vector3();velocity=new T.Vector3();orientation=new T.Quaternion();angular=new T.Vector3();
  grounded=false;sleeping=false;quiet=0;
+ private restPose?:T.Quaternion;
  constructor(public half=new T.Vector3(.38,.65,1),public center=new T.Vector3(0,.65,0),private readonly body:'bike'|'rider'='bike'){}
  clearance(floor=ground){
   let gap=Infinity;
@@ -51,11 +53,28 @@ export class CrashBody {
      const deceleration=mu*(2.6*CRASH_TUNING.gravity+1.8*speed);
      if(speed>0)this.velocity.addScaledVector(tangent,-Math.min(1,deceleration*h/speed));
     }else{
-     const speed=this.velocity.length(),loss=mu*CRASH_TUNING.gravity*h;
+     const speed=this.velocity.length(),loss=2.2*mu*CRASH_TUNING.gravity*h;
      this.velocity.multiplyScalar(Math.max(0,1-loss/Math.max(speed,.001)));
     }
     this.angular.multiplyScalar(Math.exp(-(Math.abs(new T.Vector3(0,1,0).applyQuaternion(this.orientation).y)>.45?1.3:3.8)*h));
-    if(this.velocity.length()<CRASH_TUNING.sleepSpeed&&this.angular.length()<.12)this.quiet+=h;else this.quiet=0;
+    if(this.body==='bike'&&this.velocity.length()<2&&this.angular.length()<1.5){
+     if(!this.restPose){
+      right.set(1,0,0).applyQuaternion(this.orientation);
+      forward.set(0,0,1).applyQuaternion(this.orientation);
+      const bank=right.dot(normal),roll=this.angular.dot(forward);
+      const side=Math.sign(Math.abs(bank)>.02?bank:roll)||1;
+      forward.projectOnPlane(normal);
+      if(forward.lengthSq()<.001)forward.crossVectors(right,normal);
+      forward.normalize();right.copy(normal).multiplyScalar(side);
+      up.crossVectors(forward,right);
+      this.restPose=new T.Quaternion().setFromRotationMatrix(basis.makeBasis(right,up,forward));
+     }
+     this.angular.set(0,0,0);
+     this.orientation.rotateTowards(this.restPose,3*h);
+     this.position.y-=this.clearance(floor);
+    }
+    const settled=this.body==='rider'||(this.restPose&&this.orientation.angleTo(this.restPose)<.001);
+    if(settled&&this.velocity.length()<CRASH_TUNING.sleepSpeed&&this.angular.length()<.12)this.quiet+=h;else this.quiet=0;
     if(this.quiet>.5){this.sleeping=true;this.velocity.set(0,0,0);this.angular.set(0,0,0);break}
    }else this.angular.multiplyScalar(Math.exp(-.08*h));
   }

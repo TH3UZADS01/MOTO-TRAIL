@@ -712,6 +712,8 @@ export class Sound {
         brake < 0.05;
       if (layer.bank !== "wind" && !layer.idle && cutting)
         gain *= ENGINE_TUNING.cutGain;
+      if (layer.bank === "twister") gain *= 1.55;
+      if ((layer.bank === "r1200gs" || layer.bank === "twister") && layer.bank === spec.audio) rate *= spec.pitch;
       const response = layer.bank === "wind" ? 0.16 : tuning.response;
       layer.gain.gain.setTargetAtTime(
         gain,

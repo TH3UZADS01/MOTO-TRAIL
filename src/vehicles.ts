@@ -42,6 +42,8 @@ export interface VehicleSpec {
 }
 
 // All values are gameplay tuning, not manufacturer dyno specifications.
+const saharaTwisterCutHz = 9;
+
 export const vehicles: VehicleSpec[] = [
   // XRE300 Sahara: Honda gasoline torque and power peaks; intermediate points and gearing are game estimates.
   // Mass includes fuel and fluids.
@@ -64,7 +66,7 @@ export const vehicles: VehicleSpec[] = [
     clutchEngagementRpm: 2000,
     peakPowerRpm: 7500,
     redlineRpm: 8500,
-    cutFrequencyHz: 9,
+    cutFrequencyHz: saharaTwisterCutHz,
     torqueCurve: [
       { rpm: 1300, torqueNm: 12 },
       { rpm: 2500, torqueNm: 17 },
@@ -286,7 +288,7 @@ export const vehicles: VehicleSpec[] = [
 
 // Initial game calibration; existing sound banks are temporary.
 vehicles.push(
- {...vehicles.find(v=>v.id==='cg150')!,id:'twister',name:'Honda CB 300F Twister',note:'300 cc � 6 marchas',maxSpeed:145/3.6,mass:153,power:1.5,wheelbase:1.39,gears:6,gearRatios:[2.8,1.8,1.35,1.1,.95,.85],finalDrive:7.4,idleRpm:1450,peakPowerRpm:7500,redlineRpm:9000,torqueCurve:[{rpm:1400,torqueNm:12},{rpm:4000,torqueNm:22},{rpm:6500,torqueNm:26},{rpm:7500,torqueNm:24},{rpm:9000,torqueNm:18}],gearMinSpeedKmh:[0,12,20,30,40,50],audio:'twister',pitch:.93},
+ {...vehicles.find(v=>v.id==='cg150')!,id:'twister',name:'Honda CB 300F Twister',note:'300 cc � 6 marchas',maxSpeed:145/3.6,mass:153,power:1.5,wheelbase:1.39,gears:6,gearRatios:[2.8,1.8,1.35,1.1,.95,.85],finalDrive:7.4,idleRpm:1450,peakPowerRpm:7500,redlineRpm:9000,cutFrequencyHz:saharaTwisterCutHz,torqueCurve:[{rpm:1400,torqueNm:12},{rpm:4000,torqueNm:22},{rpm:6500,torqueNm:26},{rpm:7500,torqueNm:24},{rpm:9000,torqueNm:18}],gearMinSpeedKmh:[0,12,20,30,40,50],audio:'twister',pitch:1.06},
  {...vehicles.find(v=>v.id==='sahara')!,id:'r1200gs',name:'BMW R 1200 GS',note:'Boxer 1200 � 6 marchas',maxSpeed:200/3.6,mass:244,power:3.6,braking:1.8,wheelbase:1.515,gears:6,gearRatios:[2.38,1.7,1.3,1.06,.94,.85],finalDrive:5.6,idleRpm:1200,peakPowerRpm:7750,redlineRpm:8500,torqueCurve:[{rpm:1200,torqueNm:45},{rpm:3000,torqueNm:85},{rpm:6500,torqueNm:115},{rpm:7750,torqueNm:107},{rpm:8500,torqueNm:85}],audio:'r1200gs',pitch:.8,stability:1.3,wheelieAssist:.45,centerOfMassHeight:.65,centerOfMassRearDistance:.78}
 );
 export const getVehicle = (id: string) =>
