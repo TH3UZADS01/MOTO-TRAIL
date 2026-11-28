@@ -1,5 +1,5 @@
-import {adventure,originalPrep,partPrice,parts,type Part,type Slot} from './adventure-tuning';
-import {payment,bikePrices,cash,distance,equipment,factory,purchase,target,type Career,type Site} from './career';
+import {adventure,retailPrice,originalPrep,partPrice,parts,type Part,type Slot} from './adventure-tuning';
+import {payment,baseBikePrices,bikePrices,cash,distance,equipment,factory,purchase,target,type Career,type Site} from './career';
 import {villages,specials,stations,viewpoints} from './map-layout';
 import {PALETTE} from './paint';
 import type {VehicleId} from './vehicles';
@@ -16,10 +16,18 @@ export type Listing={id:string;vehicle:SaleId;km:number;motor:number;freios:numb
 export type Market={pricing?:number;until:number;list:Listing[]};
 const market=adventure.market;
 export function usedPrice(id:SaleId,km:number,condition:number){
- return Math.round(bikePrices[id]*(market.baseFraction+market.conditionPremium*condition/100-market.mileageDiscount*Math.min(1,km/market.maxKm)));
+ return retailPrice(Math.round(baseBikePrices[id]*(market.baseFraction+market.conditionPremium*condition/100-market.mileageDiscount*Math.min(1,km/market.maxKm))));
 }
 export function renewMarket(s:Career,now=Date.now(),random=Math.random){
- if(s.market&&s.market.until>now){if(s.market.pricing!==2){for(const l of s.market.list)l.price=usedPrice(l.vehicle,l.km,(l.motor+l.freios+l.pneus)/3);s.market.pricing=2}return}
+ if(s.market&&s.market.until>now){
+  if((s.market.pricing??0)<3){
+   for(const l of s.market.list){
+    l.price=s.market.pricing===2?retailPrice(l.price):usedPrice(l.vehicle,l.km,(l.motor+l.freios+l.pneus)/3);
+   }
+   s.market.pricing=3;
+  }
+  return;
+ }
  const available=(Object.keys(bikePrices) as SaleId[]).filter(id=>bikePrices[id]>0&&!s.owned.includes(id));
  const list:Listing[]=[];
  const between=(a:number,b:number)=>Math.floor(a+random()*(b-a+1));
@@ -30,9 +38,10 @@ export function renewMarket(s:Career,now=Date.now(),random=Math.random){
   const motor=wear(),freios=wear(),pneus=wear(),price=usedPrice(vehicle,km,(motor+freios+pneus)/3);
   list.push({id:crypto.randomUUID(),vehicle,km,motor,freios,pneus,price,color:PALETTE[between(0,PALETTE.length-1)]});
  }
- s.market={pricing:2,until:now+market.interval,list};
+ s.market={pricing:3,until:now+market.interval,list};
 }
 export function buyUsed(s:Career,id:string,now=Date.now()){
+ if(s.market&&s.market.until>now)renewMarket(s,now);
  const market=s.market,listing=market?.list.find(l=>l.id===id);
  if(!listing||!market||now>=market.until||s.owned.includes(listing.vehicle))throw Error('Anúncio indisponível');
  purchase(s,listing.price,()=>{

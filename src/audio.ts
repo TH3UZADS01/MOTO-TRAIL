@@ -119,7 +119,19 @@ type RemoteVoice = {
   stopHorn?: () => void;
 };
 
+export function parkedEngineGain(distance:number){
+  const beyond=Math.max(0,distance-2);
+  return 1/(1+beyond*beyond/64);
+}
 export class Sound {
+  private enginePan?:StereoPannerNode;
+  private engineVolume?:GainNode;
+  positionEngine(dx:number,dy:number,dz:number,rightX:number,rightZ:number){
+    if(!this.ctx||!this.enginePan||!this.engineVolume)return;
+    const distance=Math.hypot(dx,dy,dz),now=this.ctx.currentTime;
+    this.enginePan.pan.setTargetAtTime(Math.max(-1,Math.min(1,(dx*rightX+dz*rightZ)/Math.max(2,distance))),now,.09);
+    this.engineVolume.gain.setTargetAtTime(parkedEngineGain(distance),now,.09);
+  }
   private output?: DynamicsCompressorNode;
   private effectsOutput?: GainNode;
   private effectVolume = 0.5;
@@ -354,6 +366,8 @@ export class Sound {
     this.effectsOutput.gain.value = this.effects;
     this.effectsOutput.connect(limiter);
 
+    this.enginePan=c.createStereoPanner();this.engineVolume=c.createGain();
+    this.enginePan.connect(this.engineVolume);this.engineVolume.connect(limiter);
     buffers.slice(0, AUDIO_ASSETS.length).forEach((buffer, i) => {
       const asset = AUDIO_ASSETS[i];
       const source = c.createBufferSource(),
@@ -380,7 +394,7 @@ export class Sound {
         filter.connect(gain);
       }
 
-      gain.connect(limiter);
+      gain.connect(asset.bank==="wind"?limiter:this.enginePan!);
       source.start();
       this.layers.push({
         source,
@@ -447,7 +461,7 @@ export class Sound {
             : 1800;
       source.connect(filter);
       filter.connect(gain);
-      gain.connect(output);
+      gain.connect(this.enginePan??output);
       source.start();
       this.layers.push({
         source,
@@ -740,7 +754,7 @@ export class Sound {
         brake < 0.05;
       if (layer.bank !== "wind" && !layer.idle && cutting)
         gain *= ENGINE_TUNING.cutGain;
-      if (layer.bank === "twister") gain *= layer.idle ? 1.55 : 1.55 * 1.12;
+      if (layer.bank === "twister") gain *= layer.idle ? 1.55 * .82 : 1.55 * 1.12;
       if ((layer.bank === "r1200gs" || layer.bank === "twister") && layer.bank === spec.audio) rate *= spec.pitch;
       if(engine?.running===false&&layer.bank!=="wind")gain=0;
       const response = layer.bank === "wind" ? 0.16 : tuning.response;

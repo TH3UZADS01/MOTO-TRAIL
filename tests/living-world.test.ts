@@ -15,7 +15,7 @@ import {scars,pavementRelief,onCobbles} from '../src/pavement';
 import {villages} from '../src/map-layout';
 
 test('new jobs and bikes get one multiplier, accepted jobs retain their agreed payment',()=>{
- assert.deepEqual(bikePrices,{pop:0,caloi:2100,urban:7350,cg150:13650,sahara:26250,twister:18000,r1200gs:65000});
+ assert.deepEqual(bikePrices,{pop:0,caloi:2478,urban:8673,cg150:16107,sahara:30975,twister:21240,r1200gs:76700});
  const from=villages[0],to=villages[1],job=offer('Carta',from,to,1,'pop');
  assert.equal(eligibleFreight(from,{...from,x:from.x+600}),false);assert.equal(eligibleFreight(from,{...from,x:from.x+600.01}),true);
  const km=job.referenceKm!;assert.ok(km>3);
@@ -25,6 +25,8 @@ test('new jobs and bikes get one multiplier, accepted jobs retain their agreed p
  const t=trips[0];assert.equal(t.pay,Math.round(t.km*5+t.stops.length*3)*19.5);
  renewMarket(state,100);const l=state.market!.list[0];assert.equal(l.price,usedPrice(l.vehicle,l.km,(l.motor+l.freios+l.pneus)/3));
  delete state.market!.pricing;l.price=1;renewMarket(state,101);const updated=l.price;renewMarket(state,102);assert.ok(updated>100);assert.equal(l.price,updated);
+ state.market!.pricing=2;l.price=4271;renewMarket(state,103);renewMarket(state,104);
+ assert.equal(l.price,5039.78);assert.equal(state.money,51);
 });
 
 test('all six bikes dismount over time, push with or without fuel, save and mount again',()=>{

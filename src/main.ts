@@ -465,6 +465,7 @@ function frame(now:number){
    const previousMetres=ride.distance;
    if(!foot.riding)foot.step(1/60,ride,stopped?0:walkingForward,stopped?0:turn,footHits,camera.orbit,camera.firstPerson);
    if(foot.riding||ride.fallen)ride.step(1/60,stopped?0:throttle,stopped?1:brake,turn,obstacles,push,stopped?0:bodyInput,settings.transmission==='automatic',settings.ridingMode==='realistic',stopped,keys.has('ShiftLeft')||keys.has('ShiftRight')?1:pad.clutch,rearBrakeHeld);
+   else ride.parkedIdle(1/60);
    const metres=ride.distance-previousMetres;
    if(metres>0||foot.riding&&!ride.fallen&&ride.engine.running&&ride.engineThrottle>.5&&ride.engine.rpm>ride.spec.redlineRpm*.78){
     let worn=pendingWear.get(settings.vehicle);
@@ -500,8 +501,8 @@ function frame(now:number){
  for(const [id,dog] of worldCaramelos){dog.pet.update(0,0,dt);dog.marker.visible=!caramelosMission.hasSpot(id)&&(settings.carameloMapMode==='easy'||caramelosMission.isDiscovered(id));dog.marker.position.y=1+Math.sin(now*.003+id.length)*.07}
  bike.setSteering(steeringAngle(ride.speed,ride.steer,ride.wheelie)+ride.instability.visualAngle);if(!ride.fallen||!crashView.active&&!foot.riding)bike.riderRig.update(ride.speed,ride.steer,dt,camera.firstPerson,ride.bodyLean,playing&&!refueling&&!ride.pushing&&ride.fuel.get(settings.vehicle)>0&&!ride.fallen?ride.engineThrottle:0,false,ride.wheelie,ride.lean,ride.burnoutSpeed>0,ride.handlingMode==='simcade'&&foot.riding?ride.posture:undefined);bike.brakeLight.update(playing&&!refueling?ride.brakeInput:0,dt);if(!ride.fallen)applyBikePose(bike,ride.pitch,ride.lean,ride.wheelie,ride.burnoutSpeed?0:bike.riderRig.stopPose,ride.suspension.front.compression,ride.suspension.rear.compression,ride.spec.wheelbase,ride.fallen,foot.riding?0:foot.side*foot.hold);if(playing)bike.roll(ride.speed*dt,ride.drift.active,(ride.burnoutSpeed||ride.speed*(1+ride.rearContact.slipRatio))*dt);
  crashView.update(bike,ride,scene,foot,playing?dt:0);
- const contact=ride.handlingMode==='simcade'?ride.rearContact.surface:surface(ride.x,ride.z);
- tireParticles.update(contact,playing?(ride.burnoutSpeed||ride.speed*(1+Math.abs(ride.rearContact.slipRatio))):0,bike.wheels[0],ride.heading,dt,playing&&(ride.drift.active||ride.burnoutSpeed>0));
+ const contact=ride.handlingMode==='simcade'?ride.rearContact.surface:ride.sampleContact(ride.x,ride.z);
+ tireParticles.update(contact,playing&&foot.riding&&!ride.fallen?(ride.burnoutSpeed||ride.speed):0,bike.wheels[0],ride.heading,dt,playing&&foot.riding&&(ride.drift.active||ride.burnoutSpeed>0),playing&&foot.riding?ride.rearContact.slipRatio:0,ride.suspension.acceleration,Math.hypot(camera.camera.position.x-ride.x,camera.camera.position.z-ride.z));
  if(crashView.active){const p=ride.crash!.rider!.position;camera.followWalker(p.x,p.y-.8,p.z,ride.heading,dt,bike.riderRig.head)}
  else if(foot.riding)camera.update(ride,dt,ride.spec.eyeHeight,bike.body,bike.riderRig.eye);
  else{bike.riderRig.onFoot(foot.x,foot.y,foot.z,foot.heading,foot.blend,foot.side,foot.phase,foot.stride,foot.hold);
@@ -516,9 +517,12 @@ function frame(now:number){
   }
  }
  sound.setStarting(playing&&foot.riding&&!ride.fallen&&ride.engine.ignition==='starting');
- sound.update(ride.speed,ride.gear,ride.pushing||ride.fallen?0:ride.engineThrottle,!playing||!foot.riding||refueling||ride.fuel.get(settings.vehicle)<=0,ride.brakeInput,ride.engine,ride.suspension.acceleration,ride.frontContact,ride.rearContact);
+ camera.camera.updateMatrixWorld();
+ const right=camera.camera.matrixWorld.elements;
+ sound.positionEngine(foot.riding?0:ride.x-foot.x,foot.riding?0:ride.y-foot.y,foot.riding?0:ride.z-foot.z,right[0],right[2]);
+ sound.update(ride.speed,ride.gear,ride.pushing||ride.fallen?0:ride.engineThrottle,!playing||ride.fuel.get(settings.vehicle)<=0,ride.brakeInput,ride.engine,ride.suspension.acceleration,ride.frontContact,ride.rearContact);
  network.send({crash:crashPose(),walker:walkerPose(),pose:networkPose(),frontCompression:ride.suspension.front.compression,rearCompression:ride.suspension.rear.compression,dirt:bike.dirt.value,fullFace:settings.fullFace,vehicleId:settings.vehicle,color:bikeColors[settings.vehicle],bodyLean:ride.bodyLean,wheelie:ride.wheelie,fallen:ride.fallen,braking:playing&&ride.brakeInput>.05,drifting:playing&&ride.drift.active,burnoutSpeed:playing?ride.burnoutSpeed:0,cargo:bike.cargo.visible,petUnlocked:career.state.pet&&caramelosMission.petUnlocked,revMatchSequence:ride.engine.revMatchSequence,gear:ride.gear,rpm:ride.engine.rpm,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:playing?ride.speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer},now);
- remoteRiders.render(now,dt,day.night);
+ remoteRiders.render(now,dt,day.night,camera.camera.position);
  camera.camera.updateMatrixWorld();
  sound.updateRemotes(camera.camera.position,camera.camera.matrixWorld.elements,network.connected&&!document.hidden,remoteRiders.peers);
  if(now>notifyUntil)el('notification').classList.remove('visible');hudTimer+=dt;

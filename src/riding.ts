@@ -83,6 +83,14 @@ export class Ride {
     this.engine.stop();this.crash=new CrashState(kind,new T.Vector3(this.x,this.y,this.z).add(offset),orientation,velocity,angular);
     this.drift.reset();this.fallen=true;this.engineThrottle=0;this.burnoutSpeed=0;this.instability.reset();this.engine.cancelBlip();
   }
+  parkedIdle(dt:number){
+    if(!this.engine.running||this.fallen)return;
+    if(this.equipment.motor<=0||this.fuel.get(this.spec.id)<=0){this.engine.stop();return}
+    this.engine.rpm=this.spec.idleRpm;this.engine.ratio=0;this.engine.clutch=0;
+    this.engineThrottle=0;this.engine.limiting=this.engine.cutting=this.engine.lugging=false;
+    this.fuel.consume(this.spec.id,0,dt,0,0,0,false,this.engine.rpm);
+    if(this.fuel.get(this.spec.id)<=0)this.engine.stop();
+  }
   liftHere(){this.fallen=false;this.crash=undefined;this.slipTime=0;this.speed=0;this.lean=0;this.steer=0;this.resetBody();this.engine.reset(this.spec.idleRpm);this.contact()}
   step(dt:number,throttle:number,brake:number,turn:number,obstacles:Obstacle[],push=false,bodyInput=0,automatic=true,realistic=false,servicing=false,clutchLever=0,rearBrakeHeld=false){
     const prep=this.equipment.prep;

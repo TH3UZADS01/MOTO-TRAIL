@@ -8,7 +8,7 @@ import {enableShadows} from './graphics';
 import * as T from 'three';
 import {createBike,disposeBike} from './vehicle-models';
 import type {RemotePlayer,RiderState} from './network';
-import {ground} from './terrain';
+import {ground,contactSurface} from './terrain';
 const poseKeys=['stand','rise','sideLean','brace','absorption'] as const;
 type Frame={time:number;state:RiderState};
 type Peer={pose:import("./rider-posture").RiderPose;blipTime:number;blipSequence:number;smoke:TireParticles;bike:ReturnType<typeof createBike>;label:T.Sprite;frames:Frame[];name:string;connected:boolean;vehicleId:string};
@@ -33,7 +33,7 @@ export class RemoteRiders {
  }
  private remove(id:string,p:Peer){p.bike.body.attach(p.bike.rider);this.scene.remove(p.bike.root,p.label);disposeBike(p.bike);p.smoke.dispose();p.label.material.map?.dispose();p.label.material.dispose();this.peers.delete(id)}
  clear(){for(const [id,p] of this.peers)this.remove(id,p)}
- render(now:number,dt:number,night=0){const target=now-120;
+ render(now:number,dt:number,night=0,listener?:T.Vector3){const target=now-120;
   for(const p of this.peers.values()){const frames=p.frames;if(!frames.length)continue;while(frames.length>2&&frames[1].time<target)frames.shift();const a=frames[0],b=frames[1]||a,t=T.MathUtils.clamp((target-a.time)/Math.max(1,b.time-a.time),0,1),s=a.state,e=b.state;
    p.blipTime=Math.max(0,p.blipTime-dt);const blip=p.connected&&!e.fallen?ENGINE_TUNING.blipThrottle*Math.sin(Math.PI*(1-p.blipTime/ENGINE_TUNING.revMatchDuration)):0;
    const teleport=Math.hypot(s.x-e.x,s.z-e.z)>12,u=teleport?1:t;
@@ -62,7 +62,10 @@ export class RemoteRiders {
    }
    if(e.petUnlocked&&!e.fallen)p.bike.pet.update(T.MathUtils.lerp(s.bodyLean??0,e.bodyLean??0,u), Number(e.braking??false), dt);
    p.bike.roll((p.connected?e.speed:0)*dt,!!e.drifting,(p.connected?(burnout||e.speed):0)*dt);
-   p.smoke.update('asfalto',p.connected?(burnout||e.speed):0,p.bike.wheels[0],e.heading,dt,(!!e.drifting||burnout>0)&&p.connected&&!e.fallen);
+   const distance=listener?listener.distanceTo(p.bike.root.position):0;
+   const riding=p.connected&&!e.fallen&&!e.walker;
+   const soil=riding&&distance<85?contactSurface(e.x,e.z):'asfalto';
+   p.smoke.update(soil,riding?(burnout||e.speed):0,p.bike.wheels[0],e.heading,dt,riding&&(!!e.drifting||burnout>0),0,0,distance);
    if(e.walker)p.label.position.set(e.walker.x,e.walker.y,e.walker.z);else p.label.position.copy(p.bike.root.position);p.label.position.y+=2.1;
   }
  }

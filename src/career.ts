@@ -1,5 +1,5 @@
 import {freightDistance} from './navigation';
-import {adventure,workshopMultiplier,type Prep} from './adventure-tuning';
+import {adventure,retailPrice,workshopMultiplier,type Prep} from './adventure-tuning';
 import type {TripProgress,Market} from './adventures';
 import {vehicles,type VehicleId} from './vehicles';
 
@@ -13,7 +13,8 @@ export type RegionCooldown={x:number;z:number;until:number};
 export type Career={market?:Market;expedition?:TripProgress;completedTrips?:string[];tanks?:Partial<Record<VehicleId,number>>;money:number;owned:VehicleId[];garage:Partial<Record<VehicleId,Equipment>>;pet:boolean;job:Job|null;cooldowns:RegionCooldown[]};
 const key='moto-trail-career-v2';
 export const payment=(base:number)=>base*19.5;
-export const bikePrices:Record<Exclude<VehicleId,'cub'>,number>={twister:18000,r1200gs:65000,pop:0,caloi:100*21,urban:350*21,cg150:650*21,sahara:1250*21};
+export const baseBikePrices:Record<Exclude<VehicleId,'cub'>,number>={twister:18000,r1200gs:65000,pop:0,caloi:100*21,urban:350*21,cg150:650*21,sahara:1250*21};
+export const bikePrices=Object.fromEntries(Object.entries(baseBikePrices).map(([id,base])=>[id,retailPrice(base)])) as typeof baseBikePrices;
 export function buyVehicle(state:Career,id:VehicleId){
  if(id==='cub')throw Error('Descubra todos os locais do mapa para ganhar a Honda Cub');
  if(state.owned.includes(id))throw Error('Esta moto já está na garagem');
@@ -23,8 +24,8 @@ export function awardCub(state:Career){
  if(state.owned.includes('cub'))return false;
  state.owned.push('cub');return true;
 }
-export const prices={box:180*workshopMultiplier,paint:45,tyre:90*workshopMultiplier};
-export const repairPrice=(condition:number)=>Math.max(1,Math.ceil((100-condition)*.85))*workshopMultiplier;
+export const prices={box:retailPrice(180*workshopMultiplier),paint:retailPrice(45),tyre:retailPrice(90*workshopMultiplier)};
+export const repairPrice=(condition:number)=>retailPrice(Math.max(1,Math.ceil((100-condition)*.85))*workshopMultiplier);
 export const capacity=(gear:Equipment)=>gear.box?12:2;
 export const weightLimit=(gear:Equipment)=>gear.box?adventure.cargo.boxKg:adventure.cargo.baseKg;
 export const jobKg=(j:Job)=>j.kg??j.load*adventure.cargo.density;
