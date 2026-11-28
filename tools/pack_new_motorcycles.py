@@ -1,6 +1,8 @@
 import bpy,json,base64,struct,sys
 from pathlib import Path
 root=Path('D:/PROJETOS/MOTOTRAIL')
+sys.path.insert(0,str(root/'tools'))
+from articulation_parts import correct_articulation
 for id in ['twister','r1200gs']:
  if '--' in sys.argv and id not in sys.argv[sys.argv.index('--')+1:]:continue
  bpy.ops.wm.open_mainfile(filepath=str(root/'assets'/id/f'{id}.blend'))
@@ -38,4 +40,5 @@ for id in ['twister','r1200gs']:
    for mat,r in records.items():
     meshes.append({'material':mat,'positions':pack(r['p'],'f'),'normals':pack(r['n'],'h'),'uvs':pack(r['uv'],'f'),'indices':pack(r['i'],'I')})
   data['parts'].append({'name':name,'parent':g.parent.name if g.parent else None,'position':game(g.location),'meshes':meshes})
+ correct_articulation(id,data)
  (root/'src/assets'/f'{id}-model.json').write_text(json.dumps(data,separators=(',',':')))

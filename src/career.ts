@@ -1,3 +1,4 @@
+import {freightDistance} from './navigation';
 import {adventure,workshopMultiplier,type Prep} from './adventure-tuning';
 import type {TripProgress,Market} from './adventures';
 import {vehicles,type VehicleId} from './vehicles';
@@ -7,7 +8,7 @@ export type Condition='motor'|'freios'|'pneus';
 export type Equipment={forkCondition?:number;km?:number;prep?:Prep;box:boolean;tyre:Tyre;color?:string}&Record<Condition,number>;
 export const factory=():Equipment=>({box:false,tyre:'original',motor:100,freios:100,pneus:100});
 export type Site={x:number;z:number;name:string};
-export type Job={id:string;name:string;from:Site;to:Site;returning:boolean;pickup:boolean;kg?:number;load:number;pay:number;vehicle:VehicleId};
+export type Job={id:string;name:string;from:Site;to:Site;returning:boolean;pickup:boolean;referenceKm?:number;kg?:number;load:number;pay:number;vehicle:VehicleId};
 export type RegionCooldown={x:number;z:number;until:number};
 export type Career={market?:Market;expedition?:TripProgress;completedTrips?:string[];tanks?:Partial<Record<VehicleId,number>>;money:number;owned:VehicleId[];garage:Partial<Record<VehicleId,Equipment>>;pet:boolean;job:Job|null;cooldowns:RegionCooldown[]};
 const key='moto-trail-career-v2';
@@ -33,9 +34,15 @@ export const DELIVERY_RADIUS=8;
 export const distance=(a:{x:number;z:number},b:{x:number;z:number})=>Math.hypot(a.x-b.x,a.z-b.z);
 export const eligibleFreight=(from:Site,to:Site)=>distance(from,to)>600;
 export const cash=(n:number)=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+export const freightRates={base:16,perLitre:2,perKm:9,loadKm:.8,rural:1.15,maxPremium:.65,halfPremiumKm:18};
+export function freightPay(km:number,load:number,rural:boolean){
+ const t=freightRates,premium=1+t.maxPremium*km/(km+t.halfPremiumKm);
+ return payment(Math.round(t.base+load*t.perLitre+km*(t.perKm+load*t.loadKm)*(rural?t.rural:1)*premium));
+}
 export function offer(name:string,from:Site,to:Site,load:number,vehicle:VehicleId,returning=false,rural=false):Job{
- const km=distance(from,to)/1000*(returning?2:1);
- return {id:crypto.randomUUID(),name,from,to,load,vehicle,returning,pickup:returning,kg:load*adventure.cargo.density,pay:payment(Math.round(16+km*(9+load*.8)*(rural?1.15:1)+load*2))};
+ const km=freightDistance(from,to)/1000*(returning?2:1);
+ if(!Number.isFinite(km))throw Error("Destino sem acesso rodoviário");
+ return {id:crypto.randomUUID(),name,from,to,load,vehicle,returning,pickup:returning,kg:load*adventure.cargo.density,referenceKm:km,pay:freightPay(km,load,rural)};
 }
 export function acceptJob(state:Career,job:Job){
  if(state.job||state.expedition&&!state.expedition.paused)throw Error('Pause a expedição ou conclua a viagem atual');

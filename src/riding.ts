@@ -46,7 +46,7 @@ export class Ride {
   readonly posture=new RiderPosture();
   assistedSlide=0;
   get slideAssist(){return touringAssist.countersteer*(1-Math.abs(this.rearContact.lateralSlip))}
-  private sampleContact(x:number,z:number){
+  sampleContact(x:number,z:number){
     if(this.sandAt?.(x,z)??this.softGround)return 'areia';
     return contactSurface(x,z);
   }
@@ -80,7 +80,7 @@ export class Ride {
     const orientation=heading.clone().multiply(terrain).multiply(lift);
     const velocity=new T.Vector3(Math.sin(travelHeading)*this.speed,Math.sin(this.pitch)*this.speed,Math.cos(travelHeading)*this.speed);
     const angular=new T.Vector3(kind==='loop-out'?-this.wheelieAngularVelocity:kind==='collision'?2.4:0,0,kind==='slide'?Math.sign(this.lean||-this.steer||1)*2.8:kind==='collision'?1.4:this.handling.rate).applyQuaternion(heading);
-    this.crash=new CrashState(kind,new T.Vector3(this.x,this.y,this.z).add(offset),orientation,velocity,angular);
+    this.engine.stop();this.crash=new CrashState(kind,new T.Vector3(this.x,this.y,this.z).add(offset),orientation,velocity,angular);
     this.drift.reset();this.fallen=true;this.engineThrottle=0;this.burnoutSpeed=0;this.instability.reset();this.engine.cancelBlip();
   }
   liftHere(){this.fallen=false;this.crash=undefined;this.slipTime=0;this.speed=0;this.lean=0;this.steer=0;this.resetBody();this.engine.reset(this.spec.idleRpm);this.contact()}
@@ -103,7 +103,8 @@ export class Ride {
       this.speed=this.crash!.bike.velocity.length();this.engineThrottle=0;this.burnoutSpeed=0;this.engine.cancelBlip();return;
     }
     this.bodyLean+=(clamp(bodyInput,-1,1)-this.bodyLean)*(1-Math.exp(-BODY_TUNING.response*dt));
-    throttle=Math.max(0,Math.min(1,throttle));if(this.fuel.get(this.spec.id)<=0)throttle=0;
+    throttle=Math.max(0,Math.min(1,throttle));if(this.engine.running&&(this.fuel.get(this.spec.id)<=0||this.equipment.motor<=0))this.engine.stop();
+    if(!this.engine.running)throttle=0;
     const before=this.distance;
     const simcade=this.handlingMode==='simcade';
     const halfAxle=this.spec.wheelbase/2,ax=Math.sin(this.heading)*halfAxle,az=Math.cos(this.heading)*halfAxle;
@@ -142,7 +143,7 @@ export class Ride {
     this.engine.update(dt,burnout?this.burnoutSpeed:drivenSpeed,this.spec,this.topSpeed,throttle,brake,push,automatic&&lever===0,realistic,lever);
      this.engine.updateClutchKick(dt,this.spec,this.speed,throttle,brake,bodyInput,this.wheelie<BODY_TUNING.airborneThreshold,push||lever>0);
     if(this.fuel.get(this.spec.id)<=0||push||this.engine.stalled)this.engine.cancelBlip();
-    this.engineThrottle=push||this.engine.stalled||this.fuel.get(this.spec.id)<=0?0:this.engine.effectiveThrottle(throttle);
+    this.engineThrottle=push||!this.engine.running||this.fuel.get(this.spec.id)<=0?0:this.engine.effectiveThrottle(throttle);
     const coastForce=this.engine.updateEngineBrake(dt,this.spec,this.speed,this.engineThrottle,simcade&&!push&&!burnout&&!servicing&&this.fuel.get(this.spec.id)>0);
     const gearMax=this.engine.speedAtRedline(this.spec,this.engine.gear);
     const speedLimit=this.gear===0?this.topSpeed:Math.min(this.topSpeed,gearMax);
@@ -163,13 +164,13 @@ export class Ride {
         const driveAcceleration=stalled?0:realistic
           ?this.engine.wheelForce(this.spec,this.speed,gearThrottle)*driveGrip/mass
           :acceleration(this.speed,gearThrottle*(1-lever)*(1-.2*damage)*this.engine.torqueScale*this.engine.finalRatioScale*baseMass/mass*(.85+.15*arcadeTorque)*this.engine.driveFactor*this.spec.power*100/(this.spec.mass??100),effectiveBrake*grip*(this.spec.braking??1),this.pitch,rollingGrip,this.spec.aerodynamicDrag*bodyDragMultiplier(this.bodyLean),this.topSpeed);
-        const netAcceleration=stalled?Math.min(0,baseAcceleration):realistic?baseAcceleration+driveAcceleration:driveAcceleration*this.engine.clutchKickGain;
+        const netAcceleration=!this.engine.running?baseAcceleration:stalled?Math.min(0,baseAcceleration):realistic?baseAcceleration+driveAcceleration:driveAcceleration*this.engine.clutchKickGain;
         const scale=gearThrottle>0&&netAcceleration>0&&brake===0
           ?this.spec.accelerationScale?.[realistic?'realistic':'arcade']??1:1;
         let accelerationApplied=netAcceleration*scale-coastForce/(baseMass+this.cargoLoad);
         // At highway speeds the arcade drive curve runs out at 48 m/s regardless of engine size.
         // Blend into geared tractive force so acceleration tapers against actual drag.
-        if(!realistic&&this.usesGearTopSpeed){
+        if(this.engine.running&&!realistic&&this.usesGearTopSpeed){
           const blend=T.MathUtils.smoothstep(this.speed,this.spec.maxSpeed*.62,this.spec.maxSpeed*.9);
           const geared=baseAcceleration+this.engine.wheelForce(this.spec,this.speed,gearThrottle*(1-lever))*driveGrip/mass;
           accelerationApplied+=(geared-netAcceleration)*scale*blend;
@@ -314,7 +315,7 @@ export class Ride {
      if(this.wheelie===0)this.wheelieAngularVelocity=Math.max(0,this.wheelieAngularVelocity);
     this.wheelieDebug.angle=this.wheelie;
     if(this.wheelie>BODY_TUNING.loopOutAngle&&this.wheelieAngularVelocity>0){this.beginCrash('loop-out',travelHeading);return}
-    this.fuel.consume(this.spec.id,this.distance-before,dt,this.engineThrottle,this.speed,this.pitch,push||this.engine.stalled||servicing,this.engine.rpm,this.cargoLoad);
+    this.fuel.consume(this.spec.id,this.distance-before,dt,this.engineThrottle,this.speed,this.pitch,push||!this.engine.running||servicing,this.engine.rpm,this.cargoLoad);
     this.contact();
     if(dt>0){
      const half=this.spec.wheelbase/2,slope=Math.tan(this.pitch)*half;

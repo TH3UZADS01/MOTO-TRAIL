@@ -13,30 +13,38 @@ import {CARAMELO_PET_TUNING,createCarameloPet} from './caramelos-mission';
 export function createBike(id:VehicleId='pop'){
  const bike=id==='twister'||id==='r1200gs'?createImportedBike(id):id==='sahara'?createSahara():id==='cub'?createCub():buildBike(id),brakeLight=createBrakeLight(bike.body,bike.wheels[0].position.z-(id==='pop'?.115:id==='cg150'?.135:id==='cub'?.14:id==='sahara'?.16:0),id==='r1200gs'?.08:1);
  const passengerPetAnchor=new T.Group();passengerPetAnchor.name='passenger-pet-anchor';
- const seatAnchor=id==='cg150'?[0,.85,-.52]:id==='cub'?[0,.82,-.35]:id==='caloi'?[0,.83,-.5]:[0,.84,-.52];
- const passengerZ=Math.min(seatAnchor[2],bike.riderRig.hips.position.z-.22);
- passengerPetAnchor.position.set(
-  seatAnchor[0]+CARAMELO_PET_TUNING.positionOffset.x,
-  seatAnchor[1]+CARAMELO_PET_TUNING.positionOffset.y,
-  passengerZ+CARAMELO_PET_TUNING.positionOffset.z
- );
+ // Saddle, rack height and longitudinal centres measured in neutral chassis space.
+ const mounts:Record<VehicleId,[number,number,number,number]>={
+  pop:[.857,-.66,.868,-1.00], cub:[.854,-.65,.866,-.99],
+  cg150:[.891,-.67,.946,-1.04], sahara:[1.073,-.655,1.145,-1.055],
+  urban:[.836,-.63,.845,-.985], caloi:[.81,-.65,.824,-1.01],
+  twister:[.905,-.68,.916,-1.055], r1200gs:[1.077,-.70,1.107,-1.09]
+ };
+ const [passengerY,passengerZ,rackY,rackZ]=mounts[id];
+ passengerPetAnchor.position.set(0,passengerY,passengerZ);
  passengerPetAnchor.rotation.set(CARAMELO_PET_TUNING.rotation.x,CARAMELO_PET_TUNING.rotation.y,CARAMELO_PET_TUNING.rotation.z);
  passengerPetAnchor.scale.setScalar(CARAMELO_PET_TUNING.scale);bike.body.add(passengerPetAnchor);
  const pet=createCarameloPet(passengerPetAnchor);
+ // A small passenger pad supports all four paws on sloping or narrow saddles.
+ const pad=new T.Mesh(new T.BoxGeometry(.22,.036,id==='caloi'?.33:.24),new T.MeshStandardMaterial({color:0x33332e,roughness:.9}));
+ pad.position.set(0,-.016,id==='caloi'?.045:0);pet.group.add(pad);
  const fixedFairing=id==='sahara'||id==='pop'||id==='r1200gs';
  const mount=fixedFairing?bike.body:bike.steering;
  const lensName=fixedFairing?'Body_Headlamp':id==='cg150'?'Steering_HeadlampGlass':'Steering_Headlamp';
  const headlight=makeHeadlight(mount,lensName);
  const cargo=new T.Group();cargo.visible=false;
- // Seat and luggage rack heights differ across the six meshes. Rest the plate
- // on the tail, behind the passenger, using the model in its neutral pose.
- bike.root.updateMatrixWorld(true);
- const tailZ=Math.min(seatAnchor[2]-.32,passengerZ-.28);
- const ray=new T.Raycaster(new T.Vector3(0,2,tailZ),new T.Vector3(0,-1,0));
- const tail=bike.body.children.filter(o=>o instanceof T.Mesh);
- const support=ray.intersectObjects(tail,false)[0];
- cargo.position.set(0,support? support.point.y+.028 : seatAnchor[1],tailZ);
+ cargo.position.set(0,rackY,rackZ);
  const shell=new T.MeshStandardMaterial({color:0x293036,roughness:.72});
+ // Two rails extend the rear carrier beneath the mounting plate.
+ for(const side of [-1,1]){
+  const rail=new T.Mesh(new T.BoxGeometry(.026,.035,.23),shell);
+  rail.position.set(side*.08,-.047,.085);cargo.add(rail);
+  const front=new T.Vector3(side*.085,passengerY-rackY-.095,passengerZ-rackZ+.045);
+  const rear=new T.Vector3(side*.08,-.054,.04),direction=rear.clone().sub(front);
+  const brace=new T.Mesh(new T.BoxGeometry(.023,direction.length(),.024),shell);
+  brace.position.copy(front).lerp(rear,.5);
+  brace.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),direction.normalize());cargo.add(brace);
+ }
  for(const [w,h,d,y] of [[.22,.055,.33,0],[.36,.24,.32,.146],[.38,.045,.34,.285]]){
   const piece=new T.Mesh(new T.BoxGeometry(w,h,d),shell);piece.position.y=y;piece.castShadow=true;cargo.add(piece);
  }

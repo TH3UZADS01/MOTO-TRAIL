@@ -85,9 +85,10 @@ export class OnFoot {
   this.phase+=travel*6;this.stride=approach(this.stride,Math.min(1,Math.abs(travel)/dt),1-Math.exp(-12*dt));
  }
  reset(){this.mode='RIDING';this.blend=this.hold=this.velocity=this.stride=this.clock=0}
- snapshot(b:Ride){return {id:b.spec.id,bx:b.x,bz:b.z,bh:b.heading,x:this.x,z:this.z,side:this.side,walking:!this.riding}}
- restore(b:Ride,s:ReturnType<OnFoot['snapshot']>,obs:readonly Obstacle[]){
+ snapshot(b:Ride){return {engineRunning:b.engine.running,id:b.spec.id,bx:b.x,bz:b.z,bh:b.heading,x:this.x,z:this.z,side:this.side,walking:!this.riding}}
+ restore(b:Ride,s:Omit<ReturnType<OnFoot['snapshot']>,'engineRunning'>&{engineRunning?:boolean},obs:readonly Obstacle[]){
   if(!s||s.id!==b.spec.id||![s.bx,s.bz,s.bh,s.x,s.z].every(Number.isFinite)||!this.clear(s.bx,s.bz,.25,obs))return;
+  b.engine.stop();if(s.engineRunning!==false&&b.equipment.motor>0&&b.fuel.get(b.spec.id)>0){b.engine.ignition='running';b.engine.rpm=b.spec.idleRpm}
   this.reset();b.x=s.bx;b.z=s.bz;b.heading=s.bh;b.speed=0;b.contact();this.side=s.side===-1?-1:1;
   if(s.walking){const p=this.clear(s.x,s.z,.23,obs)&&Math.hypot(s.x-b.x,s.z-b.z)>.45?s:this.beside(b);
    if(this.clear(p.x,p.z,.23,obs)){this.mode='WALKING';this.blend=1;this.x=p.x;this.z=p.z;this.y=ground(p.x,p.z);this.heading=b.heading}}

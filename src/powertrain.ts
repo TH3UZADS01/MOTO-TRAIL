@@ -1,3 +1,4 @@
+import {crankSeconds,failureChance} from './starter';
 import type { VehicleSpec } from "./vehicles";
 import { BODY_TUNING, clamp } from "./body-control";
 // Gameplay RPM calibration, not manufacturer dyno data.*
@@ -42,7 +43,7 @@ export class Powertrain {
       : 0;
   }
   effectiveThrottle(input: number) {
-    return Math.max(clamp(input, 0, 1), this.blipThrottle);
+    return this.running ? Math.max(clamp(input, 0, 1), this.blipThrottle) : 0;
   }
   gear = 1;
   rpm = ENGINE_TUNING.idleRpm;
@@ -55,7 +56,7 @@ export class Powertrain {
   private coastCurve=0;
   resetEngineBrake(){this.coastCurve=0;this.engineBrakeTorque=0;this.engineBrakeStrength=0}
   updateEngineBrake(dt:number,spec:VehicleSpec,speed:number,throttle:number,enabled:boolean){
-    if(!enabled||this.gear===0||this.stalled||this.clutch<=0||speed<=0){
+    if(!enabled||this.gear===0||!this.running||this.clutch<=0||speed<=0){
       this.resetEngineBrake();return 0;
     }
     const wheelRpm=this.wheelRpmFromSpeed(speed,spec);
@@ -70,7 +71,44 @@ export class Powertrain {
   revMatchTime = 0;
   revMatchPeak = 0;
   revMatchSequence = 0;
-  stalled = false;
+  ignition:'off'|'starting'|'running'|'stalled'='running';
+  get running(){return this.ignition==='running'}
+  get stalled(){return this.ignition==='stalled'}
+  set stalled(value:boolean){
+    if(value)this.stop('stalled');
+    else if(this.stalled)this.ignition='running';
+  }
+  private starterHeld=false;
+  private crankLeft=0;
+  private crankFails=false;
+  stop(state:'off'|'stalled'='off'){
+    this.ignition=state;this.crankLeft=0;this.rpm=this.ratio=this.clutch=0;
+    this.limiting=this.cutting=this.lugging=false;
+    this.cancelBlip();this.resetEngineBrake();this.resetClutchKick();
+  }
+  cancelStarter(held=this.starterHeld){
+    this.starterHeld=held;
+    if(this.ignition==='starting')this.stop();
+  }
+  starter(dt:number,held:boolean,spec:VehicleSpec,health:number,fuel:number,safeGear:boolean,random=Math.random){
+    const pressed=held&&!this.starterHeld;this.starterHeld=held;
+    if(!held){this.cancelStarter();return}
+    if(pressed&&this.running){this.stop();return 'Motor desligado'}
+    if(pressed){
+      if(health<=0)return 'Motor quebrado · repare na oficina';
+      if(!safeGear)return 'Use neutro ou segure a embreagem';
+      this.stop();this.ignition='starting';this.crankLeft=crankSeconds(health);
+      this.crankFails=random()<failureChance(health);
+    }
+    if(this.ignition!=='starting')return;
+    if(!safeGear||health<=0){this.stop();return 'Partida interrompida'}
+    this.crankLeft-=dt;
+    if(this.crankLeft>1e-8)return pressed?'Dando partida…':undefined;
+    this.stop();
+    if(fuel<=0)return 'Sem combustível';
+    if(this.crankFails)return 'Motor não pegou · solte e tente novamente';
+    this.ignition='running';this.rpm=spec.idleRpm;return 'Motor ligado';
+  }
   private shiftTime = 0;
   private shiftCooldown = 0;
   private phase = 0;
@@ -162,7 +200,7 @@ export class Powertrain {
     );
   }
   get driveFactor() {
-    return this.cutting ? 0 : 1;
+    return this.running && !this.cutting ? 1 : 0;
   }
   private updateLimiter(
     dt: number,
@@ -347,7 +385,8 @@ export class Powertrain {
   reset(idleRpm = ENGINE_TUNING.idleRpm) {
     this.resetClutchKick();
     this.gear = 1;
-    this.rpm = idleRpm;
+    this.cancelStarter();
+    this.rpm = this.running?idleRpm:0;
     this.ratio = 0;
     this.limiting = false;
     this.cutting = false;
@@ -358,7 +397,6 @@ export class Powertrain {
     this.phase = 0;
     this.revMatchTime = 0;
     this.revMatchPeak = 0;
-    this.stalled = false;
   }
   requestShift(
     direction: -1 | 1,
@@ -369,6 +407,10 @@ export class Powertrain {
   ) {
     if (spec.gears === 1 || this.shiftCooldown > 0) return false;
     const next = clamp(this.gear + direction, 0, spec.gears);
+    if(!this.running){
+      if(next===this.gear||next===0&&Math.abs(speed)>.001)return false;
+      this.gear=next;this.shiftCooldown=ENGINE_TUNING.shiftDelay;return true;
+    }
     if (next === 0 && this.gear === 1) {
       if (Math.abs(speed) > 0.001) return false;
       this.gear = 0;
@@ -432,6 +474,7 @@ export class Powertrain {
     realistic = false,
     lever = 0,
   ) {
+    if(!this.running){this.shiftCooldown=Math.max(0,this.shiftCooldown-dt);return}
     const previousRpm=this.rpm;
     if(lever<1)this.updateEngaged(dt,speed,spec,topSpeed,throttle,brake,push,automatic,realistic);
     else{
@@ -642,7 +685,7 @@ export class Powertrain {
       this.lugging = true;
       this.rpm = Math.max(0, this.rpm - dt * 2200);
       this.ratio = clamp((this.rpm - idle) / (redline - idle), 0, 1);
-      if (push || speed > 0.45 || throttle < 0.05) this.stalled = false;
+
       return;
     }
     const rpmTarget = nearStall

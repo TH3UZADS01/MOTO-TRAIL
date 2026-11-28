@@ -15,10 +15,11 @@ import {scars,pavementRelief,onCobbles} from '../src/pavement';
 import {villages} from '../src/map-layout';
 
 test('new jobs and bikes get one multiplier, accepted jobs retain their agreed payment',()=>{
- assert.deepEqual(bikePrices,{pop:0,caloi:2100,urban:7350,cg150:13650,sahara:26250});
- const from={name:'A',x:0,z:0},to={name:'B',x:1000,z:0},job=offer('Carta',from,to,1,'pop');
- assert.equal(eligibleFreight(from,{...to,x:600}),false);assert.equal(eligibleFreight(from,{...to,x:600.01}),true);
- assert.equal(job.pay,Math.round(16+9+.8+2)*19.5);
+ assert.deepEqual(bikePrices,{pop:0,caloi:2100,urban:7350,cg150:13650,sahara:26250,twister:18000,r1200gs:65000});
+ const from=villages[0],to=villages[1],job=offer('Carta',from,to,1,'pop');
+ assert.equal(eligibleFreight(from,{...from,x:from.x+600}),false);assert.equal(eligibleFreight(from,{...from,x:from.x+600.01}),true);
+ const km=job.referenceKm!;assert.ok(km>3);
+ assert.equal(job.pay,Math.round(18+km*9.8*(1+.65*km/(km+18)))*19.5);
  const state:Career={job:{...job,pay:11},money:40,owned:['pop'],garage:{},cooldowns:[],pet:false};
  arrive(state,job.id,to);assert.equal(state.money,51);
  const t=trips[0];assert.equal(t.pay,Math.round(t.km*5+t.stops.length*3)*19.5);

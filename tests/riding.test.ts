@@ -91,7 +91,8 @@ test('critical wear weakens propulsion, braking and cornering in both riding mod
   }
   const drive=(health:number)=>step('motor',health,1,0).speed-step('motor',health,0,0).speed;
   const stopping=(health:number)=>step('freios',health,0,0).speed-step('freios',health,0,1).speed;
-  assert.ok(drive(0)>0&&drive(0)<drive(100)*.2&&drive(10)>drive(0));
+  assert.equal(drive(0),0);
+  assert.ok(drive(10)>0&&drive(10)<drive(100));
   assert.ok(stopping(0)>0&&stopping(0)<stopping(100)*.1&&stopping(10)>stopping(0));
   const heading=new Ride().heading;
   const turn=(health:number)=>Math.abs(step('pneus',health,0,0).heading-heading);

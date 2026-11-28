@@ -1,0 +1,107 @@
+MOTO TRAIL — NAVEGAÇÃO E QUALIDADE DE VIDA
+
+Mapa e GPS
+M ou o minimapa abre o mapa durante o jogo. O menu de pausa também tem
+a opção Mapa. M, Esc e Fechar retornam à interface de origem. A roda
+do mouse e os botões controlam o zoom; arrastar desloca a vista.
+Centralizar mostra o jogador. Mapa inteiro enquadra as estradas do mundo.
+Selecione uma localidade na lista ou clique no mapa para consultar a
+distância e traçar a rota. Cancelar GPS encerra a orientação.
+
+O A* usa as amostras tridimensionais das estradas como nós, a distância
+entre elas como custo e a distância horizontal como estimativa mínima.
+Vias próximas ligam-se nos encontros da malha. O GPS considera o acesso
+final até o ponto de interação. Pontos a mais de 220 m da estrada,
+em água profunda ou em paredões não são oferecidos como destinos.
+A faixa azul acompanha a pista por até 450 m à frente da moto. Uma malha
+reutilizável exibe a faixa. Mapa e minimapa mostram a rota. O GPS verifica
+o avanço após 3 m, procura um novo caminho em desvios superiores a 35 m
+e limita buscas sucessivas. O grafo é construído sob demanda e reutilizado.
+Todas as 23 localidades cadastradas tiveram rota a partir da Vila do Ipê.
+
+A navegação acompanha o destino atual de entregas e expedições. Um ponto
+manual tem prioridade até a chegada ou o cancelamento. Entregas salvas
+retomam o GPS pelo destino registrado; marcas manuais duram a sessão.
+O caminho considera a malha estática. Obstáculos temporários e tráfego
+não entram no cálculo. As estradas são bidirecionais.
+
+Acessórios
+Cada uma das oito motos recebeu posições próprias para o passageiro
+e a base do baú, com apoio para o pet e braços de suporte traseiros.
+Os modelos compartilham o mesmo desenho e animação do cachorro.
+A verificação usa os modelos 3D do jogo em postura neutra e inclinada,
+com piloto, pet e baú. Não foi feita inspeção visual individual das oito
+motos em movimento.
+
+Sujeira
+Asfalto seco acumula 25% da taxa anterior, terra compactada e grama
+acumulam 30%. Distâncias contínuas até a saturação, partindo limpa:
+asfalto 144 km, grama 12 km, cascalho 7,2 km, terra 6,5 km, areia
+5,5 km e lama 3,2 km. A lavagem e a chave de salvamento são as existentes.
+
+Desgaste
+Os cálculos usam o passo da física. A taxa-base do motor, pneus e garfo
+é 0,30 da antiga taxa-base por metro. O freio usa 0,35 e responde à
+intensidade de frenagem ao quadrado e à velocidade. Com acelerador
+aberto, o esforço do motor cresce progressivamente acima de 78% da
+rotação máxima. Carga, marcha inadequada e tempo sob esforço também
+pesam. O garfo responde à compressão; derrapagem, patinação e tipo de
+pneu alteram o desgaste da borracha. A oficina continua recuperando
+a condição. Foram reaproveitadas as consequências existentes de motor,
+freio, pneu e suspensão deteriorados.
+
+Em 80 km de asfalto moderado, o ensaio de condição consumiu 9,6 pontos
+de motor, aproximadamente 6,9 de garfo e 16 de pneus. O cenário severo
+com giro alto, compressão, terreno solto e derrapagem provocou mais que
+o dobro do desgaste em cada um desses componentes.
+
+Áudio
+O ganho de aceleração e desaceleração da Twister subiu 12% em relação à
+versão anterior. Os testes verificaram os ganhos enviados ao Web Audio,
+a lenta, a taxa de reprodução e a calibração da CG de controle. O áudio
+original e o compressor de saída continuam em uso. Não foi realizada
+uma comparação auditiva com fones ou medição acústica de saída.
+
+Fretes
+K é a distância rodoviária de referência em quilômetros, incluindo a
+volta nos trabalhos de ida e volta. L é a carga em litros e R vale 1,15
+para frete rural ou 1 para os demais.
+Pagamento em reais = 19,5 × arredondar(16 + 2L + K × (9 + 0,8L) × R
+× (1 + 0,65K/(K + 18))).
+O preço fica registrado na oferta aceita. Desvios não alteram o valor.
+Os testes verificaram recebimento único e manutenção do preço antigo
+em trabalhos já aceitos.
+
+Exemplo estimado para Pop, frete de 2 L em asfalto, consumo de referência
+de 48 km/L com o multiplicador do jogo de 3, gasolina a R$ 7/L e reparo
+de motor, garfo e pneus ao final, sem desgaste do freio neste exemplo:
+Distância     Pagamento       Combustível + reparos      Saldo
+ 2 km          R$ 838,50               R$ 11,38           R$ 827,13
+ 8 km        R$ 2.379,00               R$ 17,50         R$ 2.361,50
+25 km        R$ 7.507,50               R$ 45,94         R$ 7.461,56
+50 km       R$ 15.658,50               R$ 88,38        R$ 15.570,13
+O consumo real depende da moto, velocidade, carga, terreno e aceleração.
+
+Arquivos
+src/vehicle-models.ts — apoios do passageiro e do baú.
+src/bike-dirt.ts, src/mechanical-wear.ts e src/riding.ts — sujeira,
+exposição ao esforço e leitura da superfície real.
+src/audio.ts — ganho das duas camadas da Twister.
+src/navigation.ts, src/route-ribbon.ts e src/terrain.ts — malha,
+roteamento, progresso, representação na pista e distância compartilhada.
+src/world-map.ts, src/main.ts e src/style.css — tela do mapa, entradas,
+minimapa, integração com o jogo e aplicação de desgaste.
+src/career.ts e src/career-ui.ts — oferta, distância e preço congelado.
+tests/quality-of-life.test.ts e tests/living-world.test.ts — cenários
+de navegação, economia, desgaste, áudio, acessórios e salvamentos.
+tools/check-map-ui.mjs — teste de interação com Chrome local.
+artifacts/gps/mapa.png — captura do mapa no jogo.
+
+Validação executada
+46 testes automatizados passaram nas suítes de qualidade de vida, mundo
+vivo, caramelo, carreira, expedições, sujeira e pilotagem. O teste em
+Chrome abriu o mapa por M e pelo menu, usou zoom, arraste, centralização,
+seleção de destino, cancelamento e retorno ao estado anterior. Verificou
+também que digitar M em um campo não abre o mapa. O build Vite/TypeScript
+passou. O pacote JavaScript principal ainda excede o limite de tamanho
+recomendado pelo Vite.

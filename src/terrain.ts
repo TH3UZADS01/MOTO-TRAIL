@@ -30,19 +30,7 @@ function query(x:number,z:number,grid:ReturnType<typeof makeIndex>,radius=Infini
  return {distance:Math.sqrt(d),index,x:px,z:pz,track};
 }
 export const nearestRoute=(x:number,z:number,radius=Infinity)=>query(x,z,networkIndex,radius);
-const routeMetres=new WeakMap<Track,Float64Array>();
-export function freightDistance(from:{x:number;z:number},to:{x:number;z:number}){
- const a=nearestRoute(from.x,from.z),b=nearestRoute(to.x,to.z);
- const direct=Math.hypot(to.x-from.x,to.z-from.z);
- if(a.track!==b.track)return direct;
- const track=a.track,points=track.points;
- let lengths=routeMetres.get(track);
- if(!lengths){lengths=new Float64Array(points.length);for(let i=1;i<points.length;i++)lengths[i]=lengths[i-1]+points[i].distanceTo(points[i-1]);routeMetres.set(track,lengths)}
- const along=(n:typeof a)=>lengths![n.index]+Math.hypot(n.x-points[n.index].x,n.z-points[n.index].z);
- let arc=Math.abs(along(b)-along(a));
- if(track.id==='main')arc=Math.min(arc,lengths[lengths.length-1]-arc);
- return Math.max(direct,a.distance+arc+b.distance);
-}
+export {freightDistance} from './navigation';
 export const nearRoute=(x:number,z:number,radius:number)=>nearestRoute(x,z,radius).distance<radius;
 export function nearest(x:number,z:number,points=road){let grid=indexes.get(points);if(!grid){grid=makeIndex([{...tracks[0],points}]);indexes.set(points,grid)}return query(x,z,grid)}
 const pads=places.map(p=>({...p,r:p.kind==='village'?65:p.kind==='farm'?38:p.kind==='camp'?30:22}));

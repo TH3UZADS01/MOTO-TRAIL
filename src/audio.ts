@@ -1,3 +1,4 @@
+import {STARTER,prepareStarter} from './starter';
 import { ENGINE_TUNING, type Powertrain } from "./powertrain";
 
 import { DISCOVERY_SOUND_DURATION } from "./exploration";
@@ -280,6 +281,30 @@ export class Sound {
   layers: Layer[] = [];
   ready = false;
   private loading?: Promise<void>;
+  private starterBuffer?:AudioBuffer;
+  private starterLoop?:{start:number;end:number};
+  private starterVoice?:{source:AudioBufferSourceNode;gain:GainNode;began:number};
+  private starterTail=0;
+  setStarting(active:boolean){
+    const c=this.ctx;
+    if(!c||!this.starterBuffer||!this.starterLoop||!this.output)return;
+    const t=c.currentTime,fade=STARTER.fade;
+    if(active&&!this.starterVoice){
+      const source=c.createBufferSource(),gain=c.createGain(),began=Math.max(t,this.starterTail);
+      source.buffer=this.starterBuffer;source.loop=true;
+      source.loopStart=this.starterLoop.start;source.loopEnd=this.starterLoop.end;
+      source.connect(gain);gain.connect(this.output);
+      gain.gain.setValueAtTime(0,began);gain.gain.linearRampToValueAtTime(this.volume*STARTER.gain,began+fade);
+      source.onended=()=>{source.disconnect();gain.disconnect()};
+      source.start(began);this.starterVoice={source,gain,began};
+    }else if(!active&&this.starterVoice){
+      const {source,gain,began}=this.starterVoice;
+      const level=this.volume*STARTER.gain*Math.min(1,Math.max(0,(t-began)/fade));
+      gain.gain.cancelScheduledValues(t);gain.gain.setValueAtTime(level,t);
+      gain.gain.linearRampToValueAtTime(0,t+fade);source.stop(t+fade);
+      this.starterTail=t+fade;this.starterVoice=undefined;
+    }
+  }
   private hornBuffer?: AudioBuffer;
   private hornHeld = false;
   private stopLocalHorn?: () => void;
@@ -304,12 +329,12 @@ export class Sound {
 
   private async load() {
     const c = this.ctx!,
-      names = [...AUDIO_ASSETS.map((a) => a.name), "horn"];
+      names = [...AUDIO_ASSETS.map((a) => a.name), "horn", "starter"];
 
     const buffers = await Promise.all(
       names.map(async (name) => {
         const response = await fetch(
-          `/audio/${name}.wav`,
+          name==="starter"?STARTER.audio:`/audio/${name}.wav`,
           name.startsWith("sahara-") ? { cache: "reload" } : undefined,
         );
         if (!response.ok) throw new Error(`Não foi possível carregar ${name}`);
@@ -368,6 +393,8 @@ export class Sound {
     });
 
     this.hornBuffer = buffers[AUDIO_ASSETS.length];
+    this.starterBuffer=buffers[AUDIO_ASSETS.length+1];
+    this.starterLoop=prepareStarter(this.starterBuffer);
     this.ready = true;
     this.setHorn(this.hornHeld);
     this.setRemotePlayers(this.players);
@@ -568,6 +595,7 @@ export class Sound {
         | "ratio"
         | "limiting"
         | "cutting"
+        | "running"
         | "lugging"
         | "engineBrakeStrength"
         | "revMatchTime"
@@ -712,8 +740,9 @@ export class Sound {
         brake < 0.05;
       if (layer.bank !== "wind" && !layer.idle && cutting)
         gain *= ENGINE_TUNING.cutGain;
-      if (layer.bank === "twister") gain *= 1.55;
+      if (layer.bank === "twister") gain *= layer.idle ? 1.55 : 1.55 * 1.12;
       if ((layer.bank === "r1200gs" || layer.bank === "twister") && layer.bank === spec.audio) rate *= spec.pitch;
+      if(engine?.running===false&&layer.bank!=="wind")gain=0;
       const response = layer.bank === "wind" ? 0.16 : tuning.response;
       layer.gain.gain.setTargetAtTime(
         gain,

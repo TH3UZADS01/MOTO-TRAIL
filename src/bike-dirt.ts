@@ -1,7 +1,7 @@
 import * as T from 'three';
 import {vehicles,type VehicleId} from './vehicles';
 
-const metresToFull={asfalto:36000,grama:3600,terra:1950};
+const metresToFull={asfalto:144000,grama:12000,terra:6500,cascalho:7200,areia:5500,lama:3200};
 export function nextDirt(level:number,surface:keyof typeof metresToFull,metres:number,washSeconds:number){
  return T.MathUtils.clamp(level+metres/metresToFull[surface]-washSeconds/5,0,1);
 }

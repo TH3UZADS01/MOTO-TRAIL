@@ -1,3 +1,7 @@
+import {routeRibbon} from './route-ribbon';
+import {accumulateWear,type WearDelta} from './mechanical-wear';
+import {Navigation} from './navigation';
+import {worldMap} from './world-map';
 import {CrashView} from './crash-view';
 import {OnFoot} from './on-foot';
 import {GAS_PRICE,capacities} from './fuel';
@@ -19,6 +23,7 @@ import * as T from 'three';
 import {makeWorld,obstacles} from './world';
 import {createBike,disposeBike} from './vehicle-models';
 import {vehicles,getVehicle,type VehicleId} from './vehicles';
+import {safeToStart} from './starter';
 import {Controller,touchSteering} from './input';
 import {Ride,automaticTuckInput,steeringAngle} from './riding';
 import {BODY_TUNING} from './body-control';
@@ -36,10 +41,10 @@ import {mountInterface} from './interface';
 import {CarameloMission,CARAMELOS_POSITIONS,CARAMELO_PET_TUNING,createCarameloPet} from './caramelos-mission';
 mountInterface();
 const el=(id:string)=>document.getElementById(id)!;
-const touchInputs={drift:false,push:false,horn:false,forward:false,back:false,throttle:false,brake:false,left:false,right:false,refuel:false};
-const touchControls=document.createElement('div');touchControls.id='touch-controls';touchControls.innerHTML='<div class="touch-steering"><button type="button" data-touch="left" aria-label="Virar à esquerda">◀</button><button type="button" data-touch="right" aria-label="Virar à direita">▶</button></div><div class="touch-body"><button type="button" data-touch="forward" aria-label="Inclinar corpo para frente">&#8597;</button><button type="button" data-touch="back" aria-label="Puxar corpo e embreagem para empinar">&#8595;</button></div><div class="touch-utilities"><button type="button" data-touch="push" aria-label="Empurrar para trás">Ré</button><button type="button" data-touch="drift" aria-label="Segurar freio traseiro">Derrapar</button><button type="button" data-touch="horn" aria-label="Buzinar">H</button><button type="button" data-touch="refuel" aria-label="Abastecer" class="hidden">⛽</button><button type="button" data-touch-action="camera" aria-label="Alternar câmera">◉</button><button type="button" data-touch-action="collect" aria-label="Encontrar caramelo" class="hidden">🐕</button></div><div class="touch-pedals"><button type="button" data-touch="brake" aria-label="Frear">FREIO</button><button type="button" data-touch="throttle" aria-label="Acelerar">ACELERAR</button></div><div id="touch-shifts" class="touch-shifts hidden"><button type="button" data-touch-action="shift-down" aria-label="Reduzir marcha">−</button><button type="button" data-touch-action="shift-up" aria-label="Subir marcha">+</button></div>';
+const touchInputs={starter:false,drift:false,push:false,horn:false,forward:false,back:false,throttle:false,brake:false,left:false,right:false,refuel:false};
+const touchControls=document.createElement('div');touchControls.id='touch-controls';touchControls.innerHTML='<div class="touch-steering"><button type="button" data-touch="left" aria-label="Virar à esquerda">◀</button><button type="button" data-touch="right" aria-label="Virar à direita">▶</button></div><div class="touch-body"><button type="button" data-touch="forward" aria-label="Inclinar corpo para frente">&#8597;</button><button type="button" data-touch="back" aria-label="Puxar corpo e embreagem para empinar">&#8595;</button></div><div class="touch-utilities"><button type="button" data-touch="starter" aria-label="Ligar ou desligar motor">Motor</button><button type="button" data-touch="push" aria-label="Empurrar para trás">Ré</button><button type="button" data-touch="drift" aria-label="Segurar freio traseiro">Derrapar</button><button type="button" data-touch="horn" aria-label="Buzinar">H</button><button type="button" data-touch="refuel" aria-label="Abastecer" class="hidden">⛽</button><button type="button" data-touch-action="camera" aria-label="Alternar câmera">◉</button><button type="button" data-touch-action="collect" aria-label="Encontrar caramelo" class="hidden">🐕</button></div><div class="touch-pedals"><button type="button" data-touch="brake" aria-label="Frear">FREIO</button><button type="button" data-touch="throttle" aria-label="Acelerar">ACELERAR</button></div><div id="touch-shifts" class="touch-shifts hidden"><button type="button" data-touch-action="shift-down" aria-label="Reduzir marcha">−</button><button type="button" data-touch-action="shift-up" aria-label="Subir marcha">+</button></div>';
 document.body.appendChild(touchControls);
-const clearTouchInputs=()=>{touchInputs.horn=false;touchInputs.forward=false;touchInputs.back=false;touchInputs.throttle=false;touchInputs.brake=false;touchInputs.left=false;touchInputs.right=false;touchInputs.refuel=false;touchInputs.push=false;touchInputs.drift=false;touchControls.querySelectorAll('.pressed').forEach(button=>button.classList.remove('pressed'))};
+const clearTouchInputs=()=>{touchInputs.starter=false;touchInputs.horn=false;touchInputs.forward=false;touchInputs.back=false;touchInputs.throttle=false;touchInputs.brake=false;touchInputs.left=false;touchInputs.right=false;touchInputs.refuel=false;touchInputs.push=false;touchInputs.drift=false;touchControls.querySelectorAll('.pressed').forEach(button=>button.classList.remove('pressed'))};
 function createRenderer(){
  try{return new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'})}
  catch{
@@ -56,7 +61,7 @@ function createRenderer(){
 const scene=new T.Scene();scene.background=new T.Color(0xd2ded3);scene.fog=new T.Fog(0xd2ded3,150,780);const renderer=createRenderer();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;el('scene').appendChild(renderer.domElement);
 const ambientLight=new T.HemisphereLight(0xd5e7f2,0x73835c,.85);scene.add(ambientLight);const sun=new T.DirectionalLight(0xffe0b5,2.5);sun.position.set(-70,140,80);sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-45;sun.shadow.camera.right=45;sun.shadow.camera.top=45;sun.shadow.camera.bottom=-45;sun.shadow.camera.near=.1;sun.shadow.camera.far=300;sun.shadow.bias=-.001;scene.add(sun,sun.target);const world=makeWorld(scene),sky=makeSky(scene),dayCycle=new DayCycle(scene,sun,ambientLight,sky);
 const career=openCareer();
-const settings=load(),bikeColors=loadColors(),dirtLevels=loadDirt();if(!career.state.owned.includes(settings.vehicle))settings.vehicle=career.state.owned[0];let bike=createBike(settings.vehicle);bike.dirt.value=dirtLevels[settings.vehicle];bike.riderRig.setFullFace(settings.fullFace);assignLocalBikeLayer(bike.root);applyBikeColor(bike,bikeColors[settings.vehicle]);enableShadows(bike.root);scene.add(bike.root);const ride=new Ride(),camera=new FollowCamera(),sound=new Sound(),controller=new Controller();enableLocalBikeLayer(camera.camera);ride.spec=getVehicle(settings.vehicle);sound.vehicle=settings.vehicle;let playing=false,started=false,last=performance.now(),accumulator=0,throttle=0;const keys=new Set<string>();let notifyUntil=0,wheelieDebugTimer=0,fallEventHandled=false;const wheelieDebugEnabled=import.meta.env.DEV&&new URLSearchParams(location.search).get('debug-wheelie')==='1';
+const settings=load(),bikeColors=loadColors(),dirtLevels=loadDirt();if(!career.state.owned.includes(settings.vehicle))settings.vehicle=career.state.owned[0];let bike=createBike(settings.vehicle);bike.dirt.value=dirtLevels[settings.vehicle];bike.riderRig.setFullFace(settings.fullFace);assignLocalBikeLayer(bike.root);applyBikeColor(bike,bikeColors[settings.vehicle]);enableShadows(bike.root);scene.add(bike.root);const ride=new Ride(),camera=new FollowCamera(),sound=new Sound(),controller=new Controller();enableLocalBikeLayer(camera.camera);ride.spec=getVehicle(settings.vehicle);ride.engine.stop();sound.vehicle=settings.vehicle;let playing=false,started=false,last=performance.now(),accumulator=0,throttle=0;const keys=new Set<string>();let notifyUntil=0,wheelieDebugTimer=0,fallEventHandled=false;const wheelieDebugEnabled=import.meta.env.DEV&&new URLSearchParams(location.search).get('debug-wheelie')==='1';
 const foot=new OnFoot();const crashView=new CrashView();
 const person=()=>crashView.active&&ride.crash?.rider?ride.crash.rider.position:foot.riding?ride:foot;
 const rearMirror=new RearViewMirror(renderer,el('rear-mirror'),{enabled:settings.rearMirror,fps:settings.rearMirrorFps,width:settings.rearMirrorWidth});
@@ -95,7 +100,7 @@ const network=new RideNetwork({
  welcome:(state,code)=>{
   foot.reset();roadEvents.clear();network.horn(hornHeld);
   chooseVehicle(state.vehicleId);ride.x=state.x;ride.z=state.z;ride.heading=state.heading;ride.speed=0;ride.fallen=!!state.fallen;ride.wheelie=ride.fallen?(state.wheelie??BODY_TUNING.loopOutAngle):0;ride.contact();camera.initialized=false;
-  if(state.walker){const w=state.walker;foot.restore(ride,{id:ride.spec.id,bx:ride.x,bz:ride.z,bh:ride.heading,walking:true,x:w.x,z:w.z,side:w.side},obstacles)}
+  if(state.walker){const w=state.walker;foot.restore(ride,{id:ride.spec.id,bx:ride.x,bz:ride.z,bh:ride.heading,engineRunning:!state.fallen&&(state.rpm??0)>0,walking:true,x:w.x,z:w.z,side:w.side},obstacles)}
   const invite=new URL(location.href);invite.search='';invite.hash='';invite.searchParams.set('room',code);(el('invite-link') as HTMLInputElement).value=invite.toString();
   (el('room-code') as HTMLInputElement).value=code;el('invite-area').classList.remove('hidden');el('online').classList.add('hidden');resume();notify(`Você entrou na sala ${code}. Boa viagem!`);
  },
@@ -201,7 +206,7 @@ function chooseVehicle(id:VehicleId){
  if(started&&!foot.riding){notify('Monte na moto antes de trocar');return}
  if(career.state.job&&career.state.job.vehicle!==id){notify('Conclua o trabalho antes de trocar de moto');return}
  if(!career.state.owned.includes(id)&&!(import.meta.env.DEV&&new URLSearchParams(location.search).has('inspect')))return;
- if(started)saveWear(settings.vehicle);crashView.reset();scene.remove(bike.root);disposeBike(bike);settings.vehicle=id;bike=createBike(id);bike.dirt.value=dirtLevels[id];bike.pet.setUnlocked(career.state.pet&&caramelosMission.petUnlocked);bike.riderRig.setFullFace(settings.fullFace);assignLocalBikeLayer(bike.root);applyBikeColor(bike,bikeColors[settings.vehicle]);enableShadows(bike.root);scene.add(bike.root);ride.spec=getVehicle(id);ride.speed=0;ride.fallen=false;ride.crash=undefined;fallEventHandled=false;ride.engine.reset(ride.spec.idleRpm);ride.lean=0;ride.resetBody();ride.contact();sound.vehicle=id;camera.initialized=false;
+ if(started)saveWear(settings.vehicle);crashView.reset();scene.remove(bike.root);disposeBike(bike);settings.vehicle=id;bike=createBike(id);bike.dirt.value=dirtLevels[id];bike.pet.setUnlocked(career.state.pet&&caramelosMission.petUnlocked);bike.riderRig.setFullFace(settings.fullFace);assignLocalBikeLayer(bike.root);applyBikeColor(bike,bikeColors[settings.vehicle]);enableShadows(bike.root);scene.add(bike.root);ride.spec=getVehicle(id);ride.engine.stop();sound.setStarting(false);ride.speed=0;ride.fallen=false;ride.crash=undefined;fallEventHandled=false;ride.engine.reset(ride.spec.idleRpm);ride.lean=0;ride.resetBody();ride.contact();sound.vehicle=id;camera.initialized=false;
  for(const name of ['vehicle-intro','vehicle-pause'])(el(name) as HTMLSelectElement).value=id;
  el('vehicle-note').textContent=ride.spec.note;refreshCareer();save(settings);
 }
@@ -226,6 +231,9 @@ transmission.onchange=()=>{settings.transmission=transmission.value as typeof se
 updateTransmissionUi();
 ride.sandAt=(x,z)=>roadEvents.sandAt(x,z);
 const postureKey=el('posture-key') as HTMLSelectElement,postureButton=el('posture-button') as HTMLSelectElement;
+const ignitionHelp=document.createElement('small');
+ignitionHelp.textContent='Motor · segure B ou View/Select para ligar. Pressione novamente para desligar. Se View/Select controla a postura, use L3 para a partida.';
+postureKey.parentElement!.after(ignitionHelp);
 postureKey.value=settings.postureKey;postureButton.value=String(settings.postureButton);
 postureKey.onchange=()=>{settings.postureKey=postureKey.value;save(settings)};
 postureButton.onchange=()=>{settings.postureButton=Number(postureButton.value);save(settings)};
@@ -283,12 +291,12 @@ for(const button of Array.from(touchControls.querySelectorAll<HTMLButtonElement>
 function quality(){const q=settings.quality;renderer.setPixelRatio(Math.min(devicePixelRatio,q==='baixo'?.8:q==='medio'?1.25:1.7));configureShadows(renderer,sun,q);camera.camera.far=q==='baixo'?550:900;camera.camera.updateProjectionMatrix();(scene.fog as T.Fog).far=q==='baixo'?500:700;sound.volume=settings.motor;sound.effects=settings.effects;sound.ambience=settings.ambient;save(settings)}quality();
 (el('quality') as HTMLSelectElement).value=settings.quality;(el('motor') as HTMLInputElement).value=String(settings.motor);(el('ambient') as HTMLInputElement).value=String(settings.ambient);
 el('quality').onchange=e=>{settings.quality=(e.target as HTMLSelectElement).value as typeof settings.quality;quality()};(el('effects') as HTMLInputElement).value=String(settings.effects);for(const name of ['motor','ambient','effects'] as const)el(name).oninput=e=>{settings[name]=Number((e.target as HTMLInputElement).value);quality()};
-function pause(){saveTravel();if(!ride.fallen){const standing=ride.posture.standing;ride.resetBody();ride.posture.standing=standing}ride.brakeInput=0;void ride.fuel.save().catch(()=>notify('Falha ao salvar combustível'));saveDirt(dirtLevels);saveWear(settings.vehicle);washing=false;playing=false;padHorn=false;updateHorn();rearMirror.setActive(false);ride.speed=0;keys.clear();clearTouchInputs();touchControls.classList.remove('active');network.send({crash:crashPose(),walker:walkerPose(),pose:networkPose(),frontCompression:ride.suspension.front.compression,rearCompression:ride.suspension.rear.compression,dirt:bike.dirt.value,fullFace:settings.fullFace,vehicleId:settings.vehicle,color:bikeColors[settings.vehicle],bodyLean:ride.bodyLean,wheelie:ride.wheelie,fallen:ride.fallen,braking:false,drifting:false,cargo:bike.cargo.visible,petUnlocked:career.state.pet&&caramelosMission.petUnlocked,revMatchSequence:ride.engine.revMatchSequence,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer},performance.now(),true);el('panel').classList.remove('hidden')}
+function pause(){ride.engine.cancelStarter();sound.setStarting(false);saveTravel();if(!ride.fallen){const standing=ride.posture.standing;ride.resetBody();ride.posture.standing=standing}ride.brakeInput=0;void ride.fuel.save().catch(()=>notify('Falha ao salvar combustível'));saveDirt(dirtLevels);saveWear(settings.vehicle);washing=false;playing=false;padHorn=false;updateHorn();rearMirror.setActive(false);ride.speed=0;keys.clear();clearTouchInputs();touchControls.classList.remove('active');network.send({crash:crashPose(),walker:walkerPose(),pose:networkPose(),frontCompression:ride.suspension.front.compression,rearCompression:ride.suspension.rear.compression,dirt:bike.dirt.value,fullFace:settings.fullFace,vehicleId:settings.vehicle,color:bikeColors[settings.vehicle],bodyLean:ride.bodyLean,wheelie:ride.wheelie,fallen:ride.fallen,braking:false,drifting:false,cargo:bike.cargo.visible,petUnlocked:career.state.pet&&caramelosMission.petUnlocked,revMatchSequence:ride.engine.revMatchSequence,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer},performance.now(),true);el('panel').classList.remove('hidden')}
 function resume(){if(fuelDialog.open)return;started=true;playing=true;rearMirror.setActive(true);el('intro').classList.add('hidden');el('panel').classList.add('hidden');el('hud').classList.remove('hidden');touchControls.classList.add('active');void sound.start().then(()=>{el('audio-status').textContent='Áudio pronto'}).catch(()=>{el('audio-status').textContent='Falha ao carregar áudio. Tente continuar novamente.';notify('Não foi possível carregar o áudio.')});last=performance.now();accumulator=0}
 function notify(text:string){el('notification').textContent=text;el('notification').classList.add('visible');notifyUntil=performance.now()+4500}
 
-el('start').onclick=resume;el('resume').onclick=resume;el('pause').onclick=pause;el('settings-open').onclick=pause;el('recover').onclick=()=>{crashView.reset();foot.reset();ride.recover();camera.initialized=false;resume()};el('home').onclick=()=>{playing=false;updateHorn();rearMirror.setActive(false);ride.speed=0;touchControls.classList.remove('active');clearTouchInputs();el('panel').classList.add('hidden');el('intro').classList.remove('hidden');el('hud').classList.add('hidden')};el('credits-open').onclick=()=>el('credits').classList.remove('hidden');el('credits-close').onclick=()=>el('credits').classList.add('hidden');
-window.addEventListener('keydown',e=>{if(roadLife.dialog.open||fuelDialog.open)return;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','PageUp','PageDown'].includes(e.code))e.preventDefault();if(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement)return;keys.add(e.code);if(e.repeat)return;if(e.code===settings.postureKey){togglePosture();return}if(playing&&e.code==='KeyV'){changeMount();return}if(playing&&e.code==='KeyP'){changePush();return}if(explorationPanel.isOpen){if(e.code==='Escape')explorationPanel.close();return}if(e.code==='Escape'){if(playing)pause();else if(started)resume()}if(playing&&foot.riding&&settings.transmission==='manual'){if(e.code==='PageUp')ride.engine.requestShift(1,ride.speed,ride.spec,ride.topSpeed,settings.ridingMode==='realistic');if(e.code==='PageDown')ride.engine.requestShift(-1,ride.speed,ride.spec,ride.topSpeed,settings.ridingMode==='realistic')}if(e.code==='KeyF'&&playing)collectNearbyCaramelo();if(e.code==='KeyR'&&playing){crashView.reset();foot.reset();ride.recover();camera.initialized=false;notify('De volta à estrada. Boa viagem!')}if(e.code==='KeyH')updateHorn();if(e.code==='KeyC'&&playing)toggleCamera()});window.addEventListener('keyup',e=>{keys.delete(e.code);if(e.code==='KeyH')updateHorn()});window.addEventListener('blur',()=>{keys.clear();clearTouchInputs();if(playing)pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing)pause()});
+el('start').onclick=()=>{resume();if(!ride.engine.running)notify('Segure B ou o botão de partida do controle para ligar')};el('resume').onclick=resume;el('pause').onclick=pause;el('settings-open').onclick=pause;el('recover').onclick=()=>{crashView.reset();foot.reset();ride.recover();camera.initialized=false;resume()};el('home').onclick=()=>{playing=false;updateHorn();rearMirror.setActive(false);ride.speed=0;touchControls.classList.remove('active');clearTouchInputs();el('panel').classList.add('hidden');el('intro').classList.remove('hidden');el('hud').classList.add('hidden')};el('credits-open').onclick=()=>el('credits').classList.remove('hidden');el('credits-close').onclick=()=>el('credits').classList.add('hidden');
+window.addEventListener('keydown',e=>{if(roadLife.dialog.open||fuelDialog.open||chart.dialog.open)return;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','PageUp','PageDown'].includes(e.code))e.preventDefault();if(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement)return;keys.add(e.code);if(e.repeat)return;if(e.code===settings.postureKey){togglePosture();return}if(playing&&e.code==='KeyV'){changeMount();return}if(playing&&e.code==='KeyP'){changePush();return}if(explorationPanel.isOpen){if(e.code==='Escape')explorationPanel.close();return}if(e.code==='Escape'){if(playing)pause();else if(started)resume()}if(playing&&foot.riding&&settings.transmission==='manual'){if(e.code==='PageUp')ride.engine.requestShift(1,ride.speed,ride.spec,ride.topSpeed,settings.ridingMode==='realistic');if(e.code==='PageDown')ride.engine.requestShift(-1,ride.speed,ride.spec,ride.topSpeed,settings.ridingMode==='realistic')}if(e.code==='KeyF'&&playing)collectNearbyCaramelo();if(e.code==='KeyR'&&playing){crashView.reset();foot.reset();ride.recover();camera.initialized=false;notify('De volta à estrada. Boa viagem!')}if(e.code==='KeyH')updateHorn();if(e.code==='KeyC'&&playing)toggleCamera()});window.addEventListener('keyup',e=>{keys.delete(e.code);if(e.code==='KeyH')updateHorn()});window.addEventListener('blur',()=>{keys.clear();clearTouchInputs();if(playing)pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing)pause()});
 let dragging=false,oldX=0,oldY=0;renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;oldX=e.clientX;oldY=e.clientY;renderer.domElement.setPointerCapture(e.pointerId)});renderer.domElement.addEventListener('pointermove',e=>{if(dragging){camera.orbit-=(e.clientX-oldX)*.006;camera.pitch=T.MathUtils.clamp(camera.pitch-(e.clientY-oldY)*.004,camera.firstPerson?CAMERA_TUNING.minLookPitch:-.65,CAMERA_TUNING.maxLookPitch);oldX=e.clientX;oldY=e.clientY}});renderer.domElement.addEventListener('pointerup',()=>{dragging=false});
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.camera.aspect=innerWidth/innerHeight;camera.camera.updateProjectionMatrix()});
 
@@ -299,7 +307,7 @@ const roadLife=careerUI(career,npc,world.shops,world.depots,world.dealers,()=>se
 const petToggle=el('pet-active') as HTMLInputElement;
 petToggle.onchange=()=>{if(caramelosMission.petUnlocked)void career.change(s=>{s.pet=petToggle.checked})};
 el('journeys').onclick=()=>roadLife.manage();
-type WearDelta={fork:number;motor:number;pneus:number;freios:number;km:number};
+
 const pendingWear=new Map<VehicleId,WearDelta>();
 function saveWear(id:VehicleId,immediate=false){
  if(!pendingWear.has(id))return;
@@ -323,7 +331,7 @@ const footButton=document.createElement('button'),pushButton=document.createElem
   }
   return hits;
  }
- function changeMount(){if(!playing||crashView.active)return;if(ride.fallen){if(foot.riding||!foot.near(ride)||!ride.crash?.bike.sleeping)return;crashView.reset();ride.liftHere();notify('Moto levantada. Você pode montar e continuar.');return}if(!foot.mount(ride,nearbyObstacles()))return;
+ function changeMount(){if(!playing||crashView.active)return;if(ride.fallen){if(foot.riding||!foot.near(ride)||!ride.crash?.bike.sleeping)return;crashView.reset();ride.liftHere();notify('Moto levantada. Você pode montar e continuar.');return}if(!foot.mount(ride,nearbyObstacles()))return;ride.engine.cancelStarter();sound.setStarting(false);
 
   ride.drift.reset();updateHorn();keys.clear();clearTouchInputs()}
  function changePush(){if(playing&&!ride.fallen)foot.push(ride,nearbyObstacles())}
@@ -359,25 +367,41 @@ const footButton=document.createElement('button'),pushButton=document.createElem
  };
 let hudTimer=.2,fuelSaveTimer=0,refueling=false,washing=false;
 const routeCanvas=el('route-map') as HTMLCanvasElement,routeContext=routeCanvas.getContext('2d')!;
-let overview=false;
-routeCanvas.tabIndex=0;routeCanvas.setAttribute('role','button');routeCanvas.title='Alternar mapa local e mapa completo';
-const toggleMap=()=>{overview=!overview;routeCanvas.setAttribute('aria-pressed',String(overview));drawMap()};
-routeCanvas.onclick=toggleMap;routeCanvas.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();toggleMap()}};
 const chartRoutes=routes.map(r=>({...r,points:r.points.filter((_,i)=>i%8===0||i===r.points.length-1)}));
-const bounds=new T.Box3();for(const r of routes)for(const p of r.points)bounds.expandByPoint(p);
-const mapCenter=bounds.getCenter(new T.Vector3()),mapSize=bounds.getSize(new T.Vector3());
-function drawMap(){const c=routeContext,w=routeCanvas.width,h=routeCanvas.height;c.clearRect(0,0,w,h);const here=overview?mapCenter:person(),scale=overview?Math.min((w-12)/mapSize.x,(h-12)/mapSize.z):w/6000,point=(x:number,z:number)=>[w/2+(x-here.x)*scale,h/2+(z-here.z)*scale];
+const gps=new Navigation(),updateRibbon=routeRibbon(scene);
+const syncGps=()=>{gps.update(person(),destination(career.state),career.state.job?.id??career.state.expedition?.id);updateRibbon(gps)};
+const chart=worldMap(chartRoutes,[...pois,...world.shops,...world.depots,...world.dealers],gps,person,()=>foot.riding?ride.heading:foot.heading,syncGps);
+let resumeAfterMap=false;
+function openMap(){
+ if(!started||chart.dialog.open||document.querySelector('dialog[open]')||explorationPanel.isOpen)return;
+ resumeAfterMap=playing;
+ if(playing){pause();sound.update(0,ride.gear,0,true);el('panel').classList.add('hidden')}
+ chart.open();
+}
+chart.dialog.onclose=()=>{keys.clear();if(resumeAfterMap&&!document.hidden)resume();else el('panel').classList.remove('hidden');resumeAfterMap=false};
+const mapButton=document.createElement('button');mapButton.textContent='Mapa (M)';mapButton.onclick=openMap;el('resume').after(mapButton);
+routeCanvas.tabIndex=0;routeCanvas.setAttribute('role','button');routeCanvas.title='Abrir mapa (M)';
+routeCanvas.onclick=openMap;routeCanvas.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();openMap()}};
+window.addEventListener('keydown',e=>{
+ if(chart.dialog.open&&e.code==='Escape'){e.preventDefault();e.stopImmediatePropagation();chart.dialog.close();return}
+ if(e.code!=='KeyM'||e.repeat||e.ctrlKey||e.altKey||e.metaKey||e.target instanceof HTMLElement&&e.target.closest('input,textarea,[contenteditable="true"]'))return;
+ if(!chart.dialog.open&&(!started||explorationPanel.isOpen||document.querySelector('dialog[open]')))return;
+ e.preventDefault();e.stopImmediatePropagation();if(chart.dialog.open)chart.dialog.close();else openMap();
+},true);
+function drawMap(){const c=routeContext,w=routeCanvas.width,h=routeCanvas.height;c.clearRect(0,0,w,h);const here=person(),scale=w/6000,point=(x:number,z:number)=>[w/2+(x-here.x)*scale,h/2+(z-here.z)*scale];
  const line=(points:readonly {x:number;z:number}[],color:string,width:number,dashed=false)=>{c.strokeStyle=color;c.lineWidth=width;c.setLineDash(dashed?[3,2]:[]);c.beginPath();points.forEach((p,i)=>{const [x,z]=point(p.x,p.z);if(i===0)c.moveTo(x,z);else c.lineTo(x,z)});c.stroke()};
  line(river,'#78b8c7',2);for(const route of chartRoutes)line(route.points,route.surface==='terra'?'#e0ac66':'#d7dfc5',route.id==='main'?1.8:1.2,route.surface==='terra');c.setLineDash([]);
  for(const spot of caramelosMission.visibleSpots(settings.carameloMapMode==='easy')){if(!spot.discovered)continue;const [x,z]=point(spot.x,spot.z);c.fillStyle=spot.found?'#a9d887':'#d9a555';c.beginPath();c.arc(x,z,spot.found?4:3.5,0,Math.PI*2);c.fill();if(!spot.found){c.strokeStyle='#fff0c8';c.lineWidth=1;c.stroke()}}
  for(const dealer of world.dealers){const [x,z]=point(dealer.x,dealer.z);c.fillStyle='#7fe4ea';c.beginPath();c.moveTo(x,z-4);c.lineTo(x+4,z);c.lineTo(x,z+4);c.lineTo(x-4,z);c.closePath();c.fill()}
  for(const s of stations){const [x,z]=point(s.x,s.z);c.fillStyle='#f1cc82';c.fillRect(x-3,z-3,6,6)}
- const dest=destination(career.state);if(dest){const [mx,mz]=point(dest.x,dest.z);c.fillStyle='#ffcb49';c.beginPath();c.arc(mx,mz,5,0,Math.PI*2);c.fill()}
+ if(gps.path){const points=gps.path.points.slice(gps.index,gps.index+1400).filter((_,i)=>i%4===0);line(points,'#55dfff',2.5)}
+ const dest=gps.goal;if(dest){const [mx,mz]=point(dest.x,dest.z);c.fillStyle='#ffcb49';c.beginPath();c.arc(mx,mz,5,0,Math.PI*2);c.fill()}
  if(!foot.riding){const [bx,bz]=point(ride.x,ride.z);c.fillStyle='#dfb85e';c.fillRect(bx-2,bz-2,4,4)}
  const [x,z]=point(person().x,person().z);c.fillStyle='#ffffff';c.beginPath();c.arc(x,z,4,0,Math.PI*2);c.fill();}
 
 function frame(now:number){
- requestAnimationFrame(frame);const dt=Math.max(0,Math.min((now-last)/1000,.1));last=now;
+ requestAnimationFrame(frame);const elapsed=Math.max(0,(now-last)/1000),dt=Math.min(elapsed,.1);last=now;
+ if(chart.dialog.open)return;
  const avatar=person();const far=avatar.x<-1800?5200:settings.quality==='baixo'?550:900;if(camera.camera.far!==far){camera.camera.far=far;camera.camera.updateProjectionMatrix()}world.update(avatar.x,avatar.z,now,foot.riding?ride.speed:0,ride.heading);const coast=coastalBlend(avatar.x,avatar.z),day=dayCycle.update(inspectHour===undefined?network.clock:(inspectHour-DAY_TUNING.startHour+24)%24/24*DAY_TUNING.cycleSeconds*1000,avatar.x,avatar.y,avatar.z,coast,avatar.x<-1800?(settings.quality==='baixo'?2100:4200):settings.quality==='baixo'?500:700);renderer.toneMappingExposure=.95+coast*.05*day.daylight;bike.headlight.update(day.night);world.updatePlaceLights(ride.x,ride.z,day.night);
  const pad=controller.poll(settings.deadzone,settings.sensitivity,undefined,settings.postureButton);
  if(fuelDialog.open){
@@ -387,6 +411,7 @@ function frame(now:number){
   renderer.render(scene,camera.camera);return;
  }
  if(roadLife.dialog.open){
+  ride.engine.cancelStarter();sound.setStarting(false);
   const actions=Array.from(roadLife.dialog.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
   const focus=actions.indexOf(document.activeElement as HTMLButtonElement);
   if(pad.pause)roadLife.dialog.close();
@@ -428,23 +453,29 @@ function frame(now:number){
   const stopped=refueling||washing,before=ride.distance;
   let washSeconds=0;
   const rearBrakeHeld=foot.riding&&!explorationBlocking&&(keys.has('Space')||pad.drift||touchInputs.drift);
+   const held=keys.has('KeyB')||pad.starter||touchInputs.starter;
+   const clutch=keys.has('ShiftLeft')||keys.has('ShiftRight')?1:pad.clutch;
+   if(foot.riding&&!ride.fallen&&!stopped&&!explorationBlocking){
+    const safe=safeToStart(ride.spec.id,ride.gear,settings.transmission==='automatic',clutch);
+    const message=ride.engine.starter(ride.engine.ignition==='starting'?elapsed:0,held,ride.spec,ride.equipment.motor,ride.fuel.get(ride.spec.id),safe);
+    if(message)notify(message);
+   }else ride.engine.cancelStarter(held);
   while(accumulator>=1/60){
-
    if(washing)washSeconds+=1/60;
+   const previousMetres=ride.distance;
    if(!foot.riding)foot.step(1/60,ride,stopped?0:walkingForward,stopped?0:turn,footHits,camera.orbit,camera.firstPerson);
    if(foot.riding||ride.fallen)ride.step(1/60,stopped?0:throttle,stopped?1:brake,turn,obstacles,push,stopped?0:bodyInput,settings.transmission==='automatic',settings.ridingMode==='realistic',stopped,keys.has('ShiftLeft')||keys.has('ShiftRight')?1:pad.clutch,rearBrakeHeld);
+   const metres=ride.distance-previousMetres;
+   if(metres>0||foot.riding&&!ride.fallen&&ride.engine.running&&ride.engineThrottle>.5&&ride.engine.rpm>ride.spec.redlineRpm*.78){
+    let worn=pendingWear.get(settings.vehicle);
+    if(!worn){worn={fork:0,motor:0,pneus:0,freios:0,km:0};pendingWear.set(settings.vehicle,worn)}
+    const soil=ride.handlingMode==='simcade'?ride.rearContact.surface:ride.sampleContact(ride.x,ride.z);
+    accumulateWear(worn,ride,metres,soil,ride.engineThrottle,1/60);
+   }
    accumulator-=1/60;
   }
-  const metres=ride.distance-before;
-  if(metres>0){
-   let worn=pendingWear.get(settings.vehicle);if(!worn){worn={fork:0,motor:0,pneus:0,freios:0,km:0};pendingWear.set(settings.vehicle,worn)}
-   const paved=surface(ride.x,ride.z)==='asfalto',tyre=ride.equipment.tyre;
-   worn.fork+=metres*(paved?1:1.6)/3500;
-   worn.km+=metres/1000;worn.motor+=metres*(1+throttle*.3)/2500;worn.freios+=metres*(.12+brake)/1100;
-   worn.pneus+=metres*(ride.drift.active?3:1)*(tyre==='pista'&&!paved||tyre==='trilha'&&paved?1.5:1)/1500;
-  }
   if(ride.distance>before||washSeconds){
-   bike.dirt.value=dirtLevels[settings.vehicle]=nextDirt(bike.dirt.value,surface(ride.x,ride.z),ride.distance-before,washSeconds);
+   bike.dirt.value=dirtLevels[settings.vehicle]=nextDirt(bike.dirt.value,ride.sampleContact(ride.x,ride.z),ride.distance-before,washSeconds);
    if(washing&&bike.dirt.value===0)notify('Lavagem concluída · moto limpa!');
   }
    wheelieDebugTimer+=dt;if(wheelieDebugTimer>=.25){
@@ -484,6 +515,7 @@ function frame(now:number){
    else (i<2?rig.limbs[i].hand:i<4?rig.limbs[i-2].foot:rig.hips).getWorldPosition(marker.position);
   }
  }
+ sound.setStarting(playing&&foot.riding&&!ride.fallen&&ride.engine.ignition==='starting');
  sound.update(ride.speed,ride.gear,ride.pushing||ride.fallen?0:ride.engineThrottle,!playing||!foot.riding||refueling||ride.fuel.get(settings.vehicle)<=0,ride.brakeInput,ride.engine,ride.suspension.acceleration,ride.frontContact,ride.rearContact);
  network.send({crash:crashPose(),walker:walkerPose(),pose:networkPose(),frontCompression:ride.suspension.front.compression,rearCompression:ride.suspension.rear.compression,dirt:bike.dirt.value,fullFace:settings.fullFace,vehicleId:settings.vehicle,color:bikeColors[settings.vehicle],bodyLean:ride.bodyLean,wheelie:ride.wheelie,fallen:ride.fallen,braking:playing&&ride.brakeInput>.05,drifting:playing&&ride.drift.active,burnoutSpeed:playing?ride.burnoutSpeed:0,cargo:bike.cargo.visible,petUnlocked:career.state.pet&&caramelosMission.petUnlocked,revMatchSequence:ride.engine.revMatchSequence,gear:ride.gear,rpm:ride.engine.rpm,x:ride.x,y:ride.y,z:ride.z,heading:ride.heading,speed:playing?ride.speed:0,pitch:ride.pitch,lean:ride.lean,steer:ride.steer},now);
  remoteRiders.render(now,dt,day.night);
@@ -510,7 +542,7 @@ el('world-time').textContent=`${day.night>.5?'☾':'☀'} ${String(Math.floor(da
   pushButton.textContent=foot.mode==='PUSHING'?'Soltar moto · P':'Empurrar moto · P';
   if(!foot.riding)el('gear').textContent=foot.mode==='PUSHING'?'EMPURRANDO':'A PÉ';
   if(station||atWash||pumpInReach())el('fuel-hint').textContent=foot.riding?'Desça da moto · V':washInReach()?'Segure E para lavar':pumpInReach()?'E · escolher litros e abastecer':'Aproxime a moto e caminhe até a bomba';
-  el('route-progress').textContent=route.track.id==='main'?`Horizonte · km ${progress.toFixed(1)} / ${(roadLength/1000).toFixed(1)}`:`${route.track.name} · ${route.track.surface}`;drawMap();
+  el('route-progress').textContent=route.track.id==='main'?`Horizonte · km ${progress.toFixed(1)} / ${(roadLength/1000).toFixed(1)}`:`${route.track.name} · ${route.track.surface}`;syncGps();if(gps.goal){el('route-progress').textContent=gps.path?gps.goal.name+' · '+(gps.remaining/1000).toFixed(1)+' km':gps.goal.name+' · sem acesso rodoviário'}drawMap();
   el('gamepad-status').textContent=pad.connected?'Controle conectado · mapeamento padrão':'Conecte um controle padrão e pressione um botão.';
  }
  renderer.render(scene,camera.camera);
